@@ -673,7 +673,7 @@ void readCmdLineSysGen(
     char ch;
     
     
-    if(argc<9)
+    if(argc<7)
     {
       if(argc==2 && CmdLineHelp(argv[1]))
         {
@@ -821,8 +821,6 @@ void writeAmatrix(
 
 
 
-
-/*
 void readParamsSysMatrix(
                          struct CmdLineSysGen *cmdline,
                          struct ImageParams3D *imgparams,
@@ -839,36 +837,7 @@ void readParamsSysMatrix(
     printImageParams3D(imgparams);
     printSinoParams3DParallel(sinoparams);
 }
-*/
 
-void readSystemParams  (
-                         struct CmdLineSysGen *cmdline,
-                         struct ImageParams3D *imgparams,
-                         struct SinoParams3DParallel *sinoparams,
-                         struct ReconParamsQGGMRF3D *reconparams)
-{
-    printf("\nReading Image, Sinogram and Reconstruction Parameters ... \n");
-    
-    if(ReadImageParams3D(cmdline->imgparamsFileName, imgparams))
-      {
-        fprintf(stdout,"Error in reading image parameters \n");
-        exit(-1);
-      }
-    if(ReadSinoParams3DParallel(cmdline->sinoparamsFileName, sinoparams))
-      {
-        fprintf(stdout,"Error in reading sinogram parameters \n");
-        exit(-1);
-      }
-    if(ReadReconParamsQGGMRF3D(cmdline->ReconParamsFile ,reconparams))
-      {
-        fprintf(stdout,"Error in reading reconstruction parameters \n");
-        exit(-1);
-      } 
-    /* Print paramters */
-    printImageParams3D(imgparams);
-    printSinoParams3DParallel(sinoparams);
-    printReconParamsQGGMRF3D(reconparams);
-}
 
 void PrintCmdLineUsage(char *ExecFileName)
 {

@@ -96,7 +96,8 @@ int main(int argc, char *argv[])
     	}
 
     	/* Initialize image and reconstruction mask */
-    	InitValue = reconparams.MuWater;
+    	//InitValue = reconparams.MuWater;
+    	InitValue = MUWATER;
     	OutsideROIValue = reconparams.MuAir;
     	Initialize_Image(&Image, &cmdline, InitValue);
     	ImageReconMask = GenImageReconMask(&Image,OutsideROIValue);    	

@@ -72,8 +72,7 @@ float **ComputePixelProfile3DParallel(struct SinoParams3DParallel *sinoparams, s
 /* Read Command line */
 void readCmdLineSysGen(int argc, char *argv[], struct CmdLineSysGen *cmdline);
 /* Wrapper to read in system matrix parameters from Command line */
-//void readParamsSysMatrix(struct CmdLineSysGen *cmdline, struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams);
-void readSystemParams  (struct CmdLineSysGen *cmdline,struct ImageParams3D *imgparams,struct SinoParams3DParallel *sinoparams,struct ReconParamsQGGMRF3D *reconparams);
+void readParamsSysMatrix(struct CmdLineSysGen *cmdline, struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams);
 /* Print correct usage of Command Line*/
 void PrintCmdLineUsage(char *ExecFileName);
 int CmdLineHelp(char *string);

@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
     struct CmdLineSysGen cmdline;
     struct ImageParams3D imgparams;
     struct SinoParams3DParallel sinoparams;
-    struct ReconParamsQGGMRF3D reconparams;    
+    //struct ReconParamsQGGMRF3D reconparams;    
     float **PixelDetector_profile;
     struct minStruct *bandMinMap;
     struct maxStruct *bandMaxMap;
@@ -138,16 +138,14 @@ int main(int argc, char *argv[])
     	fprintf(stdout,"reach 1 system matrix directory %s\n",cmdline.SysMatrixFileName);  
 
 	/* read input arguments and parameters */
-	//readParamsSysMatrix(&cmdline, &imgparams, &sinoparams);
- 
-        readSystemParams(&cmdline, &imgparams, &sinoparams, &reconparams); 
+	readParamsSysMatrix(&cmdline, &imgparams, &sinoparams);
         
     	if(sinoparams.NViews%pieceLength!=0){
 		fprintf(stderr, "NViews mod pieceLength must be 0.\n");
                 exit(-1);
         }        
     
-    	fprintf(stdout, "\nGeneration of System Matrix takes about 8 minutes for this Demo. Please Wait patiently ... \n");
+    	fprintf(stdout, "\nGenerating System Matrix...\n");
 
 	unsigned int sum=0;
 	int i,j,p,t;
@@ -232,7 +230,8 @@ int main(int argc, char *argv[])
     
     	fprintf(stdout, "after A comp \n");	
 
-	float InitValue = reconparams.MuWater;    
+	//float InitValue = reconparams.MuWater;    
+	float InitValue = MUWATER;    
     
 	forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map,bandMinMap, &sinoparams, &imgparams);	    
     
