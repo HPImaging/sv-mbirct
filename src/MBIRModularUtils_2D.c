@@ -604,10 +604,11 @@ int ReadReconParamsQGGMRF2D(char *fname, struct ReconParamsQGGMRF2D *reconparams
     
     fgets(tag, 200, fp);
     fscanf(fp, "%f\n", &(reconparams->StopThreshold));
-    if(reconparams->StopThreshold <= 0){
-        fprintf(stderr,"ERROR in ReadReconParamsQGGMRF2D: Stop Threshold in %% must be greater than zero \n");
-        exit(-1);
-    }
+    //SJK: allow 0 (or negative) StopThreshold to disable and "run maximum iterations"
+    //if(reconparams->StopThreshold <= 0){
+    //    fprintf(stderr,"ERROR in ReadReconParamsQGGMRF2D: Stop Threshold in %% must be greater than zero \n");
+    //    exit(-1);
+    //}
     
     fgets(tag, 200, fp);
     fscanf(fp, "%d\n",  &(reconparams->MaxIterations));
