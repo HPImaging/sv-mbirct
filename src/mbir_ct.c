@@ -59,6 +59,12 @@ int main(int argc, char *argv[])
 	reconparams.FirstSliceNumber=firstSliceOfVolume;	
 
     /* Read System Matrix */
+	int pieceLength=PIECELEN;
+        if(sinogram.sinoparams.NViews%pieceLength!=0){
+                fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
+                fprintf(stderr, "Exiting %s\n",argv[0]);
+                exit(-1);
+        }
 	for(i=0;i<Image.imgparams.Ny;i+=(SVLength*2-overlappingDistance1)){
 	  	for(j=0;j<Image.imgparams.Nx;j+=(SVLength*2-overlappingDistance2)){
 	    		sum++;
@@ -71,7 +77,7 @@ int main(int argc, char *argv[])
 	max_num_pointer = (float *)malloc(Image.imgparams.Ny*Image.imgparams.Nx*sizeof(float));	
 	char fname[200];
     	sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);		
-	readAmatrix(fname,A_Padded_Map, max_num_pointer,&Image.imgparams,&sinogram.sinoparams, sum,bandMinMap,bandMaxMap);	
+	readAmatrix(fname,A_Padded_Map, max_num_pointer,&Image.imgparams,&sinogram.sinoparams, sum,bandMinMap,bandMaxMap,pieceLength);
 
 
     /* Read Sinogram and Weights */
@@ -105,7 +111,7 @@ int main(int argc, char *argv[])
         //gettimeofday(&tm1,NULL);
     
     	/* MBIR - Reconstruction */
-    	MBIRReconstruct3D(&Image,&sinogram,reconparams,ImageReconMask,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum); 
+    	MBIRReconstruct3D(&Image,&sinogram,reconparams,ImageReconMask,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum,pieceLength);
     		
         //gettimeofday(&tm2,NULL);
         //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;

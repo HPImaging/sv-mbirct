@@ -111,7 +111,7 @@ static __inline__ unsigned long long rdtsc()
 
 
 
-void super_voxel_recon(int jj,float *total_updates,int it, int *phaseMap,int *order,int *indexList,int Nx,int Ny,struct minStruct *bandMinMap, struct maxStruct *bandMaxMap,float **w,float **e, struct AValues_char ** A_Padded_Map,const int mySize,struct heap_node *headNodeArray,const int N_thetadivided,struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct ImageParams3D imgparams,float *max_num_pointer,float **image,float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,int SV_per_Z,int SVsPerLine,long *updatedVoxels,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp){
+void super_voxel_recon(int jj,float *total_updates,int it, int *phaseMap,int *order,int *indexList,int Nx,int Ny,struct minStruct *bandMinMap, struct maxStruct *bandMaxMap,float **w,float **e, struct AValues_char ** A_Padded_Map,const int mySize,struct heap_node *headNodeArray,const int N_thetadivided,struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct ImageParams3D imgparams,float *max_num_pointer,float **image,float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,int SV_per_Z,int SVsPerLine,long *updatedVoxels,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp,int pieceLength){
 
 			int jy,jx,p,i,q,t,j,currentSlice;
 			int startSlice;	
@@ -541,7 +541,7 @@ void MBIRReconstruct3D(
                        struct Sino3DParallel *sinogram,
                        struct ReconParamsQGGMRF3D reconparams,
                        char *ImageReconMask,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,
-	struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct CmdLineMBIR * cmdline,int sum)
+	struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct CmdLineMBIR * cmdline,int sum, int pieceLength)
 {
     	int it, MaxIterations, j, k, l, Nx, Ny, Nz, Nxy, N, i, XYPixelIndex, M, currentSlice,jj,p,t,N_theta;
     	float **x;  /* image data */
@@ -800,7 +800,7 @@ void MBIRReconstruct3D(
 				#pragma omp for schedule(dynamic)  reduction(+:total_updates)
 				for (jj = startIndex; jj < endIndex; jj+=1)
 				{				
-					super_voxel_recon(jj,&total_updates,it, &phaseMap[0],order,&indexList[0],Nx,Ny, bandMinMap, bandMaxMap,w,e,A_Padded_Map,mySize,&headNodeArray[0],N_thetadivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,&updatedVoxels,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
+					super_voxel_recon(jj,&total_updates,it, &phaseMap[0],order,&indexList[0],Nx,Ny, bandMinMap, bandMaxMap,w,e,A_Padded_Map,mySize,&headNodeArray[0],N_thetadivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,&updatedVoxels,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp,pieceLength);
 				}
 			}
 			

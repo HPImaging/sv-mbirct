@@ -32,7 +32,12 @@ void writeErrorSinogram(
 void forwardProject2D(
 	float *e,
 	float InitValue,
-	float *max_num_pointer,struct AValues_char ** A_Padded_Map,struct minStruct *bandMinMap,struct SinoParams3DParallel *sinoparams,struct ImageParams3D *imgparams)
+	float *max_num_pointer,
+	struct AValues_char ** A_Padded_Map,
+	struct minStruct *bandMinMap,
+	struct SinoParams3DParallel *sinoparams,
+	struct ImageParams3D *imgparams,
+	int pieceLength)
 {
 	int jx=0; 
 	int jy=0; 
@@ -127,6 +132,7 @@ int main(int argc, char *argv[])
     int *order;   
     float x_0, y_0, Deltaxy, x, y, yy, ROIRadius, R_sq, R_sq_max;
     int jx, jy,Nxy;         
+    int pieceLength=PIECELEN;
     
     /*struct SysMatrix2D *A ;*/
     
@@ -141,7 +147,8 @@ int main(int argc, char *argv[])
 	readParamsSysMatrix(&cmdline, &imgparams, &sinoparams);
         
     	if(sinoparams.NViews%pieceLength!=0){
-		fprintf(stderr, "NViews mod pieceLength must be 0.\n");
+		fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
+		fprintf(stderr, "Exiting %s\n",argv[0]);
                 exit(-1);
         }        
     
@@ -225,7 +232,7 @@ int main(int argc, char *argv[])
 
 
 	
-	A_comp(bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&sinoparams,sum,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName);
+	A_comp(bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&sinoparams,sum,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName,pieceLength);
 	    
     
     	fprintf(stdout, "after A comp \n");	
@@ -233,7 +240,7 @@ int main(int argc, char *argv[])
 	//float InitValue = reconparams.MuWater;    
 	float InitValue = MUWATER;    
     
-	forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map,bandMinMap, &sinoparams, &imgparams);	    
+	forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map,bandMinMap, &sinoparams, &imgparams, pieceLength);
     
 	char fname[200];
     	sprintf(fname,"%s.initialError",cmdline.SysMatrixFileName);

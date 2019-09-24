@@ -11,7 +11,7 @@
 
 // #define find_RMSE 
 
-void MBIRReconstruct3D(struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D reconparams,char *ImageReconMask,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct CmdLineMBIR * cmdLine,int sum);
+void MBIRReconstruct3D(struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D reconparams,char *ImageReconMask,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct CmdLineMBIR * cmdLine,int sum, int pieceLength);
 
 float MAPCostFunction3D(float **e, struct Image3D *Image, struct Sino3DParallel *sinogram, struct ReconParamsQGGMRF3D *reconparams);
 

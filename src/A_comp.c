@@ -281,7 +281,7 @@ void A_comp_ij(
 }
 
 
-void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams,char *sysMatrixPath)
+void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams,char *sysMatrixPath,int pieceLength)
 {
 
 	struct ACol ** A_Col_pointer=twoAddresses.addressA;
@@ -290,9 +290,6 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
 	int j,jj,i,jy,jx,p,q,t;
 	int Nx = imgparams->Nx;
 	int Ny = imgparams->Ny;	
-	
-
-
 
         for(jj=0;jj<sum;jj++){
             	for(i=0;i<(SVLength*2+1)*(SVLength*2+1);i++){
@@ -300,9 +297,7 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 	A_Padded_Map[jj][i].length=0;
             	}
         }
-	
-					    	
-	
+
 
         for (jj = 0; jj < sum; jj++)
         {
@@ -570,7 +565,7 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
 	char fname[200];
     	sprintf(fname,"%s.2Dsysmatrix",sysMatrixPath);	
  	remove(fname);
-	writeAmatrix(fname,A_Padded_Map, max_num_pointer,imgparams, sinoparams, sum, bandMinMap,bandMaxMap);
+	writeAmatrix(fname,A_Padded_Map, max_num_pointer,imgparams, sinoparams, sum, bandMinMap,bandMaxMap,pieceLength);
 	//fprintf(stdout, "After write AMatrix\n");  
 	fflush(stdout); 	    				
 					 		
@@ -583,7 +578,7 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
 /* The System matrix does not vary with slice for 3-D Parallel Geometry */
 /* So, the method of compuatation is same as that of 2-D Parallel Geometry */
        
-struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float * max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams, float **pix_prof,char* sysMatrixPath)         
+struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float * max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams, float **pix_prof,char* sysMatrixPath, int pieceLength)
 {
 	int i, j, r, nr;
 	int col_length, n_x, n_y;
@@ -644,7 +639,7 @@ struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *band
 
 	/*fflush(stdout);*/
 
-	A_piecewise(address_arr,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,sinoparams,sum,recon_mask,order,imgparams,sysMatrixPath);
+	A_piecewise(address_arr,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,sinoparams,sum,recon_mask,order,imgparams,sysMatrixPath,pieceLength);
 
 	
     	for (i = 0; i < n_y; i++)
@@ -737,7 +732,7 @@ void readCmdLineSysGen(
 void readAmatrix(
 	char *fname,
 	struct AValues_char ** A_Padded_Map, float * max_num_pointer,
-	struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap)
+	struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength)
 {
 	FILE *fp;
 	int i, j, Nx, Ny;
@@ -785,7 +780,7 @@ void readAmatrix(
 void writeAmatrix(
 	char *fname,
 	struct AValues_char ** A_Padded_Map, float * max_num_pointer,
-	struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum, struct minStruct *bandMinMap,struct maxStruct *bandMaxMap)
+	struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum, struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength)
 {
 	FILE *fp;
 	int i,j, Nx, Ny;

@@ -17,7 +17,8 @@ float dprof[101];
 
 #define  SVLength 9
 	
-#define pieceLength 48
+#define PIECELEN 48
+//#define PIECELEN 15
 	
 #define overlappingDistance1 2
 #define overlappingDistance2 2
@@ -76,8 +77,8 @@ void readParamsSysMatrix(struct CmdLineSysGen *cmdline, struct ImageParams3D *im
 /* Print correct usage of Command Line*/
 void PrintCmdLineUsage(char *ExecFileName);
 int CmdLineHelp(char *string);
-struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float * max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams, float** pix_prof,char* sysMatrixPath);
-void readAmatrix(char *fname,struct AValues_char ** A_Padded_Map, float * max_num_pointer,struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap);
-void writeAmatrix(char *fname,struct AValues_char ** A_Padded_Map, float * max_num_pointer,struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap);
+struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float * max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams, float** pix_prof,char* sysMatrixPath,int pieceLength);
+void readAmatrix(char *fname,struct AValues_char ** A_Padded_Map, float * max_num_pointer,struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength);
+void writeAmatrix(char *fname,struct AValues_char ** A_Padded_Map, float * max_num_pointer,struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength);
 void A_comp_ij(int im_row,int im_col,struct SinoParams3DParallel *sinoparams,struct ImageParams3D *imgparams,float **pix_prof,struct ACol *A_col,float *A_Values);	
 #endif
