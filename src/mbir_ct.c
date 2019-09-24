@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
 	reconparams.NSlices=myChunk;
 	reconparams.FirstSliceNumber=firstSliceOfVolume;	
 
-    /* Read System Matrix */
-	int pieceLength=PIECELEN;
+	/* Read System Matrix */
+	int pieceLength=computePieceLength(sinogram.sinoparams.NViews);
         if(sinogram.sinoparams.NViews%pieceLength!=0){
                 fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
                 fprintf(stderr, "Exiting %s\n",argv[0]);

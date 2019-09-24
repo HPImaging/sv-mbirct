@@ -854,3 +854,30 @@ int CmdLineHelp(char *string)
 }
 
 
+/* From XW:
+ *   The pieceLength is the block size in the super-voxel buffer. From my experiments
+ *   in the past, a good block size is about 1/16 of the views. So if we have 1024
+ *   views, then the block size needs to be about 64. If 1/16 of the views is not an
+ *   integer, then we need to find a divisor that's closest to 1/16 of the views.
+ *   For example, if we have 900 views, and 900/16 = 56.25, and it's not an integer.
+ *   Then we need to check integers from 56 to 1 in a descending order. The first 
+ *   integer we find that is divisible by 900 views should be the block size.
+ */
+int computePieceLength(int NViews)
+{
+	int pieceLength;
+
+	pieceLength=NViews/16;
+	if(pieceLength<1)
+		pieceLength=1;
+
+	while( pieceLength>1 && (NViews%pieceLength!=0) )
+	{
+		pieceLength--;
+	}
+
+	fprintf(stderr, "Nviews %d, pieceLength %d\n",NViews,pieceLength);
+
+	//pieceLength=PIECELEN;
+	return(pieceLength);
+}

@@ -132,7 +132,6 @@ int main(int argc, char *argv[])
     int *order;   
     float x_0, y_0, Deltaxy, x, y, yy, ROIRadius, R_sq, R_sq_max;
     int jx, jy,Nxy;         
-    int pieceLength=PIECELEN;
     
     /*struct SysMatrix2D *A ;*/
     
@@ -146,10 +145,12 @@ int main(int argc, char *argv[])
 	/* read input arguments and parameters */
 	readParamsSysMatrix(&cmdline, &imgparams, &sinoparams);
         
-    	if(sinoparams.NViews%pieceLength!=0){
+	int pieceLength=computePieceLength(sinoparams.NViews);
+
+	if(sinoparams.NViews%pieceLength!=0){
 		fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
 		fprintf(stderr, "Exiting %s\n",argv[0]);
-                exit(-1);
+		exit(-1);
         }        
     
     	fprintf(stdout, "\nGenerating System Matrix...\n");
