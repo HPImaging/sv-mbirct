@@ -17,8 +17,7 @@ float dprof[101];
 
 #define  SVLength 9
 	
-//#define PIECELEN 48
-#define PIECELEN 15
+#define PIECELEN 48
 	
 #define overlappingDistance1 2
 #define overlappingDistance2 2
@@ -28,10 +27,9 @@ float dprof[101];
 /* Command Line structure for Generating System matrix */
 struct CmdLineSysGen
 {
-    char imgparamsFileName[100];  /* input file */
-    char sinoparamsFileName[100]; /* input file */
-    char ReconParamsFile[100];        
-    char SysMatrixFileName[100]; /* output file */
+    char imgparamsFileName[256];  /* input file */
+    char sinoparamsFileName[256]; /* input file */
+    char SysMatrixFileName[256]; /* output file */
 };
 
 struct ACol

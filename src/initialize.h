@@ -4,14 +4,14 @@
 
 struct CmdLineMBIR{
     
-    char ImageParamsFile[200];
-    char InitImageDataFile[200]; /* optional input */
-    char ReconImageDataFile[200]; /* output */
-    char SinoParamsFile[200];
-    char SinoDataFile[200];
-    char SinoWeightsFile[200];
-    char ReconParamsFile[200];
-    char SysMatrixFile[200];
+    char ImageParamsFile[256];
+    char InitImageDataFile[256]; /* optional input */
+    char ReconImageDataFile[256]; /* output */
+    char SinoParamsFile[256];
+    char SinoDataFile[256];
+    char SinoWeightsFile[256];
+    char ReconParamsFile[256];
+    char SysMatrixFile[256];
 };
 
 

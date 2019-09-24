@@ -688,7 +688,7 @@ void readCmdLineSysGen(
 
     
     /* get options */
-    while ((ch = getopt(argc, argv, "i:j:k:m:")) != EOF)
+    while ((ch = getopt(argc, argv, "i:j:m:")) != EOF)
     {
         switch (ch)
         {
@@ -704,12 +704,6 @@ void readCmdLineSysGen(
      		fprintf(stdout,"sino param file %s optarg %s\n",cmdline->sinoparamsFileName,optarg);                                
                 break;
             }
-            case 'k':
-            {
-                sprintf(cmdline->ReconParamsFile, "%s", optarg);
-     		fprintf(stdout,"recon param file %s optarg %s\n",cmdline->ReconParamsFile,optarg);                                                
-                break;
-            }            
             case 'm':
             {
                 sprintf(cmdline->SysMatrixFileName, "%s", optarg);
