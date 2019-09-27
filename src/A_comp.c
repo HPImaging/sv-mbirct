@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>	/* strcmp */
 #include <math.h>
-#include <getopt.h>	/* getopt */
 
 #include "MBIRModularUtils_3D.h"
 #include "MBIRModularUtils_2D.h"
@@ -660,68 +659,6 @@ return address_arr;
 }
 
 
-void readCmdLineSysGen(
-                       int argc,
-                       char *argv[],
-                       struct CmdLineSysGen *cmdline)
-{
-    char ch;
-    
-    
-    if(argc<7)
-    {
-      if(argc==2 && CmdLineHelp(argv[1]))
-        {
-          fprintf(stdout,"\n=========HELP==========\n");
-          PrintCmdLineUsage(argv[0]);
-          exit(-1);
-        }
-      else
-       {
-        fprintf(stderr, "\nError : Improper Command line for exec-program %s, Number of arguments lower than needed \n",argv[0]);
-        PrintCmdLineUsage(argv[0]);
-        exit(-1);
-       }
-    }
-
-     fprintf(stdout,"print argc is %d\n",argc);
-
-    
-    /* get options */
-    while ((ch = getopt(argc, argv, "i:j:m:")) != EOF)
-    {
-        switch (ch)
-        {
-            case 'i':
-            {
-                sprintf(cmdline->imgparamsFileName, "%s", optarg);
-     		fprintf(stdout,"image param file %s optarg %s\n",cmdline->imgparamsFileName,optarg);                
-                break;
-            }
-            case 'j':
-            {
-                sprintf(cmdline->sinoparamsFileName, "%s", optarg);
-     		fprintf(stdout,"sino param file %s optarg %s\n",cmdline->sinoparamsFileName,optarg);                                
-                break;
-            }
-            case 'm':
-            {
-                sprintf(cmdline->SysMatrixFileName, "%s", optarg);
-     		fprintf(stdout,"Sys param file %s optarg %s\n",cmdline->SysMatrixFileName,optarg);                                                
-                break;
-            }
-            default:
-            {
-                fprintf(stderr, "\nError : Unrecognized Command-line Symbol for exec-program %s \n",argv[0]);
-                PrintCmdLineUsage(argv[0]);
-                exit(-1);
-                break;
-            }
-        }
-    }
-}
-
-
 
 void readAmatrix(
 	char *fname,
@@ -808,44 +745,6 @@ void writeAmatrix(
 	fclose(fp);
 }
 
-
-
-void readParamsSysMatrix(
-                         struct CmdLineSysGen *cmdline,
-                         struct ImageParams3D *imgparams,
-                         struct SinoParams3DParallel *sinoparams)
-{
-    printf("\nReading System Parameters ... \n");
-    
-    if(ReadImageParams3D(cmdline->imgparamsFileName, imgparams))
-    printf("Error in reading image parameters \n");
-    
-    if(ReadSinoParams3DParallel(cmdline->sinoparamsFileName, sinoparams))
-    printf("Error in reading sinogram parameters \n");
-    
-    printImageParams3D(imgparams);
-    printSinoParams3DParallel(sinoparams);
-}
-
-
-void PrintCmdLineUsage(char *ExecFileName)
-{
-    fprintf(stdout, "\nBASELINE MBIR RECONSTRUCTION SOFTWARE FOR 3D PARALLEL-BEAM  CT \n");
-    fprintf(stdout, "build time: %s, %s\n", __DATE__,  __TIME__);
-    fprintf(stdout, "\nCommand line Format for Executable File %s : \n", ExecFileName);
-    fprintf(stdout, "%s ./<Executable File Name>  -i <InputFileName>[.imgparams] -j <InputFileName>[.sinoparams] -m <OutputFileName>[.2Dsysmatrix] \n\n",ExecFileName);
-    fprintf(stdout, "Note : The necessary extensions for certain input files are mentioned above within a \"[ ]\" symbol \n");
-    fprintf(stdout, "However, they are NOT to be included as part of the file name in the command line arguments \n");
-    fprintf(stdout, "\nAlso see sample files run.sh under Data/Demo_Fast/ and Data/Demo_Slow/ for the correct format \n \n");
-}
-
-int CmdLineHelp(char *string)
-{
-    if( (strcmp(string,"-h")==0) || (strcmp(string,"-help")==0) || (strcmp(string,"--help")==0) || (strcmp(string,"help")==0) )
-        return 1;
-    else
-        return 0;
-}
 
 
 /* From XW:

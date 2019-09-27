@@ -24,14 +24,6 @@ float dprof[101];
 
 #define SV_depth 4
 
-/* Command Line structure for Generating System matrix */
-struct CmdLineSysGen
-{
-    char imgparamsFileName[256];  /* input file */
-    char sinoparamsFileName[256]; /* input file */
-    char SysMatrixFileName[256]; /* output file */
-};
-
 struct ACol
 {
 	int n_index;
@@ -68,13 +60,6 @@ struct maxStruct
 
 /* Compute Pixel-Detector Profile for 3D Parallel Beam Geometry */
 float **ComputePixelProfile3DParallel(struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams);
-/* Read Command line */
-void readCmdLineSysGen(int argc, char *argv[], struct CmdLineSysGen *cmdline);
-/* Wrapper to read in system matrix parameters from Command line */
-void readParamsSysMatrix(struct CmdLineSysGen *cmdline, struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams);
-/* Print correct usage of Command Line*/
-void PrintCmdLineUsage(char *ExecFileName);
-int CmdLineHelp(char *string);
 struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float * max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams, float** pix_prof,char* sysMatrixPath,int pieceLength);
 void readAmatrix(char *fname,struct AValues_char ** A_Padded_Map, float * max_num_pointer,struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength);
 void writeAmatrix(char *fname,struct AValues_char ** A_Padded_Map, float * max_num_pointer,struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength);

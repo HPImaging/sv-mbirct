@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
+#include <getopt.h>
 #include "MBIRModularUtils_3D.h"
 #include "MBIRModularUtils_2D.h"
 #include "allocate.h"
@@ -10,141 +12,48 @@
 /* #ifdef STORE_A_MATRIX - This option set by default in A_comp.h */
 /* This option is to precompute and store the forward matrix rather than compute it on the fly */
 
-void writeErrorSinogram(
-	char *fname,
-	float *e,
-	struct SinoParams3DParallel *sinoparams)
+/* Command Line structure for Generating System matrix */
+struct CmdLineSysGen
 {
-	FILE *fp;
-	int i, M;
-	M = sinoparams->NViews*sinoparams->NChannels;
-	if ((fp = fopen(fname, "w")) == NULL)
-	{
-		fprintf(stderr, "ERROR in writeErrorSinogram: can't open file %s.\n", fname);
-		exit(-1);
-	}
-	fwrite(&e[0],sizeof(float),M,fp);
-	fclose(fp);	
-}
+    char imgparamsFileName[256];  /* input file */
+    char sinoparamsFileName[256]; /* input file */
+    char SysMatrixFileName[256]; /* output file */
+};
 
-
-
-void forwardProject2D(
-	float *e,
-	float InitValue,
-	float *max_num_pointer,
-	struct AValues_char ** A_Padded_Map,
-	struct minStruct *bandMinMap,
-	struct SinoParams3DParallel *sinoparams,
-	struct ImageParams3D *imgparams,
-	int pieceLength)
-{
-	int jx=0; 
-	int jy=0; 
-	int Nx, Ny, i, M, r,j,p, SVNumPerRow;
-	float inverseNumber=1.0/255;
-    	const int NViewsdivided=(sinoparams->NViews)/pieceLength;		
-
-	Nx = imgparams->Nx;
-	Ny = imgparams->Ny;
-	M = sinoparams->NViews*sinoparams->NChannels;
-
-	for (i = 0; i < M; i++)
-	{
-		e[i] = 0.0;
-	}
-		
-
-	if((Nx%(2*SVLength-overlappingDistance2))==0)
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2);
-	else	
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2)+1; 
-
-
-	for (jy = 0; jy < Ny; jy++)
-	{
-		for (jx = 0; jx < Nx; jx++)
-		{
-		
-			int temp1=jy/(2*SVLength-overlappingDistance1);
-			
-			if(temp1==SVNumPerRow){
-				temp1=SVNumPerRow-1;
-			}
-			
-			int temp2=jx/(2*SVLength-overlappingDistance2);
-			if(temp2==SVNumPerRow){
-				temp2=SVNumPerRow-1;
-			}
-		
-            		int theSVPosition=temp1*SVNumPerRow+temp2;	
-            			
-			int SV_jy=temp1*(2*SVLength-overlappingDistance1);
-			int SV_jx=temp2*(2*SVLength-overlappingDistance2);
-			int theVoxelPosition=(jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx); 
-			/*
-			fprintf(stdout,"jy %d jx %d theSVPosition %d SV_jy %d SV_jx %d theVoxelPosition %d \n",jy,jx,theSVPosition,SV_jy,SV_jx,theVoxelPosition);		
-			*/
-			if (A_Padded_Map[theSVPosition][theVoxelPosition].length > 0 && theVoxelPosition < ((2*SVLength+1)*(2*SVLength+1)))
-			{
-				/*XW: remove the index field in struct ACol and exploit the spatial locality */
-				unsigned char* A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];					
-                    		for(p=0;p<NViewsdivided;p++){        		
-                        		const int myCount=A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseWidth[p];
-                   		
-		   			int position=p*pieceLength*sinoparams->NChannels+A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseMin[p];
-					                        		
-                        		for(r=0;r<myCount;r++){                    		
-						for(j=0;j< pieceLength;j++){
-							if((A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseMin[p]+bandMinMap[theSVPosition].bandMin[p*pieceLength+j]+r)>=sinoparams->NChannels)
-							fprintf(stdout, "p %d r %d j %d total_1 %d \n",p,r,j,A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseMin[p]+bandMinMap[theSVPosition].bandMin[p*pieceLength+j]+r);						
-		
-							if((position+j*sinoparams->NChannels+bandMinMap[theSVPosition].bandMin[p*pieceLength+j]+r)>= M)
-							fprintf(stdout, "p %d r %d j %d total_2 %d \n",p,r,j,position+j*sinoparams->NChannels+bandMinMap[theSVPosition].bandMin[p*pieceLength+j]+r);													
-						
-							if((position+j*sinoparams->NChannels+bandMinMap[theSVPosition].bandMin[p*pieceLength+j]+r)< M)							{	
-								e[position+j*sinoparams->NChannels+bandMinMap[theSVPosition].bandMin[p*pieceLength+j]+r] += A_padd_Tranpose_pointer[r*pieceLength+j]*max_num_pointer[jy*Nx+jx]*inverseNumber*InitValue;
-							}
-																
-						}				
-					}
-                        		A_padd_Tranpose_pointer+=myCount*pieceLength;					
-				}
-			}
-		}	
-	}
-}
-	
-
+/* Internal fns */
+void forwardProject2D(float *e, float InitValue, float *max_num_pointer, struct AValues_char ** A_Padded_Map,
+	struct minStruct *bandMinMap, struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams,
+	int pieceLength);
+void writeErrorSinogram(char *fname, float *e, struct SinoParams3DParallel *sinoparams);
+void readCmdLineSysGen(int argc, char *argv[], struct CmdLineSysGen *cmdline);
+void PrintCmdLineUsage(char *ExecFileName);
+int CmdLineHelpCheck(char *string);
 
 
 int main(int argc, char *argv[])
 {
-
-    struct CmdLineSysGen cmdline;
-    struct ImageParams3D imgparams;
-    struct SinoParams3DParallel sinoparams;
-    //struct ReconParamsQGGMRF3D reconparams;    
-    float **PixelDetector_profile;
-    struct minStruct *bandMinMap;
-    struct maxStruct *bandMaxMap;
-    struct AValues_char ** A_Padded_Map;    
-    int *order;   
-    float x_0, y_0, Deltaxy, x, y, yy, ROIRadius, R_sq, R_sq_max;
-    int jx, jy,Nxy;         
+	struct CmdLineSysGen cmdline;
+	struct ImageParams3D imgparams;
+	struct SinoParams3DParallel sinoparams;
+	//struct ReconParamsQGGMRF3D reconparams;
+	float **PixelDetector_profile;
+	struct minStruct *bandMinMap;
+	struct maxStruct *bandMaxMap;
+	struct AValues_char ** A_Padded_Map;
+	int *order;
+	float x_0, y_0, Deltaxy, x, y, yy, ROIRadius, R_sq, R_sq_max;
+	int jx, jy,Nxy;
+	/*struct SysMatrix2D *A ;*/
     
-    /*struct SysMatrix2D *A ;*/
-    
-    /* read Command Line */
-    	fprintf(stdout,"argc %d argv[0] %s argv[1] %s argv[2] %s argv[3] %s argv[4] %s argv[5] %s argv[6] %s argv[7] %s argv[8] %s\n",argc,argv[0],argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8]);      
-    
-    
-    	readCmdLineSysGen(argc, argv, &cmdline);
-    	fprintf(stdout,"reach 1 system matrix directory %s\n",cmdline.SysMatrixFileName);  
+	/* read command line */
+	readCmdLineSysGen(argc, argv, &cmdline);
 
 	/* read input arguments and parameters */
-	readParamsSysMatrix(&cmdline, &imgparams, &sinoparams);
-        
+	ReadSinoParams3DParallel(cmdline.sinoparamsFileName, &sinoparams);
+	ReadImageParams3D(cmdline.imgparamsFileName, &imgparams);
+	printSinoParams3DParallel(&sinoparams);
+	printImageParams3D(&imgparams);
+
 	int pieceLength=computePieceLength(sinoparams.NViews);
 
 	if(sinoparams.NViews%pieceLength!=0){
@@ -179,7 +88,6 @@ int main(int argc, char *argv[])
 		  }
 	}	
 
-
     	bandMinMap = (struct minStruct *)get_spc(sum,sizeof(struct minStruct));
     	bandMaxMap = (struct maxStruct *)get_spc(sum,sizeof(struct maxStruct));
     	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, sum, (SVLength*2+1)*(SVLength*2+1));	
@@ -187,12 +95,9 @@ int main(int argc, char *argv[])
 	float* max_num_pointer = (float *)malloc(Ny*Nx*sizeof(float));	
 	char **ImageReconMask = (char **)multialloc(sizeof(char), 2, Ny, Nx); 
 	float *initialError = (float *)malloc(sizeof(float)*sinoparams.NViews*sinoparams.NChannels);    	   
-    /* Compute Pixel-Detector Profile */
     	PixelDetector_profile = ComputePixelProfile3DParallel(&sinoparams, &imgparams);  /* pixel-detector profile function */
-    /* Compute Forward Matrix */
-    		
 
-    	fprintf(stdout, "after allocation \n");	
+	//fprintf(stdout, "after allocation \n");
 
     	Deltaxy = imgparams.Deltaxy;
     	ROIRadius = imgparams.ROIRadius;
@@ -229,14 +134,10 @@ int main(int argc, char *argv[])
             		}
         	}
     	}
-
-
-
 	
 	A_comp(bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&sinoparams,sum,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName,pieceLength);
 	    
-    
-    	fprintf(stdout, "after A comp \n");	
+	//fprintf(stdout, "after A comp \n");
 
 	//float InitValue = reconparams.MuWater;    
 	float InitValue = MUWATER;    
@@ -293,3 +194,188 @@ int main(int argc, char *argv[])
     
 	return 0;
 }
+
+
+
+void forwardProject2D(
+	float *e,
+	float InitValue,
+	float *max_num_pointer,
+	struct AValues_char ** A_Padded_Map,
+	struct minStruct *bandMinMap,
+	struct SinoParams3DParallel *sinoparams,
+	struct ImageParams3D *imgparams,
+	int pieceLength)
+{
+	int jx=0;
+	int jy=0;
+	int Nx, Ny, i, M, r,j,p, SVNumPerRow;
+	float inverseNumber=1.0/255;
+	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
+
+	Nx = imgparams->Nx;
+	Ny = imgparams->Ny;
+	M = sinoparams->NViews*sinoparams->NChannels;
+
+	for (i = 0; i < M; i++)
+	{
+		e[i] = 0.0;
+	}
+
+	if((Nx%(2*SVLength-overlappingDistance2))==0)
+		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2);
+	else
+		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2)+1;
+
+	for (jy = 0; jy < Ny; jy++)
+	for (jx = 0; jx < Nx; jx++)
+	{
+
+		int temp1=jy/(2*SVLength-overlappingDistance1);
+
+		if(temp1==SVNumPerRow){
+			temp1=SVNumPerRow-1;
+		}
+
+		int temp2=jx/(2*SVLength-overlappingDistance2);
+		if(temp2==SVNumPerRow){
+			temp2=SVNumPerRow-1;
+		}
+
+		int SVPosition=temp1*SVNumPerRow+temp2;
+ 
+		int SV_jy=temp1*(2*SVLength-overlappingDistance1);
+		int SV_jx=temp2*(2*SVLength-overlappingDistance2);
+		int VoxelPosition=(jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
+		/*
+		fprintf(stdout,"jy %d jx %d SVPosition %d SV_jy %d SV_jx %d VoxelPosition %d \n",jy,jx,SVPosition,SV_jy,SV_jx,VoxelPosition);
+		*/
+		if (A_Padded_Map[SVPosition][VoxelPosition].length > 0 && VoxelPosition < ((2*SVLength+1)*(2*SVLength+1)))
+		{
+			/*XW: remove the index field in struct ACol and exploit the spatial locality */
+			unsigned char* A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][VoxelPosition].val[0];
+			for(p=0;p<NViewsdivided;p++) {
+				const int myCount=A_Padded_Map[SVPosition][VoxelPosition].pieceWiseWidth[p];
+				int position=p*pieceLength*sinoparams->NChannels+A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p];
+
+				for(r=0;r<myCount;r++)
+				for(j=0;j< pieceLength;j++){
+					if((A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>=sinoparams->NChannels)
+						fprintf(stdout, "p %d r %d j %d total_1 %d \n",p,r,j,A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
+
+					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>= M)
+						fprintf(stdout, "p %d r %d j %d total_2 %d \n",p,r,j,position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
+
+					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)< M)
+						e[position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r] += A_padd_Tranpose_pointer[r*pieceLength+j]*max_num_pointer[jy*Nx+jx]*inverseNumber*InitValue;
+
+
+				}
+				A_padd_Tranpose_pointer+=myCount*pieceLength;
+			}
+		}
+	}
+}
+
+
+
+void writeErrorSinogram(
+	char *fname,
+	float *e,
+	struct SinoParams3DParallel *sinoparams)
+{
+	FILE *fp;
+	int i, M;
+	M = sinoparams->NViews*sinoparams->NChannels;
+	if ((fp = fopen(fname, "w")) == NULL)
+	{
+		fprintf(stderr, "ERROR in writeErrorSinogram: can't open file %s.\n", fname);
+		exit(-1);
+	}
+	fwrite(&e[0],sizeof(float),M,fp);
+	fclose(fp);
+}
+
+
+
+
+void readCmdLineSysGen(
+    int argc,
+    char *argv[],
+    struct CmdLineSysGen *cmdline)
+{
+    char ch;
+    
+    if(argc<7)
+    {
+        if(argc==2 && CmdLineHelpCheck(argv[1]))
+        {
+            PrintCmdLineUsage(argv[0]);
+            exit(-1);
+        }
+        else
+        {
+            fprintf(stderr, "\nError : Improper Command line for exec-program %s, Number of arguments lower than needed \n",argv[0]);
+            PrintCmdLineUsage(argv[0]);
+            exit(-1);
+        }
+    }
+
+    //fprintf(stdout,"print argc is %d\n",argc);
+ 
+    /* get options */
+    while ((ch = getopt(argc, argv, "i:j:m:")) != EOF)
+    {
+        switch (ch)
+        {
+            case 'i':
+            {
+                sprintf(cmdline->imgparamsFileName, "%s", optarg);
+		fprintf(stdout,"image param file %s optarg %s\n",cmdline->imgparamsFileName,optarg);
+                break;
+            }
+            case 'j':
+            {
+                sprintf(cmdline->sinoparamsFileName, "%s", optarg);
+		fprintf(stdout,"sino param file %s optarg %s\n",cmdline->sinoparamsFileName,optarg);
+                break;
+            }
+            case 'm':
+            {
+                sprintf(cmdline->SysMatrixFileName, "%s", optarg);
+		fprintf(stdout,"Sys param file %s optarg %s\n",cmdline->SysMatrixFileName,optarg);
+                break;
+            }
+            default:
+            {
+                fprintf(stderr, "\nError : Unrecognized Command-line Symbol for exec-program %s \n",argv[0]);
+                PrintCmdLineUsage(argv[0]);
+                exit(-1);
+                break;
+            }
+        }
+    }
+}
+
+
+
+void PrintCmdLineUsage(char *ExecFileName)
+{
+    fprintf(stdout, "\nBASELINE MBIR RECONSTRUCTION SOFTWARE FOR 3D PARALLEL-BEAM CT \n");
+    fprintf(stdout, "build time: %s, %s\n", __DATE__,  __TIME__);
+    fprintf(stdout, "\nCommand line Format for Executable File %s : \n", ExecFileName);
+    fprintf(stdout, "%s ./<Executable File Name>  -i <InputFileName>[.imgparams] -j <InputFileName>[.sinoparams] -m <OutputFileName>[.2Dsysmatrix] \n\n",ExecFileName);
+    fprintf(stdout, "Note : The file extensions above enclosed in \"[ ]\" symbols are necessary \n");
+    fprintf(stdout, "but should be omitted from the command line arguments\n");
+}
+
+
+int CmdLineHelpCheck(char *string)
+{
+    if( (strcmp(string,"-h")==0) || (strcmp(string,"-help")==0) || (strcmp(string,"--help")==0) || (strcmp(string,"help")==0) )
+        return 1;
+    else
+        return 0;
+}
+
+
