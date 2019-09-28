@@ -1,17 +1,17 @@
 CC = icc
 
 #CFLAGS := -Wall -qopenmp -no-ansi-alias -restrict -xCORE-AVX2 -O3 -no-prec-div -ipo -inline-calloc -qopt-calloc
-CFLAGS := -O3 
-CFLAGS := $(CFLAGS) -xCORE-AVX2 
-CFLAGS := $(CFLAGS) -no-prec-div 
-CFLAGS := $(CFLAGS) -qopenmp 
-CFLAGS := $(CFLAGS) -restrict 
-CFLAGS := $(CFLAGS) -no-ansi-alias 
+CFLAGS := -O3
+CFLAGS := $(CFLAGS) -xCORE-AVX2
+CFLAGS := $(CFLAGS) -no-prec-div
+CFLAGS := $(CFLAGS) -qopenmp
+CFLAGS := $(CFLAGS) -restrict
+CFLAGS := $(CFLAGS) -no-ansi-alias
 #CFLAGS := $(CFLAGS) -ansi-alias
-CFLAGS := $(CFLAGS) -ipo 
-CFLAGS := $(CFLAGS) -inline-calloc 
+CFLAGS := $(CFLAGS) -ipo
+CFLAGS := $(CFLAGS) -inline-calloc
 CFLAGS := $(CFLAGS) -qopt-calloc
-CFLAGS := $(CFLAGS) -Wall 
+CFLAGS := $(CFLAGS) -Wall
 #CFLAGS := $(CFLAGS) -qopenmp-link=static
 #CFLAGS := $(CFLAGS) -static-intel -wd10237
 #CFLAGS := $(CFLAGS) -prof-gen

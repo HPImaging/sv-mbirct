@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 	struct Image3D Image;
     	struct Sino3DParallel sinogram;
 	struct ReconParamsQGGMRF3D reconparams;
-    /*struct SysMatrix2D A;*/
+	/*struct SysMatrix2D A;*/
 	struct minStruct *bandMinMap;
 	struct maxStruct *bandMaxMap;
 	struct AValues_char ** A_Padded_Map; 
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     	struct CmdLineMBIR cmdline;
     
     	char *ImageReconMask; /* Image reconstruction mask (determined by ROI) */
-    	float InitValue ;     /* Image data initial condition is read in from a file if available ... */
+    	float InitValue;     /* Image data initial condition is read in from a file if available ... */
                           /* else intialize it to a uniform image with value InitValue */
     	float OutsideROIValue;/* Image pixel value outside ROI Radius */
 
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 	/* read command line */
 	readCmdLineMBIR(argc, argv, &cmdline);
     
-    /* read parameters */
+	/* read parameters */
     	readSystemParams_MBIR (&cmdline, &Image.imgparams, &sinogram.sinoparams, &reconparams);
     	
        	if((sinogram.sinoparams.NSlices%numprocs)!=0)
@@ -55,8 +55,6 @@ int main(int argc, char *argv[])
 	Image.imgparams.FirstSliceNumber=firstSliceOfVolume;  
 	sinogram.sinoparams.NSlices=myChunk;
 	sinogram.sinoparams.FirstSliceNumber=firstSliceOfVolume;
-	reconparams.NSlices=myChunk;
-	reconparams.FirstSliceNumber=firstSliceOfVolume;	
 
 	/* Read System Matrix */
 	int pieceLength=computePieceLength(sinogram.sinoparams.NViews);
@@ -102,14 +100,15 @@ int main(int argc, char *argv[])
     	}
 
     	/* Initialize image and reconstruction mask */
-    	//InitValue = reconparams.MuWater;
-    	InitValue = MUWATER;
-    	OutsideROIValue = reconparams.MuAir;
-    	Initialize_Image(&Image, &cmdline, InitValue);
-    	ImageReconMask = GenImageReconMask(&Image,OutsideROIValue);    	
-    
-        //gettimeofday(&tm1,NULL);
-    
+	//InitValue = reconparams.MuWater;
+	//OutsideROIValue = reconparams.MuAir;
+	InitValue = MUWATER;  /* careful..the initial forward projection is written out in GenSysMatrix, so the inital image has to match */
+	OutsideROIValue = 0;
+	Initialize_Image(&Image, &cmdline, InitValue);
+	ImageReconMask = GenImageReconMask(&Image,OutsideROIValue);
+
+	//gettimeofday(&tm1,NULL);
+
     	/* MBIR - Reconstruction */
     	MBIRReconstruct3D(&Image,&sinogram,reconparams,ImageReconMask,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum,pieceLength);
     		

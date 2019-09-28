@@ -72,25 +72,6 @@ struct Image2D
 };
 
 
-/* Reconstruction Parameters Data Structure */
-struct ReconParamsQGGMRF2D
-{
-  float p;               /* q-GGMRF p parameter */
-  float q;               /* q-GGMRF q parameter (q=2 is typical choice) */
-  float T;               /* q-GGMRF T parameter */
-  float SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
-  float SigmaY;          /* Scaling constant for weight matrix (W<-W/SigmaY^2); */
-                          /* If SigmaY=0, then it is estimated */
-  float b_nearest;       /* Relative nearest neighbor weight [default = 1] */
-  float b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
-  int Positivity;         /* Options: MBIR_MODULAR_YES or MBIR_MODULAR_NO */
-  float StopThreshold;   /* Stopping threshold in percent */
-  int MaxIterations;      /* Maximum number of iterations */
-    
-  float MuWater;         /* Attenuation coefficient of water (mm^-1) [default = 0.0202527 mm-1] */
-  float MuAir ;          /* Attenuation coefficient of air [default = 0.0 mm-1] */
-};
-
 
 /* VS- Introduced this to make coding easier and modular (easier extension to 3D tomography applications) */
 /* Sparse Column Vector - Data Structure */
@@ -218,20 +199,13 @@ int WriteSysMatrix2D(
 int FreeSysMatrix2D(
   struct SysMatrix2D *A);      
 */
-/**************************************************/
-/* Utilities for reading in reconstruction params */
-/**************************************************/
 
-int ReadReconParamsQGGMRF2D(
-                             char *fname,
-                             struct ReconParamsQGGMRF2D *reconparams);
 
 /***********************************/
 /* Miscellanous Functions         */
 /* Remove or shift them out later */
 /***********************************/
 
-void printReconParamsQGGMRF2D(struct ReconParamsQGGMRF2D *reconparams);
 void printImageParams2D(struct ImageParams2D *imgparams);
 void printSinoParams2DParallel(struct SinoParams2DParallel *sinoparams);
 

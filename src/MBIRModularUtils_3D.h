@@ -74,11 +74,6 @@ struct ReconParamsQGGMRF3D
   int MaxIterations;      /* Maximum number of iterations */
     
   double InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
-
-  float MuWater;         /* Attenuation coefficient of water (mm^-1) [default = 0.0202527 mm-1] */
-  float MuAir ;          /* Attenuation coefficient of air [default = 0.0 mm-1] */
-  int NSlices;            /* Number of slices to be reconstructed */
-  int FirstSliceNumber;   /* Index of first slice to reconstruct in absolute coordinates */
 };
 
 
