@@ -1,4 +1,3 @@
-
 #ifndef MBIR_MODULAR_UTILS_3D_H
 #define MBIR_MODULAR_UTILS_3D_H
 
@@ -28,9 +27,8 @@ struct SinoParams3DParallel
 struct Sino3DParallel
 {
   struct SinoParams3DParallel sinoparams; /* Sinogram Parameters */
-  float **sino;           /* Array of sinogram entries */
-                         /* The array is indexed by 2DSino[ NChannels*NViews*slice + NChannels*view + channel ] */
-                         /* If data array is empty, then set Sino = NULL */
+  float **sino;           /* The array is indexed by sino[Slice][ View * NChannels + Channel ] */
+                          /* If data array is empty, then set Sino = NULL */
   float **weight;         /* Weights for each measurement */
 };
 
@@ -53,8 +51,7 @@ struct ImageParams3D
 struct Image3D
 {
   struct ImageParams3D imgparams; /* Image parameters */
-  float **image;                   /* Output: Array of image entries */
-                                  /* The array is indexed by image[ Nx*row + column ] */
+  float **image;                  /* The array is indexed by image[SliceIndex][ Row * Nx + Column ], Nx=NColumns */
                                   /* If data array is empty, then set Image = NULL */
 };
 
@@ -62,32 +59,32 @@ struct Image3D
 /* Reconstruction Parameters Data Structure */
 struct ReconParamsQGGMRF3D
 {
-  float p;               /* q-GGMRF p parameter */
-  float q;               /* q-GGMRF q parameter (q=2 is typical choice) */
-  float T;               /* q-GGMRF T parameter */
-  float SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
-  float SigmaY;          /* Scaling constant for weight matrix (W<-W/SigmaY^2); */
+  double p;               /* q-GGMRF p parameter */
+  double q;               /* q-GGMRF q parameter (q=2 is typical choice) */
+  double T;               /* q-GGMRF T parameter */
+  double SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
+  double SigmaY;          /* Scaling constant for weight matrix (W<-W/SigmaY^2); */
                           /* If SigmaY=0, then it is estimated */
-  float b_nearest;       /* Relative nearest neighbor weight [default = 1] */
-  float b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
-  float b_interslice;    /* Relative neighbor weight along z direction [default = 1] */
+  double b_nearest;       /* Relative nearest neighbor weight [default = 1] */
+  double b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
+  double b_interslice;    /* Relative neighbor weight along z direction [default = 1] */
     
-  int Positivity;         /* Options: MBIR_MODULAR_YES or MBIR_MODULAR_NO */
-  float StopThreshold;   /* Stopping threshold in percent */
+  int Positivity;         /* Positivity constraint: 1=yes, 0=no */
+  double StopThreshold;   /* Stopping threshold in percent */
   int MaxIterations;      /* Maximum number of iterations */
     
+  double InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
+
   float MuWater;         /* Attenuation coefficient of water (mm^-1) [default = 0.0202527 mm-1] */
   float MuAir ;          /* Attenuation coefficient of air [default = 0.0 mm-1] */
- 
   int NSlices;            /* Number of slices to be reconstructed */
   int FirstSliceNumber;   /* Index of first slice to reconstruct in absolute coordinates */
- 
 };
+
 
 /**********************************************/
 /*  Utilities for reading/writing 3D sinogram */
 /**********************************************/
-
 
 /* Utility for reading 3D parallel beam sinogram parameters */
 /* Returns 0 if no error occurs */
@@ -187,5 +184,4 @@ void printSinoParams3DParallel(struct SinoParams3DParallel *sinoparams);
 
 
 #endif /* MBIR_MODULAR_UTILS_3D_H */
-
 
