@@ -1,30 +1,26 @@
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
-#include <string.h>	/* strcmp */
-#include <getopt.h>	/* getopt */
-
-#include "MBIRModularUtils_2D.h"
+#include <stdlib.h>
+#include <string.h>
 #include "allocate.h"
+#include "MBIRModularUtils_2D.h"
+
 
 /***************************************************/
 /*  Utilities for reading/writing 2D System matrix */
 /***************************************************/
 
-
 /* write the System matrix to hard drive */
 /* Utility for writing the Sparse System Matrix */
 /* Returns 0 if no error occurs */
-/*
 int WriteSysMatrix2D(
-                     char *fname,               
-                     struct SysMatrix2D *A)      
+                     char *fname,                /* Input: Basename of output file <fname>.2dsysmatrix */
+                     struct SysMatrix2D *A)      /* Input: Sparse system matrix structure */
 {
     FILE *fp;
     int i, Nnonzero, Ncolumns;
     
-    strcat(fname,".2Dsysmatrix"); 
+    strcat(fname,".2Dsysmatrix"); /* append file extension */
     
     if ((fp = fopen(fname, "w")) == NULL)
     {
@@ -50,21 +46,20 @@ int WriteSysMatrix2D(
     
     return 0;
 }
-*/
 
 /* read the A matrix from hard drive */
 /* Utility for reading/allocating the Sparse System Matrix */
 /* Returns 0 if no error occurs */
-/*
 int ReadSysMatrix2D(
-                    char *fname,              
-                    struct SysMatrix2D *A)     
-{                                              
+                    char *fname,               /* Input: Basename of Sparse System Matrix file <fname>.2dsysmatrix */
+                    struct SysMatrix2D *A)     /* Ouput: Sparse system matrix structure */
+{                                              /* Warning: Memory is allocated for the data structure inside subroutine */
     FILE *fp;
     int i, Ncolumns, Nnonzero;
     
-    strcat(fname,".2Dsysmatrix"); 
+    strcat(fname,".2Dsysmatrix"); /* append file extension */
     
+    /* Allocate memory */
     Ncolumns=A->Ncolumns;
     A->column = (struct SparseColumn *)get_spc(Ncolumns, sizeof(struct SparseColumn));
     
@@ -105,12 +100,11 @@ int ReadSysMatrix2D(
     return 0;
     
 }
-*/
+
 /* Utility for freeing memory from Sparse System Matrix */
 /* Returns 0 if no error occurs */
-/*
 int FreeSysMatrix2D(
-                    struct SysMatrix2D *A)       
+                    struct SysMatrix2D *A)       /* Input: Free all memory from data structure */
 {
     int i, Ncolumns;
     
@@ -124,101 +118,11 @@ int FreeSysMatrix2D(
     
     return 0;
 }
-*/
+
 
 /**********************************************/
 /*  Utilities for reading/writing 2D sinogram */
 /**********************************************/
-
-
-void printSinoParams2DParallel(struct SinoParams2DParallel *sinoparams)
-{
-    float DeltaViewAngle ;
-    DeltaViewAngle = (sinoparams->ViewAngles[sinoparams->NViews-1]-sinoparams->ViewAngles[0])/sinoparams->NViews ;
-    
-    fprintf(stdout, "\nSINOGRAM PARAMETERS:\n");
-    fprintf(stdout, " - NViews         = %-10d                (Number of view angles)\n", sinoparams->NViews);
-    fprintf(stdout, " - NChannels      = %-10d                (Number of channels in detector)\n", sinoparams->NChannels);
-    fprintf(stdout, " - DeltaChannel   = %-10f mm             (Detector spacing)\n", sinoparams->DeltaChannel);
-    fprintf(stdout, " - CenterOffset   = %-10f channels       (Offset of center-of-rotation)\n", sinoparams->CenterOffset);
-}
-
-
-/* Utility for reading 2D parallel beam sinogram parameters */
-/* Returns 0 if no error occurs */
-int ReadSinoParams2DParallel(
-                             char *fname,                               /* Input: Reads sinogram parameters from <fname>.sinoparams */
-                             struct SinoParams2DParallel *sinoparams)  /* Output: Reads sinogram parameters into data structure */
-{
-    FILE *fp;
-    char tag[200];
-    char AngleListFileName[200];
-    int i;
-    
-    strcat(fname,".sinoparams"); /* append file extension */
-    
-    if ((fp = fopen(fname, "r")) == NULL)
-    {
-        fprintf(stderr, "ERROR in ReadSinoParams2DParallel: can't open file %s.\n", fname);
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%d\n", &(sinoparams->NChannels));
-    if(sinoparams->NChannels <= 0){
-        fprintf(stderr,"ERROR in ReadSinoParams2DParallel: Number of channels must be a positive integer. And it must be specified.\n");
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%d\n", &(sinoparams->NViews));
-    if(sinoparams->NViews <= 0){
-        fprintf(stderr,"ERROR in ReadSinoParams2DParallel: Number of views must be a positive integer. And it must be specified.\n");
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%f\n", &(sinoparams->DeltaChannel));
-    if(sinoparams->DeltaChannel <= 0){
-        fprintf(stderr,"ERROR in ReadSinoParams2DParallel: Detector-channel spacing must be a positive floating point. And it must be specified.\n");
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%f\n", &(sinoparams->CenterOffset)); /* NOTE : THIS IS IN UNITS OF NUMBER OF CHANNELS RATHER THAN ACTUAL DISPLACEMENT in mm */
-    if(fabs(sinoparams->CenterOffset) >= sinoparams->NChannels){
-        fprintf(stderr,"ERROR in ReadSinoParams2DParallel: Detector-center offset cannot be greater than number of channels \n");
-        exit(-1);
-    }
-
-    fgets(tag, 200, fp);
-    fscanf(fp, "%s\n", AngleListFileName); /* List of View angles */
-    
-    fclose(fp);
-    
-    /* Read in list of View Angles */
-    sinoparams->ViewAngles = (float *)get_spc(sinoparams->NViews, sizeof(float));
-    
-    if ((fp = fopen(AngleListFileName, "r")) == NULL)
-    {
-        fprintf(stderr, "ERROR in ReadSinoParams2DParallel: can't open file containing list of view angles %s.\n", AngleListFileName);
-        exit(-1);
-    }
-    
-    for(i=0;i<sinoparams->NViews;i++)
-    {
-        if(fscanf(fp,"%f\n",&(sinoparams->ViewAngles[i])) == 0)
-       {
-         fprintf(stderr, "ERROR in ReadSinoParams2DParallel: List of view angles in file %s terminated early.\n", AngleListFileName);
-         exit(-1);
-       }
-    }
-    
-    fclose(fp);
-    
-    return 0;
-}
-
 
 /* Utility for reading 2D parallel beam sinogram data */
 /* Warning: Memory must be allocated before use */
@@ -385,72 +289,10 @@ int FreeSinoData2DParallel(
     return 0;
 }
 
+
 /*******************************************/
 /* Utilities for reading/writing 2D images */
 /*******************************************/
-
-/* VS : Utility for reading 2D Image parameters */
-/* Returns 0 if no error occurs */
-int ReadImageParams2D(
-                      char *fname,                         /* Input: Reads image type parameter from <fname>.imgparams */
-                      struct ImageParams2D *imgparams)     /* Output: Reads image parameters into data structure */
-{
-    FILE *fp;
-    char tag[200];
-    
-    strcat(fname,".imgparams"); /* append file extension */
-    
-    if ((fp = fopen(fname, "r")) == NULL)
-    {
-        fprintf(stderr, "ERROR in ReadImageParams2D: can't open file %s.\n", fname);
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%d\n", &(imgparams->Nx));
-    if(imgparams->Nx <= 0){
-        fprintf(stderr,"ERROR in ReadImageParams2D: No. of pixels along horizontal direction, Nx, must be a positive integer. And it must be specified.\n");
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%d\n", &(imgparams->Ny));
-    if(imgparams->Ny <= 0){
-        fprintf(stderr,"ERROR in ReadImageParams2D: No. of pixels along vertical direction, Ny, must be a positive integer. And it must be specified. \n");
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%f\n", &(imgparams->Deltaxy));
-    if(imgparams->Deltaxy <= 0){
-        fprintf(stderr,"ERROR in ReadImageParams2D: Pixel Dimension (mm) must be a positive floating point. And it must be specified.\n");
-        exit(-1);
-    }
-    
-    fgets(tag, 200, fp);
-    fscanf(fp, "%f\n", &(imgparams->ROIRadius));
-    if(imgparams->ROIRadius <= 0){
-        fprintf(stderr,"ERROR in ReadImageParams2D: Region-of-Interest Radius (mm) must be a positive floating point. And it must be specified.\n");
-        exit(-1);
-    }
-    
-    /* Note : imgparams->Deltaxy needs to be read in. For some reason it is now calculated bade on field of view */
-    /* Remove this dependency later once Parameter file is changed */
-    
-    fclose(fp);
-    return 0 ;
-}
-
-
-void printImageParams2D(struct ImageParams2D *imgparams)
-{
-    fprintf(stdout, "\nIMAGE PARAMETERS:\n");
-    fprintf(stdout, " - Nx        = %-10d                     (Number of pixels along x axis)\n", imgparams->Nx);
-    fprintf(stdout, " - Ny        = %-10d                     (Number of pixels along y axis)\n", imgparams->Ny);
-    fprintf(stdout, " - Deltaxy   = %-10f mm                  (spacing between pixels in x and y direction)\n", imgparams->Deltaxy);
-    fprintf(stdout, " - ROIRadius = %-10f mm                  (radius of the reconstruction)\n", imgparams->ROIRadius);
-}
-
 
 /* Here image data read in units of (mm^-1) */
 int ReadImage2D(char *fname, struct Image2D *Image)
