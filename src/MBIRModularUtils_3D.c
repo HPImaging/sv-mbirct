@@ -517,47 +517,34 @@ int ReadReconParamsQGGMRF3D(
 /* Warning: Memory must be allocated before use */
 /* Returns 0 if no error occurs */
 int ReadSinoData3DParallel(
-    char *fname,   /* Input: Reads sinogram data from <fname>_slice<InitialIndex>.2Dsinodata to <fname>_slice<FinalIndex>.2Dsinodata */
+    char *basename,   /* Input: Reads sinogram data from <basename>_slice<index>.2Dsinodata for given index range */
     struct Sino3DParallel *sinogram)  /* Input/Output: Uses sinogram parameters and reads sinogram data into data structure */
 {
-    char slicefname[200];
-    char *sliceindex;
-    int i,NSlices,NChannels,NViews,FirstSliceNumber;
-    struct Sino2DParallel SingleSliceSinogram;
+    FILE *fp;
+    char fname[200];
+    int i,NSlices,FirstSliceNumber,M;
     
-    strcat(fname,"_slice"); /* <fname>_slice */
-    sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
+    NSlices = sinogram->sinoparams.NSlices;
+    FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
+    M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
     
-    NSlices = sinogram->sinoparams.NSlices ;
-    NChannels = sinogram->sinoparams.NChannels;
-    NViews = sinogram->sinoparams.NViews;
-    FirstSliceNumber=sinogram->sinoparams.FirstSliceNumber;
-    
-    /* Copy necessary slice information */
-    SingleSliceSinogram.sinoparams.NChannels = NChannels;
-    SingleSliceSinogram.sinoparams.NViews = NViews;
- 
     //printf("Reading 3-D Projection Data ... \n");
-    
     for(i=0;i<NSlices;i++)
     {
-        SingleSliceSinogram.sino = sinogram->sino[i];  /* pointer to beginning of data for i-th slice */
+        /* slice index currently formed from fixed number of digits */
+        sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+	//printf("filename: |%s|\n",fname);
         
-        /* slice index : integer to string conversion with fixed precision */
-        sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-        
-        /* Obtain file name for the given slice */
-        strcpy(slicefname,fname);
-        strcat(slicefname,sliceindex); /* append slice index */
-        
-        if(ReadSinoData2DParallel(slicefname, &SingleSliceSinogram))
-        {   fprintf(stderr, "Error in ReadSinoData3DParallel : Unable to read sinogram data for slice %d from file %s \n",i,slicefname);
+        if((fp = fopen(fname,"r")) == NULL) {
+            fprintf(stderr, "ERROR in ReadSinoData3DParallel: can't open file %s\n",fname);
             exit(-1);
         }
+        if(fread(sinogram->sino[i],sizeof(float),M,fp)!=M) {
+            fprintf(stderr, "ERROR in ReadSinoData3DParallel: file %s terminated early\n",fname);
+            exit(-1);
+        }
+        fclose(fp);
     }
-
-    free((void *)sliceindex);
-
     return 0;
 }
 
@@ -566,90 +553,69 @@ int ReadSinoData3DParallel(
 /* Warning: Memory must be allocated before use */
 /* Returns 0 if no error occurs */
 int ReadWeights3D(
-    char *fname,       /* Input: Reads sinogram data from <fname>_slice<InitialIndex>.2Dweightdata to <fname>_slice<FinalIndex>.2Dweightdata */
+    char *basename,       /* Input: Reads sinogram data from <basename>_slice<index>.2Dweightdata for given index range */
     struct Sino3DParallel *sinogram) /* Input/Output: Uses sinogram parameters and reads sinogram data into data structure */
 {
-    char slicefname[200];
-    char *sliceindex;
-    int i,NSlices,NChannels,NViews,FirstSliceNumber;
-    struct Sino2DParallel SingleSliceSinogram;
+    FILE *fp;
+    char fname[200];
+    int i,NSlices,FirstSliceNumber,M;
 
-    strcat(fname,"_slice"); /* <fname>_slice */
-    sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-
-    NSlices = sinogram->sinoparams.NSlices ;
-    NChannels = sinogram->sinoparams.NChannels;
-    NViews = sinogram->sinoparams.NViews;
+    NSlices = sinogram->sinoparams.NSlices;
     FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
+    M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
 
-    /* Copy necessary slice information */
-    SingleSliceSinogram.sinoparams.NChannels = NChannels;
-    SingleSliceSinogram.sinoparams.NViews = NViews;
-
-    //printf("Reading 3-D Sinogram Weights Data ... \n");
-
+    //printf("Reading 3-D Sinogram Weights ... \n");
     for(i=0;i<NSlices;i++)
     {
-        SingleSliceSinogram.weight = sinogram->weight[i]; /* pointer to beginning of data for i-th slice */
+        /* slice index currently formed from fixed number of digits */
+        sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+	//printf("filename: |%s|\n",fname);
         
-        /* slice index : integer to string conversion with fixed precision */
-        sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-        
-        /* Obtain file name for the given slice */
-        strcpy(slicefname,fname);
-        strcat(slicefname,sliceindex); /* append slice index */
-        
-        if(ReadWeights2D(slicefname, &SingleSliceSinogram))
-        {   fprintf(stderr, "Error in ReadWeights3D : Unable to read sinogram weight data for slice %d from file %s \n",i,slicefname);
+        if((fp = fopen(fname,"r")) == NULL) {
+            fprintf(stderr,"ERROR in ReadWeights3D: can't open file %s\n",fname);
             exit(-1);
         }
+        if(fread(sinogram->weight[i],sizeof(float),M,fp)!=M) {
+            fprintf(stderr,"ERROR in ReadWeights3D: file %s terminated early\n",fname);
+            exit(-1);
+        }
+        fclose(fp);
     }
-    free((void *)sliceindex);
     return 0;
 }
+
 
 /* Utility for writing out 3D parallel beam sinogram parameters and data */
 /* Returns 0 if no error occurs */
 int WriteSino3DParallel(
-    char *fname,	/* Input: Writes sinogram data to <fname>_slice<n>.2Dsinodata for given slice range */
+    char *basename,	/* Input: Writes sinogram data to <basename>_slice<n>.2Dsinodata for given slice range */
     struct Sino3DParallel *sinogram)  /* Input: Sinogran parameters and data */
 {
-    char slicefname[200];
-    char *sliceindex;
-    int i,NSlices,NChannels,NViews,FirstSliceNumber;
-    struct Sino2DParallel SingleSliceSinogram;
-    
-    strcat(fname,"_slice"); /* <fname>_slice */
-    sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-    
-    NSlices = sinogram->sinoparams.NSlices ;
-    NChannels = sinogram->sinoparams.NChannels;
-    NViews = sinogram->sinoparams.NViews;
+    FILE *fp;
+    char fname[200];
+    int i,NSlices,FirstSliceNumber,M;
+
+    NSlices = sinogram->sinoparams.NSlices;
     FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
-    
-    /* Copy necessary slice information */
-    SingleSliceSinogram.sinoparams.NChannels = NChannels;
-    SingleSliceSinogram.sinoparams.NViews = NViews;
-    
-    printf("\nWriting 3-D Projection Data ... \n");
-    
+    M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
+
+    //printf("Writing 3-D Sinogram Projection Data ... \n");
     for(i=0;i<NSlices;i++)
     {
-        SingleSliceSinogram.sino = sinogram->sino[i];  /* pointer to beginning of data for i-th slice */
+        /* slice index currently formed from fixed number of digits */
+        sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+	//printf("filename: |%s|\n",fname);
         
-        /* slice index : integer to string conversion with fixed precision */
-        sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-        
-        /* Obtain file name for the given slice */
-        strcpy(slicefname,fname);
-        strcat(slicefname,sliceindex); /* append slice index */
-        
-        if(WriteSino2DParallel(slicefname, &SingleSliceSinogram))
-        {   fprintf(stderr, "Error in WriteSinoData3DParallel : Unable to write sinogram data for slice %d from file %s \n",i,slicefname);
+        if((fp = fopen(fname,"w")) == NULL) {
+            fprintf(stderr,"ERROR in WriteSino3DParallel: can't open file %s\n",fname);
             exit(-1);
         }
+        if(fwrite(sinogram->sino[i],sizeof(float),M,fp)!=M) {
+            fprintf(stderr,"ERROR in WriteSino3DParallel: can't write to file %s\n",fname);
+            exit(-1);
+        }
+        fclose(fp);
     }
-    free((void *)sliceindex);
     return 0;
 }
 
@@ -657,47 +623,37 @@ int WriteSino3DParallel(
 /* Utility for writing out weights for 3D parallel beam sinogram data */
 /* Returns 0 if no error occurs */
 int WriteWeights3D(
-    char *fname,	/* Input: Writes sinogram weights to <fname>_slice<n>.2Dweightdata for given slice range */
+    char *basename,	/* Input: Writes sinogram weights to <basename>_slice<n>.2Dweightdata for given slice range */
     struct Sino3DParallel *sinogram) /* Input: Sinogram parameters and data */
 {
-    char slicefname[200];
-    char *sliceindex;
-    int i,NSlices,NChannels,NViews,FirstSliceNumber;
-    struct Sino2DParallel SingleSliceSinogram;
-    
-    strcat(fname,"_slice"); /* <fname>_slice */
-    sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-    
-    NSlices = sinogram->sinoparams.NSlices ;
-    NChannels = sinogram->sinoparams.NChannels;
-    NViews = sinogram->sinoparams.NViews;
+    FILE *fp;
+    char fname[200];
+    int i,NSlices,FirstSliceNumber,M;
+
+    NSlices = sinogram->sinoparams.NSlices;
     FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
-    
-    /* Copy necessary slice information */
-    SingleSliceSinogram.sinoparams.NChannels = NChannels;
-    SingleSliceSinogram.sinoparams.NViews = NViews;
-    
-    printf("Writing 3-D Sinogram Weights Data ... \n");
-    
+    M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
+
+    //printf("Writing 3-D Sinogram Weights ... \n");
     for(i=0;i<NSlices;i++)
     {
-        SingleSliceSinogram.weight = sinogram->weight[i];  /* pointer to beginning of data for i-th slice */
+        /* slice index currently formed from fixed number of digits */
+        sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+	//printf("filename: |%s|\n",fname);
         
-        /* slice index : integer to string conversion with fixed precision */
-        sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-        
-        /* Obtain file name for the given slice */
-        strcpy(slicefname,fname);
-        strcat(slicefname,sliceindex); /* append slice index */
-        
-        if(WriteWeights2D(slicefname, &SingleSliceSinogram))
-        {   fprintf(stderr, "Error in WriteWeights3D: Unable to write sinogram weight data for slice %d from file %s \n",i,slicefname);
+        if((fp = fopen(fname,"w")) == NULL) {
+            fprintf(stderr,"ERROR in WriteWeights3D: can't open file %s\n",fname);
             exit(-1);
         }
+        if(fwrite(sinogram->weight[i],sizeof(float),M,fp)!=M) {
+            fprintf(stderr,"ERROR in WriteWeights3D: can't write to file %s\n",fname);
+            exit(-1);
+        }
+        fclose(fp);
     }
-    free((void *)sliceindex);
     return 0;
 }
+
 
 /* Utility for allocating memory for Sino */
 /* Returns 0 if no error occurs */
@@ -719,6 +675,7 @@ int FreeSinoData3DParallel(struct Sino3DParallel *sinogram)  /* Input: Sinogram 
     return 0;
 }
 
+
 /*******************************************/
 /* Utilities for reading/writing 3D images */
 /*******************************************/
@@ -727,91 +684,72 @@ int FreeSinoData3DParallel(struct Sino3DParallel *sinogram)  /* Input: Sinogram 
 /* Warning: Memory must be allocated before use */
 /* Returns 0 if no error occurs */
 int ReadImage3D(
-    char *fname,	/* Input: Reads 2D image data from <fname>_slice<n>.2Dimgdata for given slice range */
+    char *basename,	/* Input: Reads 2D image data from <basename>_slice<n>.2Dimgdata for given slice range */
     struct Image3D *Image)	/* Input/Output: Uses image parameters (dimensions) and reads images into structure */
 {
-    char slicefname[200];
-    char *sliceindex;
-    int i,Nx,Ny,Nz,FirstSliceNumber;
-    struct Image2D SingleSliceImage;
+    FILE *fp;
+    char fname[200];
+    int i,Nz,FirstSliceNumber,M;
     
-    strcat(fname,"_slice"); /* <fname>_slice */
-    sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-    
-    Nx = Image->imgparams.Nx ;
-    Ny = Image->imgparams.Ny;
     Nz = Image->imgparams.Nz;
     FirstSliceNumber = Image->imgparams.FirstSliceNumber;
+    M = Image->imgparams.Nx * Image->imgparams.Ny;
     
-    /* Copy necessary slice information */
-    SingleSliceImage.imgparams.Nx = Nx;
-    SingleSliceImage.imgparams.Ny = Ny;
-    
+    //printf("Reading 3-D Image ... \n");
     for(i=0;i<Nz;i++)
     {
-        SingleSliceImage.image = Image->image[i];  /* pointer to beginning of data for i-th slice */
+        /* slice index currently formed from fixed number of digits */
+        sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+	//printf("filename: |%s|\n",fname);
         
-        /* slice index : integer to string conversion with fixed precision */
-        sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-        
-        /* Obtain file name for the given slice */
-        strcpy(slicefname,fname);
-        strcat(slicefname,sliceindex); /* append slice index */
-        
-        if(ReadImage2D(slicefname, &SingleSliceImage))
-        {   fprintf(stderr, "Error in ReadImage3D : Unable to read image data for slice %d from file %s \n",i,slicefname);
+        if((fp = fopen(fname,"r")) == NULL) {
+            fprintf(stderr, "ERROR in ReadImage3D: can't open file %s\n",fname);
             exit(-1);
         }
+        if(fread(Image->image[i],sizeof(float),M,fp)!=M) {
+            fprintf(stderr, "ERROR in ReadImage3D: file %s terminated early\n",fname);
+            exit(-1);
+        }
+        fclose(fp);
     }
-    free((void *)sliceindex);
     return 0;
 }
-           
+
 
 /* Utility for writing 3D image parameters and data */
 /* Returns 0 if no error occurs */
 int WriteImage3D(
-    char *fname,	/* Input: Writes image data to <fname>_slice<n>.2Dimgdata for given slice range */
+    char *basename,	/* Input: Writes image data to <basename>_slice<n>.2Dimgdata for given slice range */
     struct Image3D *Image)  /* Input: Image data structure (both data and params) */
 {
-    char slicefname[200];
-    char *sliceindex;
-    int i,Nx,Ny,Nz,FirstSliceNumber;
-    struct Image2D SingleSliceImage;
+    FILE *fp;
+    char fname[200];
+    int i,Nz,FirstSliceNumber,M;
     
-    strcat(fname,"_slice"); /* <fname>_slice */
-    sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-    
-    Nx = Image->imgparams.Nx ;
-    Ny = Image->imgparams.Ny;
     Nz = Image->imgparams.Nz;
     FirstSliceNumber = Image->imgparams.FirstSliceNumber;
-    
-    /* Copy necessary slice information */
-    SingleSliceImage.imgparams.Nx = Nx;
-    SingleSliceImage.imgparams.Ny = Ny;
+    M = Image->imgparams.Nx * Image->imgparams.Ny;
     
     //printf("Writing 3-D Image ... \n");
     for(i=0;i<Nz;i++)
     {
-        SingleSliceImage.image = Image->image[i];  /* pointer to beginning of data for i-th slice */
+        /* slice index currently formed from fixed number of digits */
+        sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+	//printf("filename: |%s|\n",fname);
         
-        /* slice index : integer to string conversion with fixed precision */
-        sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-        
-        /* Obtain file name for the given slice */
-        strcpy(slicefname,fname);
-        strcat(slicefname,sliceindex); /* append slice index */
-        
-        if(WriteImage2D(slicefname, &SingleSliceImage))
-        {   fprintf(stderr, "Error in WriteImage3D : Unable to write image data for slice %d from file %s \n",i,slicefname);
+        if((fp = fopen(fname,"w")) == NULL) {
+            fprintf(stderr, "ERROR in WriteImage3D: can't open file %s\n",fname);
             exit(-1);
         }
+        if(fwrite(Image->image[i],sizeof(float),M,fp)!=M) {
+            fprintf(stderr, "ERROR in WriteImage3D: file %s terminated early\n",fname);
+            exit(-1);
+        }
+        fclose(fp);
     }
-    free((void *)sliceindex);
     return 0;
 }
-           
+
 
 /* Utility for allocating memory for Image */
 /* Returns 0 if no error occurs */
