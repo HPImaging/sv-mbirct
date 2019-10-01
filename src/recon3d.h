@@ -2,6 +2,7 @@
 #ifndef _RECON3D_H_
 #define _RECON3D_H_
 
+#include "MBIRModularDefs.h"
 #include "A_comp.h"
 #include "initialize.h"
 

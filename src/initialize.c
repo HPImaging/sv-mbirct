@@ -1,12 +1,12 @@
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
-#include <string.h>	/* strcmp */
-#include <getopt.h>	/* getopt */
+#include <string.h>
+#include <getopt.h>
 
-#include "MBIRModularUtils_2D.h"
-#include "MBIRModularUtils_3D.h"
+#include "MBIRModularDefs.h"
+#include "MBIRModularUtils.h"
 #include "allocate.h"
 #include "initialize.h"
 

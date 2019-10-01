@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "MBIRModularUtils_3D.h"
-#include "MBIRModularUtils_2D.h"
+#include "MBIRModularDefs.h"
+#include "MBIRModularUtils.h"
 #include "allocate.h"
 #include "A_comp.h"
 #include "initialize.h"

@@ -3,17 +3,18 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
 #include <string.h>
 #include <omp.h>
 
-#include "MBIRModularUtils_3D.h"
-#include "MBIRModularUtils_2D.h"
+#include "MBIRModularDefs.h"
+#include "MBIRModularUtils.h"
 #include "allocate.h"
 #include "icd3d.h"
-#include "recon3d.h"
 #include "heap.h"
 #include "A_comp.h"
 #include "initialize.h"
+#include "recon3d.h"
 
 /* The MBIR algorithm  */
 /* Note : */

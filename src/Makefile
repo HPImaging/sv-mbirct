@@ -26,13 +26,13 @@ all: mbir_ct Gen_SysMatrix clean
 clean:
 	rm *.o 
 
-OBJ = initialize.o recon3d.o heap.o icd3d.o A_comp.o allocate.o MBIRModularUtils_3D.o MBIRModularUtils_2D.o
+OBJ = initialize.o recon3d.o heap.o icd3d.o A_comp.o allocate.o MBIRModularUtils.o
 
 mbir_ct: mbir_ct.o $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 	mv $@ ../bin
 
-Gen_SysMatrix: Gen_SysMatrix.o A_comp.o allocate.o MBIRModularUtils_3D.o MBIRModularUtils_2D.o
+Gen_SysMatrix: Gen_SysMatrix.o A_comp.o allocate.o MBIRModularUtils.o
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 	mv $@ ../bin
 

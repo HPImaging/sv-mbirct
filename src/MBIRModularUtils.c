@@ -1,11 +1,12 @@
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <libgen.h>  /* for dirname */
+
 #include "allocate.h"
-#include "MBIRModularUtils_2D.h"
-#include "MBIRModularUtils_3D.h"
+#include "MBIRModularDefs.h"
+#include "MBIRModularUtils.h"
 
 
 /*************************************************/
@@ -28,8 +29,8 @@ void printSinoParams3DParallel(struct SinoParams3DParallel *sinoparams)
 /* Utility for reading 3D parallel beam sinogram parameters */
 /* Returns 0 if no error occurs */
 int ReadSinoParams3DParallel(
-	char *basename,					/* Input: Reads sinogram parameters from <fname>.sinoparams */
-	struct SinoParams3DParallel *sinoparams)	/* Output: Reads sinogram parameters into data structure */
+	char *basename,			/* Source base filename, i.e. <basename>.sinoparams */
+	struct SinoParams3DParallel *sinoparams)  /* Sinogram params data structure */
 {
 	FILE *fp;
 	char fname[200];
@@ -192,8 +193,8 @@ void printImageParams3D(struct ImageParams3D *imgparams)
 /* Utility for reading 2D Image parameters */
 /* Returns 0 if no error occurs */
 int ReadImageParams3D(
-	char *basename,				/* Input: Reads image type parameter from <fname>.imgparams */
-	struct ImageParams3D *imgparams)	/* Output: Reads image parameters into data structure */
+	char *basename,		/* Source base filename, i.e. <basename>.imgparams */
+	struct ImageParams3D *imgparams)  /* Image params data structure */
 {
 	FILE *fp;
 	char fname[200];
@@ -326,8 +327,8 @@ void printReconParamsQGGMRF3D(struct ReconParamsQGGMRF3D *reconparams)
 /* Utility for reading QGGMRF reconstruction parameters */
 /* Returns 0 if no error occurs */
 int ReadReconParamsQGGMRF3D(
-	char *basename,				/* base file name <fname>.reconparams */
-	struct ReconParamsQGGMRF3D *reconparams) /* recon parameters data structure */
+	char *basename,				/* Source base filename, i.e. <basename>.reconparams */
+	struct ReconParamsQGGMRF3D *reconparams)  /* Reconstruction parameters data structure */
 {
 	FILE *fp;
 	char fname[200];
@@ -509,41 +510,84 @@ int ReadReconParamsQGGMRF3D(
 }
 
 
+/*******************************/
+/*     General purpose I/O     */
+/*******************************/
+
+/* General purpose utility for reading array of floats from a file */
+/* Exit codes:							*/
+/*   0 = success						*/
+/*   1 = failure: can't open file				*/
+/*   2 = failure: read from file terminated early		*/
+int ReadFloatArray(
+	char *fname,	/* source filename */
+	float *array,	/* pointer to destination */
+	int N)		/* Number of single precision elements to read */
+{
+	FILE *fp;
+        if( (fp = fopen(fname,"r")) == NULL )
+           return(1);
+        if(fread(array,sizeof(float),N,fp)!=N) {
+           fclose(fp);
+           return(2);
+	}
+        fclose(fp);
+	return(0);
+}
+
+/* General purpose utility for writing array of floats to a file */
+/* Exit codes:							*/
+/*   0 = success						*/
+/*   1 = failure: can't open file				*/
+/*   2 = failure: write to file terminated early		*/
+int WriteFloatArray(
+	char *fname,	/* destination filename */
+	float *array,	/* pointer to source array */
+	int N)		/* Number of single precision elements to write */
+{
+	FILE *fp;
+        if( (fp = fopen(fname,"w")) == NULL )
+           return(1);
+        if(fwrite(array,sizeof(float),N,fp)!=N) {
+           fclose(fp);
+           return(2);
+	}
+        fclose(fp);
+	return(0);
+}
+
+
 /**********************************************/
-/*  Utilities for reading/writing 3D sinogram */
+/*     Sinogram I/O and memory allocation     */
 /**********************************************/
 
 /* Utility for reading 3D parallel beam sinogram data */
 /* Warning: Memory must be allocated before use */
 /* Returns 0 if no error occurs */
 int ReadSinoData3DParallel(
-    char *basename,   /* Input: Reads sinogram data from <basename>_slice<index>.2Dsinodata for given index range */
-    struct Sino3DParallel *sinogram)  /* Input/Output: Uses sinogram parameters and reads sinogram data into data structure */
+    char *basename,	/* Source base filename, i.e. <basename>_slice<Index>.2Dsinodata for given index range */
+    struct Sino3DParallel *sinogram)  /* Sinogram data+params data structure */
 {
-    FILE *fp;
     char fname[200];
-    int i,NSlices,FirstSliceNumber,M;
+    int i,NSlices,FirstSliceNumber,M,exitcode;
     
     NSlices = sinogram->sinoparams.NSlices;
     FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
     M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
     
-    //printf("Reading 3-D Projection Data ... \n");
     for(i=0;i<NSlices;i++)
     {
         /* slice index currently formed from fixed number of digits */
         sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if((fp = fopen(fname,"r")) == NULL) {
-            fprintf(stderr, "ERROR in ReadSinoData3DParallel: can't open file %s\n",fname);
+        if( exitcode=ReadFloatArray(fname,sinogram->sino[i],M) ) {
+            if(exitcode==1)
+		fprintf(stderr, "ERROR in ReadSinoData3DParallel: can't open file %s\n",fname);
+            if(exitcode==2)
+		fprintf(stderr, "ERROR in ReadSinoData3DParallel: read from file %s terminated early\n",fname);
             exit(-1);
         }
-        if(fread(sinogram->sino[i],sizeof(float),M,fp)!=M) {
-            fprintf(stderr, "ERROR in ReadSinoData3DParallel: file %s terminated early\n",fname);
-            exit(-1);
-        }
-        fclose(fp);
     }
     return 0;
 }
@@ -553,33 +597,29 @@ int ReadSinoData3DParallel(
 /* Warning: Memory must be allocated before use */
 /* Returns 0 if no error occurs */
 int ReadWeights3D(
-    char *basename,       /* Input: Reads sinogram data from <basename>_slice<index>.2Dweightdata for given index range */
-    struct Sino3DParallel *sinogram) /* Input/Output: Uses sinogram parameters and reads sinogram data into data structure */
+	char *basename,		/* Source base filename, i.e. <basename>_slice<Index>.2Dweightdata for given index range */
+	struct Sino3DParallel *sinogram)  /* Sinogram data+params data structure */
 {
-    FILE *fp;
     char fname[200];
-    int i,NSlices,FirstSliceNumber,M;
+    int i,NSlices,FirstSliceNumber,M,exitcode;
 
     NSlices = sinogram->sinoparams.NSlices;
     FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
     M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
 
-    //printf("Reading 3-D Sinogram Weights ... \n");
     for(i=0;i<NSlices;i++)
     {
         /* slice index currently formed from fixed number of digits */
         sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if((fp = fopen(fname,"r")) == NULL) {
-            fprintf(stderr,"ERROR in ReadWeights3D: can't open file %s\n",fname);
+        if( exitcode=ReadFloatArray(fname,sinogram->weight[i],M) ) {
+            if(exitcode==1)
+		fprintf(stderr, "ERROR in ReadWeights3D: can't open file %s\n",fname);
+            if(exitcode==2)
+		fprintf(stderr, "ERROR in ReadWeights3D: read from file %s terminated early\n",fname);
             exit(-1);
         }
-        if(fread(sinogram->weight[i],sizeof(float),M,fp)!=M) {
-            fprintf(stderr,"ERROR in ReadWeights3D: file %s terminated early\n",fname);
-            exit(-1);
-        }
-        fclose(fp);
     }
     return 0;
 }
@@ -591,30 +631,26 @@ int WriteSino3DParallel(
     char *basename,	/* Input: Writes sinogram data to <basename>_slice<n>.2Dsinodata for given slice range */
     struct Sino3DParallel *sinogram)  /* Input: Sinogran parameters and data */
 {
-    FILE *fp;
     char fname[200];
-    int i,NSlices,FirstSliceNumber,M;
+    int i,NSlices,FirstSliceNumber,M,exitcode;
 
     NSlices = sinogram->sinoparams.NSlices;
     FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
     M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
 
-    //printf("Writing 3-D Sinogram Projection Data ... \n");
     for(i=0;i<NSlices;i++)
     {
         /* slice index currently formed from fixed number of digits */
         sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if((fp = fopen(fname,"w")) == NULL) {
-            fprintf(stderr,"ERROR in WriteSino3DParallel: can't open file %s\n",fname);
+        if( exitcode=WriteFloatArray(fname,sinogram->sino[i],M) ) {
+            if(exitcode==1)
+		fprintf(stderr, "ERROR in WriteSino3DParallel: can't open file %s\n",fname);
+            if(exitcode==2)
+		fprintf(stderr, "ERROR in WriteSino3DParallel: write to file %s terminated early\n",fname);
             exit(-1);
         }
-        if(fwrite(sinogram->sino[i],sizeof(float),M,fp)!=M) {
-            fprintf(stderr,"ERROR in WriteSino3DParallel: can't write to file %s\n",fname);
-            exit(-1);
-        }
-        fclose(fp);
     }
     return 0;
 }
@@ -623,133 +659,117 @@ int WriteSino3DParallel(
 /* Utility for writing out weights for 3D parallel beam sinogram data */
 /* Returns 0 if no error occurs */
 int WriteWeights3D(
-    char *basename,	/* Input: Writes sinogram weights to <basename>_slice<n>.2Dweightdata for given slice range */
-    struct Sino3DParallel *sinogram) /* Input: Sinogram parameters and data */
+    char *basename,	/* Destination base filename, i.e. <basename>_slice<Index>.2Dweightdata for given index range */
+    struct Sino3DParallel *sinogram)  /* Sinogram data+params data structure */
 {
-    FILE *fp;
     char fname[200];
-    int i,NSlices,FirstSliceNumber,M;
+    int i,NSlices,FirstSliceNumber,M,exitcode;
 
     NSlices = sinogram->sinoparams.NSlices;
     FirstSliceNumber = sinogram->sinoparams.FirstSliceNumber;
     M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
 
-    //printf("Writing 3-D Sinogram Weights ... \n");
     for(i=0;i<NSlices;i++)
     {
         /* slice index currently formed from fixed number of digits */
         sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if((fp = fopen(fname,"w")) == NULL) {
-            fprintf(stderr,"ERROR in WriteWeights3D: can't open file %s\n",fname);
+        if( exitcode=WriteFloatArray(fname,sinogram->weight[i],M) ) {
+            if(exitcode==1)
+		fprintf(stderr, "ERROR in WriteWeights3D: can't open file %s\n",fname);
+            if(exitcode==2)
+		fprintf(stderr, "ERROR in WriteWeights3D: write to file %s terminated early\n",fname);
             exit(-1);
         }
-        if(fwrite(sinogram->weight[i],sizeof(float),M,fp)!=M) {
-            fprintf(stderr,"ERROR in WriteWeights3D: can't write to file %s\n",fname);
-            exit(-1);
-        }
-        fclose(fp);
     }
     return 0;
 }
 
-
 /* Utility for allocating memory for Sino */
 /* Returns 0 if no error occurs */
-int AllocateSinoData3DParallel(struct Sino3DParallel *sinogram)  /* Input: Sinogram parameters data structure */
+int AllocateSinoData3DParallel(struct Sino3DParallel *sinogram)  /* Input: Sinogram data+parameters structure */
 {
-    //printf("Allocating Sinogram Memory ... \n");
     sinogram->sino   = (float **)multialloc(sizeof(float), 2, sinogram->sinoparams.NSlices,sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels);
     sinogram->weight = (float **)multialloc(sizeof(float), 2, sinogram->sinoparams.NSlices,sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels);
     return 0;
 }
 
-
-/* Utility for freeing memory allocated for ViewAngles and Sino */
+/* Utility for freeing memory allocated for sinogram, weights and ViewAngles */
 /* Returns 0 if no error occurs */
-int FreeSinoData3DParallel(struct Sino3DParallel *sinogram)  /* Input: Sinogram parameters data structure */
+int FreeSinoData3DParallel(struct Sino3DParallel *sinogram)  /* Input: Sinogram data+parameters structure */
 {
     multifree(sinogram->sino,2);
     multifree(sinogram->weight,2);
+    free((void *)sinogram->sinoparams.ViewAngles);
     return 0;
 }
 
 
-/*******************************************/
-/* Utilities for reading/writing 3D images */
-/*******************************************/
+/******************************************/
+/*     Image I/O and memory allocation    */
+/******************************************/
 
 /* Utility for reading 3D image data */
 /* Warning: Memory must be allocated before use */
 /* Returns 0 if no error occurs */
 int ReadImage3D(
-    char *basename,	/* Input: Reads 2D image data from <basename>_slice<n>.2Dimgdata for given slice range */
-    struct Image3D *Image)	/* Input/Output: Uses image parameters (dimensions) and reads images into structure */
+    char *basename,	/* Source base filename, i.e. <basename>_slice<Index>.2Dimgdata for given index range */
+    struct Image3D *Image)  /* Image data+params data structure */
 {
-    FILE *fp;
     char fname[200];
-    int i,Nz,FirstSliceNumber,M;
+    int i,Nz,FirstSliceNumber,M,exitcode;
     
     Nz = Image->imgparams.Nz;
     FirstSliceNumber = Image->imgparams.FirstSliceNumber;
     M = Image->imgparams.Nx * Image->imgparams.Ny;
     
-    //printf("Reading 3-D Image ... \n");
     for(i=0;i<Nz;i++)
     {
         /* slice index currently formed from fixed number of digits */
         sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if((fp = fopen(fname,"r")) == NULL) {
-            fprintf(stderr, "ERROR in ReadImage3D: can't open file %s\n",fname);
+        if( exitcode=ReadFloatArray(fname,Image->image[i],M) ) {
+            if(exitcode==1)
+		fprintf(stderr, "ERROR in ReadImage3D: can't open file %s\n",fname);
+            if(exitcode==2)
+		fprintf(stderr, "ERROR in ReadImage3D: read from file %s terminated early\n",fname);
             exit(-1);
         }
-        if(fread(Image->image[i],sizeof(float),M,fp)!=M) {
-            fprintf(stderr, "ERROR in ReadImage3D: file %s terminated early\n",fname);
-            exit(-1);
-        }
-        fclose(fp);
     }
     return 0;
 }
 
-
-/* Utility for writing 3D image parameters and data */
+/* Utility for writing 3D image data */
 /* Returns 0 if no error occurs */
 int WriteImage3D(
-    char *basename,	/* Input: Writes image data to <basename>_slice<n>.2Dimgdata for given slice range */
-    struct Image3D *Image)  /* Input: Image data structure (both data and params) */
+    char *basename,	/* Destination base filename, i.e. <basename>_slice<Index>.2Dimgdata for given index range */
+    struct Image3D *Image)  /* Image data+params data structure */
 {
-    FILE *fp;
     char fname[200];
-    int i,Nz,FirstSliceNumber,M;
+    int i,Nz,FirstSliceNumber,M,exitcode;
     
     Nz = Image->imgparams.Nz;
     FirstSliceNumber = Image->imgparams.FirstSliceNumber;
     M = Image->imgparams.Nx * Image->imgparams.Ny;
     
-    //printf("Writing 3-D Image ... \n");
     for(i=0;i<Nz;i++)
     {
         /* slice index currently formed from fixed number of digits */
         sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if((fp = fopen(fname,"w")) == NULL) {
-            fprintf(stderr, "ERROR in WriteImage3D: can't open file %s\n",fname);
+        if( exitcode=WriteFloatArray(fname,Image->image[i],M) ) {
+            if(exitcode==1)
+		fprintf(stderr, "ERROR in WriteImage3D: can't open file %s\n",fname);
+            if(exitcode==2)
+		fprintf(stderr, "ERROR in WriteImage3D: write to file %s terminated early\n",fname);
             exit(-1);
         }
-        if(fwrite(Image->image[i],sizeof(float),M,fp)!=M) {
-            fprintf(stderr, "ERROR in WriteImage3D: file %s terminated early\n",fname);
-            exit(-1);
-        }
-        fclose(fp);
     }
     return 0;
 }
-
 
 /* Utility for allocating memory for Image */
 /* Returns 0 if no error occurs */
@@ -766,4 +786,153 @@ int FreeImageData3D(struct Image3D *Image)
     multifree(Image->image,2);
     return 0;
 }
+
+
+
+/*********************************************************/
+/*    Sparse system matrix I/O and memory allocation     */
+/*********************************************************/
+
+/* Utility for reading/allocating the Sparse System Matrix */
+/* NOTE: Memory is allocated for the data structure inside subroutine */
+/* Returns 0 if no error occurs */
+int ReadSysMatrix2D(
+    char *fname,	/* Source base filename, i.e. <fname>.2dsysmatrix */
+    struct SysMatrix2D *A)  /* Sparse system matrix structure */
+{
+    FILE *fp;
+    int i, Ncolumns, Nnonzero;
+    
+    strcat(fname,".2Dsysmatrix"); /* append file extension */
+    
+    /* Allocate memory */
+    Ncolumns=A->Ncolumns;
+    A->column = (struct SparseColumn *)get_spc(Ncolumns, sizeof(struct SparseColumn));
+    
+    //printf("\nReading System-matrix ... \n");
+    
+    if ((fp = fopen(fname, "r")) == NULL)
+    {
+        fprintf(stderr, "ERROR in ReadSysMatrix2D: can't open file %s.\n", fname);
+        exit(-1);
+    }
+    
+    for (i = 0; i < Ncolumns; i++)
+    {
+        fread(&Nnonzero, sizeof(int), 1, fp);
+        A->column[i].Nnonzero = Nnonzero;
+        
+        if(Nnonzero > 0)
+        {
+            A->column[i].RowIndex = (int *)get_spc(Nnonzero, sizeof(int));
+            A->column[i].Value    = (float *)get_spc(Nnonzero, sizeof(float));
+            
+            if(fread(A->column[i].RowIndex, sizeof(int), Nnonzero, fp)!= Nnonzero)
+            {
+                fprintf(stderr, "ERROR in ReadSysMatrix2D: file terminated early %s.\n", fname);
+                exit(-1);
+            }
+            
+            if(fread(A->column[i].Value, sizeof(float), Nnonzero, fp) != Nnonzero)
+            {
+                fprintf(stderr, "ERROR in ReadSysMatrix2D: file terminated early %s.\n", fname);
+                exit(-1);
+            }
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
+
+/* Utility for writing the Sparse System Matrix */
+/* Returns 0 if no error occurs */
+int WriteSysMatrix2D(
+	char *fname,	/* Destination base filename, i.e. <fname>.2dsysmatrix */
+	struct SysMatrix2D *A)  /* Sparse system matrix structure */
+{
+    FILE *fp;
+    int i, Nnonzero, Ncolumns;
+
+    strcat(fname,".2Dsysmatrix"); /* append file extension */
+   
+    if ((fp = fopen(fname, "w")) == NULL)
+    {
+        fprintf(stderr, "ERROR in WriteSysMatrix2D: can't open file %s.\n", fname);
+        exit(-1);
+    }
+
+    Ncolumns = A->Ncolumns;
+
+    for (i = 0; i < Ncolumns; i++)
+    {
+        Nnonzero = A->column[i].Nnonzero;
+        fwrite(&Nnonzero, sizeof(int), 1, fp);
+
+        if(Nnonzero>0)
+        {
+            fwrite(A->column[i].RowIndex, sizeof(int), Nnonzero, fp);
+            fwrite(A->column[i].Value, sizeof(float), Nnonzero, fp);
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
+/* Utility for freeing memory from Sparse System Matrix */
+/* Returns 0 if no error occurs */
+int FreeSysMatrix2D(struct SysMatrix2D *A)
+{
+    int i;
+
+    for (i = 0; i < (A->Ncolumns); i++)
+    {
+        free((void *)A->column[i].RowIndex);
+        free((void *)A->column[i].Value);
+    }
+    return 0;
+}
+
+
+
+/************************************************************/
+/*     Strictly 2D sinogram/image memory allocation     */
+/************************************************************/
+
+/* Utility for allocating memory for 2D sinogram and weights */
+/* Returns 0 if no error occurs */
+int AllocateSinoData2DParallel(struct Sino2DParallel *sinogram)
+{
+    sinogram->sino   = (float *)get_spc(sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels, sizeof(float));
+    sinogram->weight = (float *)get_spc(sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels, sizeof(float));
+    return 0;
+}
+
+/* Utility for freeing 2D sinogram memory including sino, weights and ViewAngles */
+/* Returns 0 if no error occurs */
+int FreeSinoData2DParallel(struct Sino2DParallel *sinogram)
+{
+    free((void *)sinogram->sino);
+    free((void *)sinogram->weight);
+    free((void *)sinogram->sinoparams.ViewAngles);
+    return 0;
+}
+
+/* Utility for allocating memory for 2D Image */
+/* Returns 0 if no error occurs */
+int AllocateImageData2D(struct Image2D *Image)
+{
+    Image->image = (float *)get_spc(Image->imgparams.Nx * Image->imgparams.Ny, sizeof(float));
+    return 0;
+}
+
+/* Utility for freeing memory for 2D Image */
+/* Returns 0 if no error occurs */
+int FreeImageData2D(struct Image2D *Image)
+{
+    free((void *)Image->image);
+    return 0;
+}
+
+
 

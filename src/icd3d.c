@@ -1,10 +1,10 @@
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
-#include "MBIRModularUtils_3D.h"
-#include "MBIRModularUtils_2D.h"
+#include "MBIRModularDefs.h"
+#include "MBIRModularUtils.h"
 #include "icd3d.h"
 
 	
