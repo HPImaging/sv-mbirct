@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
                           /* else intialize it to a uniform image with value InitValue */
     	float OutsideROIValue;/* Image pixel value outside ROI Radius */
 
+	fprintf(stdout, "Starting Reconstruction...\n\n");
     
 	/* read command line */
 	readCmdLineMBIR(argc, argv, &cmdline);
@@ -107,33 +108,34 @@ int main(int argc, char *argv[])
 	Initialize_Image(&Image, &cmdline, InitValue);
 	ImageReconMask = GenImageReconMask(&Image,OutsideROIValue);
 
-	//gettimeofday(&tm1,NULL);
+	gettimeofday(&tm1,NULL);
 
-    	/* MBIR - Reconstruction */
-    	MBIRReconstruct3D(&Image,&sinogram,reconparams,ImageReconMask,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum,pieceLength);
-    		
-        //gettimeofday(&tm2,NULL);
-        //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-        //printf("run time %llu ms \n", tt);
-	
-    
-    	/* Write out reconstructed image */
-    	if(WriteImage3D(cmdline.ReconImageDataFile, &Image))
-    	{
-        	fprintf(stderr, "Error in writing out reconstructed image file through function WriteImage3D \n");
-        	exit(-1);
-    	}
-    	
+	/* MBIR - Reconstruction */
+	MBIRReconstruct3D(&Image,&sinogram,reconparams,ImageReconMask,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum,pieceLength);
+
+	gettimeofday(&tm2,NULL);
+	unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+	printf("run time %llu ms \n", tt);
+
+	fprintf(stdout, "Done with reconstruction. Writing output files...\n");
+
+	/* Write out reconstructed image */
+	if(WriteImage3D(cmdline.ReconImageDataFile, &Image))
+	{
+		fprintf(stderr, "Error in writing out reconstructed image file through function WriteImage3D \n");
+		exit(-1);
+	}
+
 	/* free image, sinogram and system matrix memory allocation */
-    	if(FreeImageData3D(&Image))
-    	{  fprintf(stderr, "Error image memory could not be freed through function FreeImageData3D \n");
-        	exit(-1);
-    	}
-    		
-    	if(FreeSinoData3DParallel(&sinogram))
-    	{  fprintf(stderr, "Error sinogram memory could not be freed through function FreeSinoData3DParallel \n");
-        	exit(-1);
-    	}
+	if(FreeImageData3D(&Image)) {
+		fprintf(stderr, "Error image memory could not be freed through function FreeImageData3D \n");
+		exit(-1);
+	}
+
+	if(FreeSinoData3DParallel(&sinogram)) {
+		fprintf(stderr, "Error sinogram memory could not be freed through function FreeSinoData3DParallel \n");
+		exit(-1);
+	}
 
 	free((char *)ImageReconMask);	    
     

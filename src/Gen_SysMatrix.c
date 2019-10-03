@@ -45,7 +45,9 @@ int main(int argc, char *argv[])
 	float x_0, y_0, Deltaxy, x, y, yy, ROIRadius, R_sq, R_sq_max;
 	int jx, jy,Nxy;
 	/*struct SysMatrix2D *A ;*/
-    
+
+	fprintf(stdout, "Generating System Matrix...\n\n");
+
 	/* read command line */
 	readCmdLineSysGen(argc, argv, &cmdline);
 
@@ -54,6 +56,7 @@ int main(int argc, char *argv[])
 	ReadImageParams3D(cmdline.imgparamsFileName, &imgparams);
 	printSinoParams3DParallel(&sinoparams);
 	printImageParams3D(&imgparams);
+	fprintf(stdout, "\n");
 
 	int pieceLength=computePieceLength(sinoparams.NViews);
 
@@ -62,8 +65,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Exiting %s\n",argv[0]);
 		exit(-1);
         }        
-    
-    	fprintf(stdout, "\nGenerating System Matrix...\n");
 
 	unsigned int sum=0;
 	int i,j,p,t;
@@ -75,8 +76,8 @@ int main(int argc, char *argv[])
 	    		sum++;
 	  	}
 	}
-	
-    	fprintf(stdout, "Ny is %d Nx %d sum %d channels %d views %d\n",Ny,Nx,sum,sinoparams.NChannels,sinoparams.NViews);	
+
+	//fprintf(stdout, "Ny is %d Nx %d sum %d channels %d views %d\n",Ny,Nx,sum,sinoparams.NChannels,sinoparams.NViews);
 
 	order = (int *)_mm_malloc(sum*sizeof(int),64);
 	
@@ -139,18 +140,21 @@ int main(int argc, char *argv[])
 	A_comp(bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&sinoparams,sum,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName,pieceLength);
 	    
 	//fprintf(stdout, "after A comp \n");
+	fprintf(stdout, "Done generating system matrix\n");
+
+	fprintf(stdout, "Computing projection of initial error...\n");
 
 	//float InitValue = reconparams.MuWater;    
 	float InitValue = MUWATER;    
-    
+
 	forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map,bandMinMap, &sinoparams, &imgparams, pieceLength);
     
 	char fname[200];
-    	sprintf(fname,"%s.initialError",cmdline.SysMatrixFileName);
+	sprintf(fname,"%s.initialError",cmdline.SysMatrixFileName);
 	writeErrorSinogram(fname,initialError,&sinoparams);   
 
-    	fprintf(stdout, "after E writing \n");	 
-    
+	fprintf(stdout, "Done projecting initial error\n\n");
+
     /*A = ComputeSysMatrix3DParallel(&sinoparams, &imgparams, PixelDetector_profile);*/
     
     
@@ -168,31 +172,31 @@ int main(int argc, char *argv[])
        exit(-1);
     }
     */
-    	_mm_free(order);
-        for(j=0;j<sum;j++){
-            	free((void *)bandMinMap[j].bandMin);
-            	free((void *)bandMaxMap[j].bandMax);
-        }
+	_mm_free(order);
+	for(j=0;j<sum;j++){
+		free((void *)bandMinMap[j].bandMin);
+		free((void *)bandMaxMap[j].bandMax);
+	}
 
-    	fprintf(stdout, "after bandMin and bandMax \n");	 
+	//fprintf(stdout, "after bandMin and bandMax \n");
 
-    	free((void *)bandMinMap);
-    	free((void *)bandMaxMap);    	
-    	for(i=0;i<sum;i++){
-        	for(j=0;j<((2*SVLength+1)*(2*SVLength+1));j++){
-            		if(A_Padded_Map[i][j].length>0){
-                		free((void *)A_Padded_Map[i][j].val);
-                		free((void *)A_Padded_Map[i][j].pieceWiseMin);
-                		free((void *)A_Padded_Map[i][j].pieceWiseWidth);
-            		}
-        	}
-    	}
-    	fprintf(stdout, "A_Padded_Map\n");	     	
-    	multifree(A_Padded_Map,2);
-    	multifree(ImageReconMask,2);
-    	free((void *)initialError);    	
-    	free((void *)max_num_pointer);    	
-    
+	free((void *)bandMinMap);
+	free((void *)bandMaxMap);
+	for(i=0;i<sum;i++){
+		for(j=0;j<((2*SVLength+1)*(2*SVLength+1));j++){
+			if(A_Padded_Map[i][j].length>0){
+				free((void *)A_Padded_Map[i][j].val);
+				free((void *)A_Padded_Map[i][j].pieceWiseMin);
+				free((void *)A_Padded_Map[i][j].pieceWiseWidth);
+			}
+		}
+	}
+	//fprintf(stdout, "A_Padded_Map\n");
+	multifree(A_Padded_Map,2);
+	multifree(ImageReconMask,2);
+	free((void *)initialError);
+	free((void *)max_num_pointer);
+
 	return 0;
 }
 
@@ -332,19 +336,19 @@ void readCmdLineSysGen(
             case 'i':
             {
                 sprintf(cmdline->imgparamsFileName, "%s", optarg);
-		fprintf(stdout,"image param file %s optarg %s\n",cmdline->imgparamsFileName,optarg);
+		//fprintf(stdout,"image param file %s optarg %s\n",cmdline->imgparamsFileName,optarg);
                 break;
             }
             case 'j':
             {
                 sprintf(cmdline->sinoparamsFileName, "%s", optarg);
-		fprintf(stdout,"sino param file %s optarg %s\n",cmdline->sinoparamsFileName,optarg);
+		//fprintf(stdout,"sino param file %s optarg %s\n",cmdline->sinoparamsFileName,optarg);
                 break;
             }
             case 'm':
             {
                 sprintf(cmdline->SysMatrixFileName, "%s", optarg);
-		fprintf(stdout,"Sys param file %s optarg %s\n",cmdline->SysMatrixFileName,optarg);
+		//fprintf(stdout,"Sys param file %s optarg %s\n",cmdline->SysMatrixFileName,optarg);
                 break;
             }
             default:

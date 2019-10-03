@@ -730,20 +730,15 @@ void MBIRReconstruct3D(
     	}   
 	voxelsBuffer1 = (float *)_mm_malloc(N*sizeof(float),64);
 	voxelsBuffer2 = (float *)_mm_malloc(N*sizeof(float),64);
-	
-	
 
         for(i=0;i<N;i++){
         	voxelsBuffer1[i]=0;
         }
-
         
         for(i=0;i<N;i++){
         	voxelsBuffer2[i]=0;
         }
                
-        
-	
 	it=0;
 
 	long updatedVoxels=0;
@@ -865,7 +860,7 @@ void MBIRReconstruct3D(
 	
         gettimeofday(&tm2,NULL);
         unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-        printf("run time %llu ms \n", tt);		
+        printf("run time %llu ms (iterations only)\n", tt);
 
 /*	sprintf(fname, "%s.err", prior_info->oname);
 	writeErrorSinogram(fname, e, sino_info);

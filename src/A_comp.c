@@ -769,7 +769,7 @@ int computePieceLength(int NViews)
 		pieceLength--;
 	}
 
-	fprintf(stderr, "Nviews %d, pieceLength %d\n",NViews,pieceLength);
+	//fprintf(stderr, "Nviews %d, pieceLength %d\n",NViews,pieceLength);
 
 	//pieceLength=PIECELEN;
 	return(pieceLength);
