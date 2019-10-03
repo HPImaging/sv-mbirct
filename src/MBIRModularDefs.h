@@ -40,12 +40,11 @@ struct SinoParams3DParallel
                            /* This can be fractional though */
     int NViews;            /* Number of view angles */
     float *ViewAngles;     /* Array of NTheta view angle entries in degrees */
-    
-    int NSlices;            /* Number of rows (slices) stored in Sino array */
+    int NSlices;           /* Number of rows (slices) stored in Sino array */
     float DeltaSlice;      /* Spacing along row (slice) direction (mm) */
-    int FirstSliceNumber;   /* Row (slice) index coresponding to first row (slice) stored in Sino array */
-                            /* This is in absolute coordinates and is used if a partial set of slices is needed */
-                            /* Otherwise, it is set to 0. */
+    int FirstSliceNumber;  /* Row (slice) index coresponding to first row (slice) stored in Sino array */
+                           /* This is in absolute coordinates and is used if a partial set of slices is needed */
+    int NumSliceDigits;    /* Number of slice numbers digits used in file name */
 };
 
 /* 3D Sinogram Data Structure */
@@ -64,12 +63,11 @@ struct ImageParams3D
     int Ny;                 /* Number of rows in image */
     float Deltaxy;          /* Spacing between pixels in x and y direction (mm) */
     float ROIRadius;        /* Radius of the reconstruction (mm) */
-    
     float DeltaZ;           /* Spacing between pixels in z direction (mm) [This should be equal to DeltaSlice */
     int Nz;                 /* Number of rows (slices) in image */
     int FirstSliceNumber;   /* Detector row (slice) index cooresponding to first row (slice) stored in Image array */
                             /* This is in absolute coordinates and is used if a partial set of slices is needed */
-                            /* Otherwise, it is set to 0. */
+    int NumSliceDigits;     /* Number of slice numbers digits used in file name */
 };
 
 /* 3D Image Data Structure */

@@ -309,7 +309,7 @@ int ReadImageParams3D(
 /* Print QGGMRF reconstruction parameters */
 void printReconParamsQGGMRF3D(struct ReconParamsQGGMRF3D *reconparams)
 {
-    fprintf(stdout, "PRIOR PARAMETERS:\n");
+    fprintf(stdout, "RECONSTRUCTION PARAMETERS:\n");
     fprintf(stdout, " - Q-GGMRF Prior Parameter, q                            = %f\n", reconparams->p);
     fprintf(stdout, " - Q-GGMRF Prior Parameter, p                            = %f\n", reconparams->q);
     fprintf(stdout, " - Q-GGMRF Prior Parameter, T                            = %f\n", reconparams->T);
@@ -577,11 +577,11 @@ int ReadSinoData3DParallel(
     
     for(i=0;i<NSlices;i++)
     {
-        /* slice index currently formed from fixed number of digits */
-        sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+        sprintf(fname,"%s_slice%.*d.2Dsinodata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
+        //sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if( exitcode=ReadFloatArray(fname,sinogram->sino[i],M) ) {
+        if( (exitcode=ReadFloatArray(fname,sinogram->sino[i],M)) ) {
             if(exitcode==1)
 		fprintf(stderr, "ERROR in ReadSinoData3DParallel: can't open file %s\n",fname);
             if(exitcode==2)
@@ -609,11 +609,11 @@ int ReadWeights3D(
 
     for(i=0;i<NSlices;i++)
     {
-        /* slice index currently formed from fixed number of digits */
-        sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+        sprintf(fname,"%s_slice%.*d.2Dweightdata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
+        //sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if( exitcode=ReadFloatArray(fname,sinogram->weight[i],M) ) {
+        if( (exitcode=ReadFloatArray(fname,sinogram->weight[i],M)) ) {
             if(exitcode==1)
 		fprintf(stderr, "ERROR in ReadWeights3D: can't open file %s\n",fname);
             if(exitcode==2)
@@ -640,11 +640,11 @@ int WriteSino3DParallel(
 
     for(i=0;i<NSlices;i++)
     {
-        /* slice index currently formed from fixed number of digits */
-        sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+        sprintf(fname,"%s_slice%.*d.2Dsinodata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
+        //sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if( exitcode=WriteFloatArray(fname,sinogram->sino[i],M) ) {
+        if( (exitcode=WriteFloatArray(fname,sinogram->sino[i],M)) ) {
             if(exitcode==1)
 		fprintf(stderr, "ERROR in WriteSino3DParallel: can't open file %s\n",fname);
             if(exitcode==2)
@@ -671,11 +671,11 @@ int WriteWeights3D(
 
     for(i=0;i<NSlices;i++)
     {
-        /* slice index currently formed from fixed number of digits */
-        sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+        sprintf(fname,"%s_slice%.*d.2Dweightdata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
+        //sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if( exitcode=WriteFloatArray(fname,sinogram->weight[i],M) ) {
+        if( (exitcode=WriteFloatArray(fname,sinogram->weight[i],M)) ) {
             if(exitcode==1)
 		fprintf(stderr, "ERROR in WriteWeights3D: can't open file %s\n",fname);
             if(exitcode==2)
@@ -726,11 +726,11 @@ int ReadImage3D(
     
     for(i=0;i<Nz;i++)
     {
-        /* slice index currently formed from fixed number of digits */
-        sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+        sprintf(fname,"%s_slice%.*d.2Dimgdata",basename, Image->imgparams.NumSliceDigits, i+FirstSliceNumber);
+        //sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if( exitcode=ReadFloatArray(fname,Image->image[i],M) ) {
+        if( (exitcode=ReadFloatArray(fname,Image->image[i],M)) ) {
             if(exitcode==1)
 		fprintf(stderr, "ERROR in ReadImage3D: can't open file %s\n",fname);
             if(exitcode==2)
@@ -756,11 +756,11 @@ int WriteImage3D(
     
     for(i=0;i<Nz;i++)
     {
-        /* slice index currently formed from fixed number of digits */
-        sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
+        sprintf(fname,"%s_slice%.*d.2Dimgdata",basename, Image->imgparams.NumSliceDigits, i+FirstSliceNumber);
+        //sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
 	//printf("filename: |%s|\n",fname);
         
-        if( exitcode=WriteFloatArray(fname,Image->image[i],M) ) {
+        if( (exitcode=WriteFloatArray(fname,Image->image[i],M)) ) {
             if(exitcode==1)
 		fprintf(stderr, "ERROR in WriteImage3D: can't open file %s\n",fname);
             if(exitcode==2)
@@ -934,5 +934,31 @@ int FreeImageData2D(struct Image2D *Image)
     return 0;
 }
 
+
+/************************/
+/*    Other utilities   */
+/************************/
+
+/* Detect the number of slice index digits in given sinogram data file */
+/* Returns number of digits, or 0 if no readable files found */
+int NumSinoSliceDigits(char *basename, int slice)
+{
+    FILE *fp;
+    char fname[200];
+    int Ndigits = MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS;
+
+    while(Ndigits > 0)
+    {
+        sprintf(fname,"%s_slice%.*d.2Dsinodata",basename, Ndigits, slice);
+        //printf("%s\n",fname);
+        if( (fp=fopen(fname,"r")) ) {
+            fclose(fp);
+            break;
+        }
+        else
+            Ndigits--;
+    }
+    return(Ndigits);
+}
 
 

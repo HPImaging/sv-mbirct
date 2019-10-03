@@ -159,6 +159,15 @@ int FreeImageData2D(
 	struct Image2D *Image);  /* 2D Image data+params data structure */
 
 
+/************************/
+/*    Other utilities   */
+/************************/
+
+/* Detect the number of slice index digits in given sinogram data file */
+/* Returns number of digits, or 0 if no readable files found */
+int NumSinoSliceDigits(char *basename, int slice);
+
+
 
 #endif /* MBIR_MODULAR_UTILS_H */
 
