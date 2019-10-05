@@ -136,10 +136,10 @@ void readSystemParams_MBIR  (
     NormalizePriorWeights3D(reconparams);
     
     /* Print paramters */
-    printSinoParams3DParallel(sinoparams);
-    printImageParams3D(imgparams);
-    printReconParamsQGGMRF3D(reconparams);
-    fprintf(stdout,"\n");
+    //printSinoParams3DParallel(sinoparams);
+    //printImageParams3D(imgparams);
+    //printReconParamsQGGMRF3D(reconparams);
+    //fprintf(stdout,"\n");
 
     /* Determine and SET number of slice index digits in data files */
     int Ndigits = NumSinoSliceDigits(cmdline->SinoDataFile, sinoparams->FirstSliceNumber);

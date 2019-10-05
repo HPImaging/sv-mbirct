@@ -297,7 +297,6 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
             	}
         }
 
-
         for (jj = 0; jj < sum; jj++)
         {
             jy = order[jj] / Nx;
@@ -311,7 +310,6 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
             int j_newCoordinate[coordinateSize];
             int j_newAA=0;
             int k_newAA=0;
-
 
             for(j_newAA=jy;j_newAA<=(jy+2*radius);j_newAA++){
                 for(k_newAA=jx;k_newAA<=(jx+2*radius);k_newAA++){
@@ -327,16 +325,12 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 }
             }
 
-
             int bandMin[sinoparams->NViews]__attribute__((aligned(64)));
             int bandMax[sinoparams->NViews]__attribute__((aligned(64)));
-
 
             for(p=0;p< sinoparams->NViews;p++){
                 bandMin[p]=sinoparams->NChannels;
             }
-
-
 
             for(i=0;i<countNumber;i++){
                 int j_new= j_newCoordinate[i];
@@ -372,11 +366,9 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 }
             }
 
-
             for(p=0;p< sinoparams->NViews;p++){
                 bandMax[p]=bandMin[p];
             }
-
 
             for(i=0;i<countNumber;i++){
                 int j_new= j_newCoordinate[i];
@@ -390,12 +382,10 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
             int bandWidthTemp[sinoparams->NViews]__attribute__((aligned(64)));
             int bandWidth[(sinoparams->NViews)/pieceLength]__attribute__((aligned(64)));	            
             
-            
             #pragma vector aligned
             for(p=0;p< sinoparams->NViews;p++){   		
                 bandWidthTemp[p]=bandMax[p]-bandMin[p];
             }
-
 
             for (p = 0; p < (sinoparams->NViews)/pieceLength; p++)
             {
@@ -414,20 +404,16 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 	bandMin[p]=sinoparams->NChannels-bandWidth[p/pieceLength];
                 }
             }            
-            
-            
 
             bandMinMap[jj].bandMin=(int *)get_spc(sinoparams->NViews,sizeof(int));
             bandMaxMap[jj].bandMax=(int *)get_spc(sinoparams->NViews,sizeof(int));
             _intel_fast_memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*(sinoparams->NViews));
             _intel_fast_memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*(sinoparams->NViews));
             
-            
             int piecewiseMinArray[countNumber][(sinoparams->NViews)/pieceLength]__attribute__((aligned(64)));
             int piecewiseMaxArray[countNumber][(sinoparams->NViews)/pieceLength]__attribute__((aligned(64)));
             int piecewiseWidth[countNumber][(sinoparams->NViews)/pieceLength]__attribute__((aligned(64)));
             int totalSumArray[countNumber];
-
 
 	    for(i=0;i<countNumber;i++){
                 for (p = 0; p < (sinoparams->NViews)/pieceLength; p++){
@@ -436,14 +422,12 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 }
             }    
 
-
             for(i=0;i<countNumber;i++){
                 int j_new= j_newCoordinate[i];
                 int k_new= k_newCoordinate[i];
                 totalSumArray[i]=0;
                 for (p = 0; p < (sinoparams->NViews)/pieceLength; p++)
                 {
-                
                     piecewiseMinArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength]-bandMin[p*pieceLength];
                     piecewiseMaxArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength]-bandMin[p*pieceLength]+A_Col_pointer[j_new][k_new].countTheta[p*pieceLength];
                     for(t=0;t<pieceLength;t++){
@@ -455,14 +439,12 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 }
             }
 
-
             for(i=0;i<countNumber;i++){
                 for (p = 0; p < (sinoparams->NViews)/pieceLength; p++)
                 {
                     piecewiseWidth[i][p]=piecewiseMaxArray[i][p]-piecewiseMinArray[i][p];
                 }
             }
-
 
             for(i=0;i<countNumber;i++){
                 #pragma vector aligned
@@ -471,23 +453,16 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                     totalSumArray[i]+=(piecewiseWidth[i][p])*pieceLength;
                 }
             }
-            			    	                        
-
 
             unsigned char ** AMatrixPadded= (unsigned char **)malloc(countNumber*sizeof(unsigned char *));
             unsigned char ** AMatrixPaddedTranspose=(unsigned char **)malloc(countNumber*sizeof(unsigned char *));
-
-
 
             for(i=0;i<countNumber;i++){
                 AMatrixPadded[i]=(unsigned char *)malloc(totalSumArray[i]*sizeof(unsigned char));
                 AMatrixPaddedTranspose[i]=(unsigned char *)malloc(totalSumArray[i]*sizeof(unsigned char));
             }
-            
-
 
             unsigned char*    newProjectionValueArrayPointer=    &A_Values_pointer[0][0].val[0];
-
 
             for(i=0;i<countNumber;i++){
                 int j_new= j_newCoordinate[i];
@@ -515,7 +490,6 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 }
             }
 
-
             for(i=0;i<countNumber;i++){
                 int j_new= j_newCoordinate[i];
                 int k_new= k_newCoordinate[i];
@@ -533,7 +507,6 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 }
             }
 
-
             for(i=0;i<countNumber;i++){
                 int j_new= j_newCoordinate[i];
                 int k_new= k_newCoordinate[i];                
@@ -548,17 +521,14 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
             }
 
-
             for(i=0;i<countNumber;i++){
                 free((void *)AMatrixPadded[i]);
                 free((void *)AMatrixPaddedTranspose[i]);
             }
 
-
             free((void *)AMatrixPadded);
             free((void *)AMatrixPaddedTranspose);
         }
-    
     
 	//fprintf(stdout, "Before write AMatrix\n");   
 	char fname[200];
@@ -566,7 +536,7 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
  	remove(fname);
 	writeAmatrix(fname,A_Padded_Map, max_num_pointer,imgparams, sinoparams, sum, bandMinMap,bandMaxMap,pieceLength);
 	//fprintf(stdout, "After write AMatrix\n");  
-	fflush(stdout); 	    				
+	//fflush(stdout);
 					 		
 }
 
@@ -586,7 +556,7 @@ struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *band
 	float* A_Values_sgl;	
 	struct pointerAddress address_arr;	
 	//fprintf(stdout, "Initializing A-matrix...\n");
-	fflush(stdout);
+	//fflush(stdout);
 
 	col_length = sinoparams->NChannels*sinoparams->NViews;
 
@@ -598,7 +568,6 @@ struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *band
 	n_y = imgparams->Ny;
 	address_arr.addressA = (struct ACol **)multialloc(sizeof(struct ACol), 2, n_y, n_x);
 	address_arr.addressB = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, n_y, n_x);
-
 
 	for (i = 0; i < n_y; i++)
 	{
@@ -636,10 +605,7 @@ struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *band
 	free((void *)A_col_sgl.countTheta);
 	free((void *)A_col_sgl.minIndex);
 
-	/*fflush(stdout);*/
-
 	A_piecewise(address_arr,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,sinoparams,sum,recon_mask,order,imgparams,sysMatrixPath,pieceLength);
-
 	
     	for (i = 0; i < n_y; i++)
     	{
@@ -654,7 +620,7 @@ struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *band
 	//fprintf(stdout, "Deallocate address A and address B\n");         	    	
     	multifree(address_arr.addressA,2);
     	multifree(address_arr.addressB,2);	    		
-return address_arr;
+	return address_arr;
 	
 }
 
@@ -671,7 +637,6 @@ void readAmatrix(
 
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
-
 
 	if ((fp = fopen(fname, "r")) == NULL)
 	{
@@ -726,9 +691,7 @@ void writeAmatrix(
 		exit(-1);
 	}
 
-
 	for (i =0; i < sum ; i ++ ){
-	
 		fwrite(bandMinMap[i].bandMin,sizeof(int),sinoparams->NViews,fp);
 		fwrite(bandMaxMap[i].bandMax,sizeof(int),sinoparams->NViews,fp);
 		for ( j = 0; j< (SVLength*2+1)*(SVLength*2+1) ; j ++){
@@ -768,7 +731,6 @@ int computePieceLength(int NViews)
 	{
 		pieceLength--;
 	}
-
 	//fprintf(stderr, "Nviews %d, pieceLength %d\n",NViews,pieceLength);
 
 	//pieceLength=PIECELEN;
