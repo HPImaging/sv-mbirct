@@ -42,9 +42,9 @@ int main(int argc, char *argv[])
 
 	/* read parameters */
 	readSystemParams_MBIR(&cmdline, &Image.imgparams, &sinogram.sinoparams, &reconparams);
-	printSinoParams3DParallel(sinoparams);
-	printImageParams3D(imgparams);
-	printReconParamsQGGMRF3D(reconparams);
+	printSinoParams3DParallel(&sinogram.sinoparams);
+	printImageParams3D(&Image.imgparams);
+	printReconParamsQGGMRF3D(&reconparams);
 	fprintf(stdout,"\n");
 
 	/* Looks like this is a partial step in splitting volume across nodes */

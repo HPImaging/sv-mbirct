@@ -46,17 +46,15 @@ int main(int argc, char *argv[])
 	int jx, jy,Nxy;
 	/*struct SysMatrix2D *A ;*/
 
-	fprintf(stdout, "Generating System Matrix...\n\n");
-
-	/* read command line */
+	/* read command line and parameter files */
 	readCmdLineSysGen(argc, argv, &cmdline);
-
-	/* read input arguments and parameters */
 	ReadSinoParams3DParallel(cmdline.sinoparamsFileName, &sinoparams);
 	ReadImageParams3D(cmdline.imgparamsFileName, &imgparams);
 	printSinoParams3DParallel(&sinoparams);
 	printImageParams3D(&imgparams);
 	fprintf(stdout, "\n");
+
+	fprintf(stdout, "Generating System Matrix...\n\n");
 
 	int pieceLength=computePieceLength(sinoparams.NViews);
 
