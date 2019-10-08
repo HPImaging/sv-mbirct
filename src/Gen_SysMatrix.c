@@ -8,6 +8,7 @@
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
+#include "recon3d.h"
 #include "A_comp.h"
 
 /* #ifdef STORE_A_MATRIX - This option set by default in A_comp.h */
@@ -22,10 +23,6 @@ struct CmdLineSysGen
 };
 
 /* Internal fns */
-void forwardProject2D(float *e, float InitValue, float *max_num_pointer, struct AValues_char ** A_Padded_Map,
-	struct minStruct *bandMinMap, struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams,
-	int pieceLength);
-void writeErrorSinogram(char *fname, float *e, struct SinoParams3DParallel *sinoparams);
 void readCmdLineSysGen(int argc, char *argv[], struct CmdLineSysGen *cmdline);
 void PrintCmdLineUsage(char *ExecFileName);
 int CmdLineHelpCheck(char *string);
@@ -54,26 +51,27 @@ int main(int argc, char *argv[])
 	printImageParams3D(&imgparams);
 	fprintf(stdout, "\n");
 
+	unsigned int sum=0;
+	int i,j,p,t;
+	int Ny=imgparams.Ny;
+	int Nx=imgparams.Nx;
+	int NViews=sinoparams.NViews;
+	int NChannels=sinoparams.NChannels;
+	int NvNc = NViews*NChannels;
+
 	fprintf(stdout, "Generating System Matrix...\n\n");
 
-	int pieceLength=computePieceLength(sinoparams.NViews);
+	int pieceLength=computePieceLength(NViews);
 
-	if(sinoparams.NViews%pieceLength!=0){
+	if(NViews%pieceLength!=0){
 		fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
 		fprintf(stderr, "Exiting %s\n",argv[0]);
 		exit(-1);
         }        
 
-	unsigned int sum=0;
-	int i,j,p,t;
-	int Ny=imgparams.Ny;
-	int Nx=imgparams.Nx;
-	
-	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1)){
-	  	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2)){
-	    		sum++;
-	  	}
-	}
+	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1))
+	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2))
+		sum++;
 
 	//fprintf(stdout, "Ny is %d Nx %d sum %d channels %d views %d\n",Ny,Nx,sum,sinoparams.NChannels,sinoparams.NViews);
 
@@ -81,11 +79,10 @@ int main(int argc, char *argv[])
 	
 	t=0;	
 	
-	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1)){
-		  for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2)){
-		    	order[t]=i*Nx+j;  /* order is the first voxel coordinate, not the center */
-		    	t++;
-		  }
+	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1))
+	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2)){
+		order[t]=i*Nx+j;  /* order is the first voxel coordinate, not the center */
+		t++;
 	}	
 
     	bandMinMap = (struct minStruct *)get_spc(sum,sizeof(struct minStruct));
@@ -94,7 +91,6 @@ int main(int argc, char *argv[])
 
 	float* max_num_pointer = (float *)malloc(Ny*Nx*sizeof(float));	
 	char **ImageReconMask = (char **)multialloc(sizeof(char), 2, Ny, Nx); 
-	float *initialError = (float *)malloc(sizeof(float)*sinoparams.NViews*sinoparams.NChannels);    	   
     	PixelDetector_profile = ComputePixelProfile3DParallel(&sinoparams, &imgparams);  /* pixel-detector profile function */
 
 	//fprintf(stdout, "after allocation \n");
@@ -137,45 +133,37 @@ int main(int argc, char *argv[])
 	
 	A_comp(bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&sinoparams,sum,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName,pieceLength);
 	    
-	//fprintf(stdout, "after A comp \n");
 	fprintf(stdout, "Done generating system matrix\n");
 
-	fprintf(stdout, "Computing projection of initial error...\n");
 
-	//float InitValue = reconparams.MuWater;    
-	float InitValue = MUWATER;    
+	/***************************************************************/
+	/* COMPUTE INTIAL ERROR IMAGE, ASSUMING CONSTANT INITIAL IMAGE */
+	/***************************************************************/
+	fprintf(stdout, "Computing projection of initial image\n");
 
+	//float InitValue = reconparams.InitImageValue;
+	float InitValue = MUWATER;   // careful here..this has to match initial value in reconstruction
+	float *initialError = (float *)malloc(sizeof(float)*NvNc);
 	forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map,bandMinMap, &sinoparams, &imgparams, pieceLength);
     
 	char fname[200];
 	sprintf(fname,"%s.initialError",cmdline.SysMatrixFileName);
-	writeErrorSinogram(fname,initialError,&sinoparams);   
+	int exitcode;
+	if( (exitcode=WriteFloatArray(fname,initialError,NvNc)) ) {
+		if(exitcode==1) fprintf(stderr, "ERROR in Gen_SysMatrix: can't open file %s for writing\n",fname);
+		if(exitcode==2) fprintf(stderr, "ERROR in Gen_SysMatrix: write to file %s terminated early\n",fname);
+		exit(-1);
+	}
+	free((void *)initialError);
 
-	fprintf(stdout, "Done projecting initial error\n\n");
+	fprintf(stdout, "Done computing initial projection\n");
 
-    /*A = ComputeSysMatrix3DParallel(&sinoparams, &imgparams, PixelDetector_profile);*/
-    
-    
-    /* Write out System Matrix */
-    /*
-    if(WriteSysMatrix2D(cmdline.SysMatrixFileName, A))
-    {  fprintf(stderr, "Error in writing out System Matrix to file %s through function WriteSysMatrix2D \n", cmdline.SysMatrixFileName);
-       exit(-1);
-    }
-    */
-    /* Free System Matrix */
-    /*
-    if(FreeSysMatrix2D(A))
-    {  fprintf(stderr, "Error System Matrix memory could not be freed through function FreeSysMatrix2D \n");
-       exit(-1);
-    }
-    */
+
 	_mm_free(order);
 	for(j=0;j<sum;j++){
 		free((void *)bandMinMap[j].bandMin);
 		free((void *)bandMaxMap[j].bandMax);
 	}
-
 	//fprintf(stdout, "after bandMin and bandMax \n");
 
 	free((void *)bandMinMap);
@@ -192,113 +180,10 @@ int main(int argc, char *argv[])
 	//fprintf(stdout, "A_Padded_Map\n");
 	multifree(A_Padded_Map,2);
 	multifree(ImageReconMask,2);
-	free((void *)initialError);
 	free((void *)max_num_pointer);
 
 	return 0;
 }
-
-
-
-void forwardProject2D(
-	float *e,
-	float InitValue,
-	float *max_num_pointer,
-	struct AValues_char ** A_Padded_Map,
-	struct minStruct *bandMinMap,
-	struct SinoParams3DParallel *sinoparams,
-	struct ImageParams3D *imgparams,
-	int pieceLength)
-{
-	int jx=0;
-	int jy=0;
-	int Nx, Ny, i, M, r,j,p, SVNumPerRow;
-	float inverseNumber=1.0/255;
-	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
-
-	Nx = imgparams->Nx;
-	Ny = imgparams->Ny;
-	M = sinoparams->NViews*sinoparams->NChannels;
-
-	for (i = 0; i < M; i++)
-	{
-		e[i] = 0.0;
-	}
-
-	if((Nx%(2*SVLength-overlappingDistance2))==0)
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2);
-	else
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2)+1;
-
-	for (jy = 0; jy < Ny; jy++)
-	for (jx = 0; jx < Nx; jx++)
-	{
-
-		int temp1=jy/(2*SVLength-overlappingDistance1);
-
-		if(temp1==SVNumPerRow){
-			temp1=SVNumPerRow-1;
-		}
-
-		int temp2=jx/(2*SVLength-overlappingDistance2);
-		if(temp2==SVNumPerRow){
-			temp2=SVNumPerRow-1;
-		}
-
-		int SVPosition=temp1*SVNumPerRow+temp2;
- 
-		int SV_jy=temp1*(2*SVLength-overlappingDistance1);
-		int SV_jx=temp2*(2*SVLength-overlappingDistance2);
-		int VoxelPosition=(jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
-		/*
-		fprintf(stdout,"jy %d jx %d SVPosition %d SV_jy %d SV_jx %d VoxelPosition %d \n",jy,jx,SVPosition,SV_jy,SV_jx,VoxelPosition);
-		*/
-		if (A_Padded_Map[SVPosition][VoxelPosition].length > 0 && VoxelPosition < ((2*SVLength+1)*(2*SVLength+1)))
-		{
-			/*XW: remove the index field in struct ACol and exploit the spatial locality */
-			unsigned char* A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][VoxelPosition].val[0];
-			for(p=0;p<NViewsdivided;p++) {
-				const int myCount=A_Padded_Map[SVPosition][VoxelPosition].pieceWiseWidth[p];
-				int position=p*pieceLength*sinoparams->NChannels+A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p];
-
-				for(r=0;r<myCount;r++)
-				for(j=0;j< pieceLength;j++){
-					if((A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>=sinoparams->NChannels)
-						fprintf(stdout, "p %d r %d j %d total_1 %d \n",p,r,j,A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
-
-					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>= M)
-						fprintf(stdout, "p %d r %d j %d total_2 %d \n",p,r,j,position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
-
-					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)< M)
-						e[position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r] += A_padd_Tranpose_pointer[r*pieceLength+j]*max_num_pointer[jy*Nx+jx]*inverseNumber*InitValue;
-
-
-				}
-				A_padd_Tranpose_pointer+=myCount*pieceLength;
-			}
-		}
-	}
-}
-
-
-
-void writeErrorSinogram(
-	char *fname,
-	float *e,
-	struct SinoParams3DParallel *sinoparams)
-{
-	FILE *fp;
-	int i, M;
-	M = sinoparams->NViews*sinoparams->NChannels;
-	if ((fp = fopen(fname, "w")) == NULL)
-	{
-		fprintf(stderr, "ERROR in writeErrorSinogram: can't open file %s.\n", fname);
-		exit(-1);
-	}
-	fwrite(&e[0],sizeof(float),M,fp);
-	fclose(fp);
-}
-
 
 
 

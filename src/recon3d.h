@@ -1,4 +1,3 @@
-
 #ifndef _RECON3D_H_
 #define _RECON3D_H_
 
@@ -8,7 +7,8 @@
 
 // #define find_RMSE 
 
-void MBIRReconstruct3D(struct Image3D *Image,
+void MBIRReconstruct3D(
+	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
 	struct ReconParamsQGGMRF3D reconparams,
 	char *ImageReconMask,
@@ -20,11 +20,15 @@ void MBIRReconstruct3D(struct Image3D *Image,
 	int sum,
 	int pieceLength);
 
-float MAPCostFunction3D(float **e, 
-	struct Image3D *Image, 
-	struct Sino3DParallel *sinogram, 
-	struct ReconParamsQGGMRF3D *reconparams);
+void forwardProject2D(
+	float *e,
+	float InitValue,
+	float *max_num_pointer,
+	struct AValues_char ** A_Padded_Map,
+	struct minStruct *bandMinMap,
+	struct SinoParams3DParallel *sinoparams,
+	struct ImageParams3D *imgparams,
+	int pieceLength);
 
-/*void forwardProject3D(float *AX, struct Image3D *X, struct SysMatrix2D *A, struct SinoParams3DParallel sinoparams); */
 
 #endif

@@ -32,7 +32,7 @@ mbir_ct: mbir_ct.o $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 	mv $@ ../bin
 
-Gen_SysMatrix: Gen_SysMatrix.o A_comp.o allocate.o MBIRModularUtils.o
+Gen_SysMatrix: Gen_SysMatrix.o $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 	mv $@ ../bin
 
