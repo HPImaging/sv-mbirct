@@ -13,9 +13,8 @@ struct CmdLineMBIR{
 };
 
 
-void Initialize_Image(struct Image3D *Image, struct CmdLineMBIR *cmdline, float InitValue);
-void GenConstImage(struct Image3D *Image, float value);
-char *GenImageReconMask(struct Image3D *Image, float OutsideROIValue);
+void Initialize_Image(struct Image3D *Image, struct CmdLineMBIR *cmdline, char *ImageReconMask, float InitValue, float OutsideROIValue);
+char *GenImageReconMask(struct ImageParams3D *imgparams);
 void readSystemParams_MBIR(struct CmdLineMBIR *cmdline, struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, struct ReconParamsQGGMRF3D *reconparams);
 void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams);
 void readCmdLineMBIR(int argc, char *argv[], struct CmdLineMBIR *cmdline);

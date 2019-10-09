@@ -57,8 +57,10 @@ int main(int argc, char *argv[])
 	} 
 	int myChunk=sinogram.sinoparams.NSlices/numprocs;
 	int firstSliceOfVolume=sinogram.sinoparams.FirstSliceNumber;	
+	/********* THIS!!! *******/
 	Image.imgparams.Nz=myChunk;
 	Image.imgparams.FirstSliceNumber=firstSliceOfVolume;  
+	/*************************/
 	sinogram.sinoparams.NSlices=myChunk;
 	sinogram.sinoparams.FirstSliceNumber=firstSliceOfVolume;
 	#endif
@@ -85,36 +87,25 @@ int main(int argc, char *argv[])
 	readAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,sum,bandMinMap,bandMaxMap,pieceLength);
 
 	/* Read Sinogram and Weights */
-	if(AllocateSinoData3DParallel(&sinogram)) {
-		fprintf(stderr, "Error exitcode from AllocateSinoData3DParallel\n");
-		exit(-1);
-	}
-	if(ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram)) {
-		fprintf(stderr, "Error exitcode from ReadSinoData3DParallel\n");
-		exit(-1);
-	}
-	if(ReadWeights3D(cmdline.SinoWeightsFile, &sinogram)) {
-		fprintf(stderr, "Error exitcode from ReadWeights3D\n");
-		exit(-1);
-	}
+	AllocateSinoData3DParallel(&sinogram);
+	ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
+	ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
 
 	/* Allocate memory for image */
-	if(AllocateImageData3D(&Image)) {
-		fprintf(stderr, "Error exitcode from AllocateImageData3D\n");
-		exit(-1);
-	}
+	AllocateImageData3D(&Image);
+
+	/* allocate and generate recon mask based on ROIRadius--do this before image initialization */
+	ImageReconMask = GenImageReconMask(&(Image.imgparams));
 
 	/* Initialize image and reconstruction mask */
 	//InitValue = reconparams.MuWater;
 	//OutsideROIValue = reconparams.MuAir;
 	InitValue = MUWATER;  /* careful..the initial forward projection is written out in GenSysMatrix, so the inital image has to match */
 	OutsideROIValue = 0;
-	Initialize_Image(&Image, &cmdline, InitValue);
-	ImageReconMask = GenImageReconMask(&Image,OutsideROIValue);
+	Initialize_Image(&Image, &cmdline, ImageReconMask, InitValue, OutsideROIValue);
 
 	gettimeofday(&tm1,NULL);
 
-	/* MBIR - Reconstruction */
 	MBIRReconstruct3D(&Image,&sinogram,reconparams,ImageReconMask,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum,pieceLength);
 
 	gettimeofday(&tm2,NULL);
@@ -124,26 +115,14 @@ int main(int argc, char *argv[])
 	fprintf(stdout, "Done with reconstruction. Writing output files...\n");
 
 	/* Write out reconstructed image */
-	if(WriteImage3D(cmdline.ReconImageDataFile, &Image))
-	{
-		fprintf(stderr, "Error in writing out reconstructed image file through function WriteImage3D \n");
-		exit(-1);
-	}
+	WriteImage3D(cmdline.ReconImageDataFile, &Image);
 
 	/* free image, sinogram and system matrix memory allocation */
-	if(FreeImageData3D(&Image)) {
-		fprintf(stderr, "Error image memory could not be freed through function FreeImageData3D \n");
-		exit(-1);
-	}
-
-	if(FreeSinoData3DParallel(&sinogram)) {
-		fprintf(stderr, "Error sinogram memory could not be freed through function FreeSinoData3DParallel \n");
-		exit(-1);
-	}
-
+	FreeImageData3D(&Image);
+	FreeSinoData3DParallel(&sinogram);
 	free((char *)ImageReconMask);	    
     
-    return 0;
+	return(0);
 }
 
 

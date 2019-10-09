@@ -10,50 +10,64 @@
 #include "allocate.h"
 #include "initialize.h"
 
-/* Initialize constant image */
-void Initialize_Image(struct Image3D *Image, struct CmdLineMBIR *cmdline, float InitValue)
+
+/* Initialize image state */
+void Initialize_Image(
+	struct Image3D *Image,
+	struct CmdLineMBIR *cmdline,
+	char *ImageReconMask,
+	float InitValue,
+	float OutsideROIValue)
 {
+    char *mask;
+    int j,jz,Nxy,Nz;
+
+    mask = ImageReconMask;
+    Nxy = Image->imgparams.Nx * Image->imgparams.Ny;
+    Nz = Image->imgparams.Nz;
+
     //fprintf(stdout, "\nInitializing Image ... \n");
     
     if(strcmp(cmdline->InitImageDataFile,"NA") == 0) /* Image file not available */
-        GenConstImage(Image, InitValue);               /* generate image with uniform pixel value */
-    else
-        ReadImage3D(cmdline->InitImageDataFile, Image); /* read image which has values in HU units */
-}
-
-/* create constant image. Each pixel value is the intial condition. */
-void GenConstImage(struct Image3D *Image, float value)
-{
-    int i,j, N;
-    
-    N = Image->imgparams.Nx * Image->imgparams.Ny;
-    
-    for (i = 0; i < Image->imgparams.Nz;i++){
-    for (j = 0; j < N; j++)
     {
-        Image->image[i][j] = value;
+        //GenConstImage(Image, InitValue);               /* generate image with uniform pixel value */
     }
+    else {
+        //ReadImage3D(cmdline->InitImageDataFile, Image); /* read image which has values in HU units */
+        fprintf(stdout, "Note initial image feature not implemented--using constant initial condition\n");
     }
+
+    /* Generate constant image */
+    // ***move this up when projector is fixed
+    for(jz=0; jz<Nz; jz++)
+    for(j=0; j<Nxy; j++)
+        Image->image[jz][j] = InitValue;
+
+    /* Set ROIValue outside mask */
+    for(jz=0; jz<Nz; jz++)
+    for(j=0; j<Nxy; j++) {
+        Image->image[jz][j] *= mask[j];
+        Image->image[jz][j] += (float)(1-mask[j])*OutsideROIValue;
+    }
+
 }
 
-/* Generate Image Reconstruction mask */
-char *GenImageReconMask (struct Image3D *Image, float OutsideROIValue)
+
+/* Allocate and generate Image Reconstruction mask */
+char *GenImageReconMask(struct ImageParams3D *imgparams)
 {
-    int jx, jy, jz, Nx, Ny, Nz, Nxy;
+    int jx, jy, jz, Nx, Ny, Nz;
     float x_0, y_0, Deltaxy, x, y, yy, ROIRadius, R_sq, R_sq_max;
     char *ImageReconMask;
     
-    Nx = Image->imgparams.Nx;
-    Ny = Image->imgparams.Ny;
-    Nz = Image->imgparams.Nz;
-    Deltaxy = Image->imgparams.Deltaxy;
-    ROIRadius = Image->imgparams.ROIRadius;
-    
+    Nx = imgparams->Nx;
+    Ny = imgparams->Ny;
+    Nz = imgparams->Nz;
+    Deltaxy = imgparams->Deltaxy;
+    ROIRadius = imgparams->ROIRadius;
     x_0 = -(Nx-1)*Deltaxy/2;
     y_0 = -(Ny-1)*Deltaxy/2;
-    Nxy = Nx*Ny;
     
-    /* Reconstruction Mask same for each slice, hence 2-D */
     ImageReconMask = (char *)get_spc(Ny*Nx,sizeof(char));
     
     if (ROIRadius < 0.0)
@@ -64,7 +78,6 @@ char *GenImageReconMask (struct Image3D *Image, float OutsideROIValue)
     else
     {
         R_sq_max = ROIRadius*ROIRadius;
-        
         for (jy = 0; jy < Ny; jy++)
         {
             y = y_0 + jy*Deltaxy;
@@ -72,30 +85,21 @@ char *GenImageReconMask (struct Image3D *Image, float OutsideROIValue)
             for (jx = 0; jx < Nx; jx++)
             {
                 x = x_0 + jx*Deltaxy;
-                
                 R_sq = x*x + yy;
                 if (R_sq > R_sq_max)
-                {
                     ImageReconMask[jy*Nx+jx] = 0;
-                    for(jz=0;jz<Nz;jz++)
-                        Image->image[jz][jy*Nx+jx] = OutsideROIValue;
-                }
                 else
-                {
                     ImageReconMask[jy*Nx+jx] = 1;
-                }
             }
         }
     }
-    
-    return ImageReconMask;
+    return(ImageReconMask);
 }
 
 
 /* Normalize weights to sum to 1 */
 /* Only neighborhood specific */
-void NormalizePriorWeights3D(
-                         struct ReconParamsQGGMRF3D *reconparams)
+void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams)
 {
     double sum;
     
@@ -108,29 +112,26 @@ void NormalizePriorWeights3D(
 }
 
 /* Wrapper to read in Image, sinogram and reconstruction parameters */
-void readSystemParams_MBIR  (
-                         struct CmdLineMBIR *cmdline,
-                         struct ImageParams3D *imgparams,
-                         struct SinoParams3DParallel *sinoparams,
-                         struct ReconParamsQGGMRF3D *reconparams)
+void readSystemParams_MBIR(
+	struct CmdLineMBIR *cmdline,
+	struct ImageParams3D *imgparams,
+	struct SinoParams3DParallel *sinoparams,
+	struct ReconParamsQGGMRF3D *reconparams)
 {
     //printf("\nReading Image, Sinogram and Reconstruction Parameters ... \n");
     
-    if(ReadImageParams3D(cmdline->ImageParamsFile, imgparams))
-      {
+    if(ReadImageParams3D(cmdline->ImageParamsFile, imgparams)) {
         fprintf(stdout,"Error in reading image parameters \n");
         exit(-1);
-      }
-    if(ReadSinoParams3DParallel(cmdline->SinoParamsFile, sinoparams))
-      {
+    }
+    if(ReadSinoParams3DParallel(cmdline->SinoParamsFile, sinoparams)) {
         fprintf(stdout,"Error in reading sinogram parameters \n");
         exit(-1);
-      }
-    if(ReadReconParamsQGGMRF3D(cmdline->ReconParamsFile ,reconparams))
-      {
+    }
+    if(ReadReconParamsQGGMRF3D(cmdline->ReconParamsFile ,reconparams)) {
         fprintf(stdout,"Error in reading reconstruction parameters \n");
         exit(-1);
-      }
+    }
           
     /* Tentatively initialize weights. Remove once this is read in directly from params file */
     NormalizePriorWeights3D(reconparams);
