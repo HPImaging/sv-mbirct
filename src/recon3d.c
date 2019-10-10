@@ -73,6 +73,7 @@ void MBIRReconstruct3D(
 	int Nx = Image->imgparams.Nx;
 	int Ny = Image->imgparams.Ny;
 	int Nxy = Nx*Ny;
+	const int Nz = Image->imgparams.Nz;
 	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
 	int NViews = sinogram->sinoparams.NViews;
 	int MaxIterations = reconparams.MaxIterations;
@@ -80,16 +81,15 @@ void MBIRReconstruct3D(
 
 	int SV_per_Z=0;
 	int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
-	const int Nslices = sinogram->sinoparams.NSlices;
 
 	float pow_sigmaX_p = pow(reconparams.SigmaX,reconparams.p);
 	float pow_sigmaX_q = pow(reconparams.SigmaX,reconparams.q);
 	float pow_T_qmp = pow(reconparams.T,reconparams.q - reconparams.p);
 
-	if((Nslices%SV_depth)==0)
-		SV_per_Z=Nslices/SV_depth;
+	if((Nz%SV_depth)==0)
+		SV_per_Z=Nz/SV_depth;
 	else
-		SV_per_Z=Nslices/SV_depth+1;
+		SV_per_Z=Nz/SV_depth+1;
 
 	if(NViews%pieceLength !=0)
 	{
@@ -102,17 +102,17 @@ void MBIRReconstruct3D(
 	#if 0
 	//#ifdef find_RMSE
 	float **golden;
-	golden = (float **)multialloc(sizeof(float), 2, Nslices,Nxy);
+	golden = (float **)multialloc(sizeof(float), 2, Nz,Nxy);
 	// note this needs to be updated
-	read_golden(cmdline->ReconImageDataFile,golden,Nslices,Nxy,Image);
+	read_golden(cmdline->ReconImageDataFile,golden,Nz,Nxy,Image);
 	float updatedVoxelsList[300];
 
 	float sumOfSE=0;
-	for(i=0;i<Nslices;i++)
+	for(i=0;i<Nz;i++)
 	for(j=0;j<Nxy;j++)
 		sumOfSE+=(Image->image[i][j]-golden[i][j])*(Image->image[i][j]-golden[i][j]);
 
-	float MSE=sumOfSE/Nxy/Nslices;
+	float MSE=sumOfSE/Nxy/Nz;
 	float RMSE=sqrt(MSE);
 
 	fprintf(stdout,"Rho: %f initial_RMSE: %f \n",convergence_rho,RMSE);
@@ -123,7 +123,7 @@ void MBIRReconstruct3D(
 
 	t=0;
 
-	for(p=0;p<Nslices;p+=SV_depth)
+	for(p=0;p<Nz;p+=SV_depth)
 	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1))
 	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2))
 	{
@@ -201,7 +201,7 @@ void MBIRReconstruct3D(
 	/********************************************/
 	/* Forward Projection and Error Calculation */
 	/********************************************/
-	e = (float **)multialloc(sizeof(float), 2, Nslices,NvNc);  	 /* error term memory allocation */
+	e = (float **)multialloc(sizeof(float), 2, Nz,NvNc);  	 /* error term memory allocation */
 
 	/* OLD* Initialize error to zero, since it is first computed as forward-projection Ax */
 	/* OLD* compute Ax (store it in e as of now) */
@@ -216,7 +216,7 @@ void MBIRReconstruct3D(
 	sprintf(fname,"%s.initialError",cmdline->SysMatrixFile);
 
 	#pragma omp parallel for private(i) schedule(dynamic)
-	for(currentSlice=0;currentSlice<Nslices;currentSlice++)
+	for(currentSlice=0;currentSlice<Nz;currentSlice++)
 	{
 		int exitcode;
 		if( (exitcode=ReadFloatArray(fname,e[currentSlice],NvNc)) ) {
@@ -296,20 +296,20 @@ void MBIRReconstruct3D(
 			
 				#pragma omp for schedule(dynamic)  reduction(+:total_updates)
 				for (jj = startIndex; jj < endIndex; jj+=1)
-					super_voxel_recon(jj,&total_updates,it, &phaseMap[0],order,&indexList[0],Nx,Ny, bandMinMap, bandMaxMap,w,e,A_Padded_Map,Nslices,&headNodeArray[0],NViewsdivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,&updatedVoxels,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp,pieceLength);
+					super_voxel_recon(jj,&total_updates,it, &phaseMap[0],order,&indexList[0],Nx,Ny, bandMinMap, bandMaxMap,w,e,A_Padded_Map,Nz,&headNodeArray[0],NViewsdivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,&updatedVoxels,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp,pieceLength);
 			}
 
 			#pragma omp single
 			{
  
 			if(it==0)
-				avg_update = total_updates/(float)Nxy/Nslices;
+				avg_update = total_updates/(float)Nxy/Nz;
 			else
 			{
 				if(it%2==1)
-					avg_update = (total_updates/(float)Nxy)*(4*convergence_rho/(1-convergence_rho))/Nslices;
+					avg_update = (total_updates/(float)Nxy)*(4*convergence_rho/(1-convergence_rho))/Nz;
 				else
-					avg_update = (total_updates/(float)Nxy)*4/Nslices;
+					avg_update = (total_updates/(float)Nxy)*4/Nz;
 			}           		
 			
 			/*
@@ -320,14 +320,14 @@ void MBIRReconstruct3D(
 			#if 0
 			//#ifdef find_RMSE
 			if(it<300)
-				updatedVoxelsList[it]=updatedVoxels*1.0/Nxy/Nslices;
+				updatedVoxelsList[it]=updatedVoxels*1.0/Nxy/Nz;
 	
 			float sumOfSE=0;
-			for(i=0;i<Nslices;i++)
+			for(i=0;i<Nz;i++)
 			for(j=0;j<Nxy;j++)
 				sumOfSE+=(Image->image[i][j]-golden[i][j])*(Image->image[i][j]-golden[i][j]);
 
-			float MSE=sumOfSE/Nxy/Nslices;
+			float MSE=sumOfSE/Nxy/Nz;
 			float RMSE=sqrt(MSE);
 
 			fprintf(stdout,"Rho: %f Equits: %f RMSE: %f \n",convergence_rho,updatedVoxelsList[it],RMSE);

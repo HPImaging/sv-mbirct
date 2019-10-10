@@ -38,20 +38,15 @@ float QGGMRF3D_UpdateICDParams(struct ReconParamsQGGMRF3D reconparams,float temp
     b_nearest=reconparams.b_nearest;
     b_diag=reconparams.b_diag;
     b_interslice = reconparams.b_interslice;
-    
 
     float delta[10];
     float SurrogateCoeff[10];
     #pragma vector aligned											
     for (j = 0; j < 10; j++)
-    {
         delta[j] = tempV - neighbors[j];
-    }
     
     for (j = 0; j < 10; j++)
-    {        
         SurrogateCoeff[j] = QGGMRF_SurrogateCoeff(delta[j],reconparams,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
-    }  
     
     #pragma vector aligned											
     for (j = 0; j < 10; j++)
@@ -82,15 +77,15 @@ float QGGMRF3D_UpdateICDParams(struct ReconParamsQGGMRF3D reconparams,float temp
 
 
 /* the potential function of the QGGMRF prior model.  p << q <= 2 */
-float QGGMRF_Potential(float delta, struct ReconParamsQGGMRF3D *Rparams)
+float QGGMRF_Potential(float delta, struct ReconParamsQGGMRF3D *reconparams)
 {
     float p, q, T, SigmaX;
     float temp, GGMRF_Pot;
     
-    p = Rparams->p;
-    q = Rparams->q;
-    T = Rparams->T;
-    SigmaX = Rparams->SigmaX;
+    p = reconparams->p;
+    q = reconparams->q;
+    T = reconparams->T;
+    SigmaX = reconparams->SigmaX;
     
     GGMRF_Pot = pow(fabs(delta),p)/(p*pow(SigmaX,p));
     temp = pow(fabs(delta/(T*SigmaX)), q-p);
@@ -141,12 +136,13 @@ void ExtractNeighbors3D(
 	float *image,
 	struct ImageParams3D imgparams)
 {
-    int jz, plusx, minusx, plusy, minusy;
-    int Nx, Ny, Nz, Nxy;
+    int plusx, minusx, plusy, minusy;
+    int Nx,Ny;
+    //int jz,Nz;
     
     Nx = imgparams.Nx;
     Ny = imgparams.Ny;
-    Nz = imgparams.Nz;
+    //Nz = imgparams.Nz;
     
     plusx = jx + 1;
     plusx = ((plusx < Nx) ? plusx : 0);
@@ -161,10 +157,7 @@ void ExtractNeighbors3D(
     neighbors[1] = image[jy*Nx+minusx];
     neighbors[2] = image[plusy*Nx+jx];
     neighbors[3] = image[minusy*Nx+jx];
-    /*
-    neighbors[4] = image[jy*Nx+jx];
-    neighbors[5] = image[jy*Nx+jx];
-    */
+
     neighbors[4] = image[plusy*Nx+plusx];
     neighbors[5] = image[plusy*Nx+minusx];
     neighbors[6] = image[minusy*Nx+plusx];

@@ -42,14 +42,21 @@ int main(int argc, char *argv[])
 
 	/* read parameters */
 	readSystemParams_MBIR(&cmdline, &Image.imgparams, &sinogram.sinoparams, &reconparams);
+	fprintf(stdout,"INPUT ");
 	printSinoParams3DParallel(&sinogram.sinoparams);
+	fprintf(stdout,"OUTPUT ");
 	printImageParams3D(&Image.imgparams);
 	printReconParamsQGGMRF3D(&reconparams);
 	fprintf(stdout,"\n");
 
+	/* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
+	/* relevant sinogram parameters so it pulls the correct slices and indexes consistently */
+	sinogram.sinoparams.NSlices = Image.imgparams.Nz;
+	sinogram.sinoparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+
 	/* Looks like this is a partial step in splitting volume across nodes */
 	/* Note it reassigns image indices, which should be used to specificy the recon volume */
-	#if 1
+	#if 0
 	int numprocs=1;
 	if((sinogram.sinoparams.NSlices%numprocs)!=0) {
 		fprintf(stderr, "the number of slices must be a multiple of the number of nodes.\n");
@@ -71,7 +78,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
 		fprintf(stderr, "Exiting %s\n",argv[0]);
 		exit(-1);
-
 	}
 	for(i=0;i<Image.imgparams.Ny;i+=(SVLength*2-overlappingDistance1))
 	for(j=0;j<Image.imgparams.Nx;j+=(SVLength*2-overlappingDistance2))

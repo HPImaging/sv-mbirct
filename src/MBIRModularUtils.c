@@ -20,10 +20,10 @@ void printSinoParams3DParallel(struct SinoParams3DParallel *sinoparams)
     fprintf(stdout, " - Number of sinogram views per slice    = %d\n", sinoparams->NViews);
     fprintf(stdout, " - Number of detector channels per slice = %d\n", sinoparams->NChannels);
     fprintf(stdout, " - Number of slices                      = %d\n", sinoparams->NSlices);
-    fprintf(stdout, " - Spacing between Detector Channels     = %.7f (mm) \n", sinoparams->DeltaChannel);
+    fprintf(stdout, " - First slice index (wrt file names)    = %d\n", sinoparams->FirstSliceNumber);
+    fprintf(stdout, " - Spacing between detector channels     = %.7f (mm)\n", sinoparams->DeltaChannel);
     fprintf(stdout, " - Center of rotation offset             = %.7f (channels)\n", sinoparams->CenterOffset);
     fprintf(stdout, " - Spacing between slices                = %.7f (mm)\n", sinoparams->DeltaSlice);
-    fprintf(stdout, " - First Slice Index                     = %d \n", sinoparams->FirstSliceNumber);
 }
 
 /* Utility for reading 3D parallel beam sinogram parameters */
@@ -181,13 +181,12 @@ int ReadSinoParams3DParallel(
 void printImageParams3D(struct ImageParams3D *imgparams)
 {
     fprintf(stdout, "IMAGE PARAMETERS:\n");
-    fprintf(stdout, " - Number of Pixels within a single slice in X direction = %d\n", imgparams->Nx);
-    fprintf(stdout, " - Number of Pixels within a single slice in Y direction = %d\n", imgparams->Ny);
-    fprintf(stdout, " - Number of Slices to reconstruct                       = %d \n", imgparams->Nz);
-    fprintf(stdout, " - Pixel width  in XY plane                              = %.7f (mm)\n", imgparams->Deltaxy);
-    fprintf(stdout, " - Spacing between slices                                = %.7f (mm)\n", imgparams->DeltaZ);
-    fprintf(stdout, " - First Slice Index                                     = %d \n", imgparams->FirstSliceNumber);
-    fprintf(stdout, " - ROIRadius                                             = %.7f (mm)\n", imgparams->ROIRadius);
+    fprintf(stdout, " - Number of pixels per slice in (X,Y)-directions    = (%d,%d)\n",imgparams->Nx,imgparams->Ny);
+    fprintf(stdout, " - Number of slices (to reconstruct if output param) = %d\n",imgparams->Nz);
+    fprintf(stdout, " - First slice index (wrt sino/img file names)       = %d\n",imgparams->FirstSliceNumber);
+    fprintf(stdout, " - Pixel width in XY plane               = %.7f (mm)\n", imgparams->Deltaxy);
+    fprintf(stdout, " - Spacing between slices                = %.7f (mm)\n", imgparams->DeltaZ);
+    fprintf(stdout, " - ROIRadius                             = %.7f (mm)\n", imgparams->ROIRadius);
 }
 
 /* Utility for reading 2D Image parameters */
@@ -309,7 +308,7 @@ int ReadImageParams3D(
 /* Print QGGMRF reconstruction parameters */
 void printReconParamsQGGMRF3D(struct ReconParamsQGGMRF3D *reconparams)
 {
-    fprintf(stdout, "RECONSTRUCTION PARAMETERS:\n");
+    fprintf(stdout, "RECONSTRUCTION/PRIOR PARAMETERS:\n");
     fprintf(stdout, " - Q-GGMRF Prior Parameter, q                            = %f\n", reconparams->p);
     fprintf(stdout, " - Q-GGMRF Prior Parameter, p                            = %f\n", reconparams->q);
     fprintf(stdout, " - Q-GGMRF Prior Parameter, T                            = %f\n", reconparams->T);
