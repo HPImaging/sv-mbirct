@@ -11,7 +11,6 @@ void MBIRReconstruct3D(
 	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
 	struct ReconParamsQGGMRF3D reconparams,
-	char *ImageReconMask,
 	struct minStruct *bandMinMap,
 	struct maxStruct *bandMaxMap,
 	struct AValues_char ** A_Padded_Map,

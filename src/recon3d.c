@@ -20,28 +20,21 @@
 #define convergence_rho 0.7
 
 /* Internal functions */
-void coordinateShuffle(int *order1, int *order2,int len);
-void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
-void shuffle(int *order, int len);
-void read_golden(char *fname,float **golden,int Nslices,int N, struct Image3D *Image);
 void super_voxel_recon(int jj,float *total_updates,int it,int *phaseMap,int *order,int *indexList,int Nx,int Ny,
 	struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,float **w,float **e,
 	struct AValues_char ** A_Padded_Map,const int Nslices,struct heap_node *headNodeArray,const int NViewsdivided,
 	struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct ImageParams3D imgparams,
 	float *max_num_pointer,float **image,float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,
 	int SV_per_Z,int SVsPerLine,long *updatedVoxels,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp,int pieceLength);
+void coordinateShuffle(int *order1, int *order2,int len);
+void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams);
 
 
-/* The MBIR algorithm  */
-/* Note : */
-/* 1) Image must be intialized before this function is called */
-/* 2) Image reconstruction Mask must be generated before this call */
 void MBIRReconstruct3D(
 	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
 	struct ReconParamsQGGMRF3D reconparams,
-	char *ImageReconMask,
 	struct minStruct *bandMinMap,
 	struct maxStruct *bandMaxMap,
 	struct AValues_char ** A_Padded_Map,
@@ -392,90 +385,92 @@ void MBIRReconstruct3D(
     	}
     	multifree(A_Padded_Map,2);
     	free((void *)max_num_pointer);
-}
+
+}   /*  END MBIRReconstruct3D()  */
+
+
 				
 
-void coordinateShuffle(int *order1, int *order2,int len)
+void forwardProject2D(
+	float *e,
+	float InitValue,
+	float *max_num_pointer,
+	struct AValues_char ** A_Padded_Map,
+	struct minStruct *bandMinMap,
+	struct SinoParams3DParallel *sinoparams,
+	struct ImageParams3D *imgparams,
+	int pieceLength)
 {
-	int i, j, tmp1,tmp2;
+	int jx=0;
+	int jy=0;
+	int Nx, Ny, i, M, r,j,p, SVNumPerRow;
+	float inverseNumber=1.0/255;
+	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
 
-	for (i = 0; i < len-1; i++)
+	Nx = imgparams->Nx;
+	Ny = imgparams->Ny;
+	M = sinoparams->NViews*sinoparams->NChannels;
+
+	for (i = 0; i < M; i++)
+		e[i] = 0.0;
+
+	if((Nx%(2*SVLength-overlappingDistance2))==0)
+		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2);
+	else
+		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2)+1;
+
+	for (jy = 0; jy < Ny; jy++)
+	for (jx = 0; jx < Nx; jx++)
 	{
-		j = i + (rand() % (len-i));
-		tmp1 = order1[j];
-		tmp2 = order2[j];
-		order1[j] = order1[i];
-		order2[j] = order2[i];
-		order1[i] = tmp1;
-		order2[i] = tmp2;
-	}
-}
 
-void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len)
-{
-	int i, j, tmp1,tmp2;
+		int temp1=jy/(2*SVLength-overlappingDistance1);
 
-	float temp_x;
+		if(temp1==SVNumPerRow)
+			temp1=SVNumPerRow-1;
 
-	for (i = 0; i < len-1; i++)
-	{
-		j = i + (rand() % (len-i));
-		tmp1 = order1[j];
-		tmp2 = order2[j];
-		temp_x=headNodeArray[j].x;
-		order1[j] = order1[i];
-		order2[j] = order2[i];
-		headNodeArray[j].x=headNodeArray[i].x;
-		order1[i] = tmp1;
-		order2[i] = tmp2;
-		headNodeArray[i].x=temp_x;
-	}
-}
+		int temp2=jx/(2*SVLength-overlappingDistance2);
+		if(temp2==SVNumPerRow)
+			temp2=SVNumPerRow-1;
 
-/* shuffle the coordinate to enable random update */
-void shuffle(int *order, int len)
-{
-    int i, j, tmp;
-    
-    srand(time(NULL));
-    
-    for (i = 0; i < len-1; i++)
-    {
-        j = i + (rand() % (len-i));
-        tmp = order[j];
-        order[j] = order[i];
-        order[i] = tmp;
-    }
-}
-
-
-// NOTE this needs to be updated
-void read_golden(char *fname,float **golden,int Nslices,int N, struct Image3D *Image)
-{
-	FILE *fp;
-	int i;
-        char slicefname[200];
-        char *sliceindex;
-	sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-	for(i=0;i<Nslices;i++){
-		sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,Image->imgparams.FirstSliceNumber+i);
-
-		/* Obtain file name for the given slice */
-		strcpy(slicefname,fname);
-		strcat(slicefname,"_slice"); 
-		strcat(slicefname,sliceindex); /* append slice index */
-		strcat(slicefname,".2Dimgdata");
-		if ((fp = fopen(slicefname, "r")) == NULL)
+		int SVPosition=temp1*SVNumPerRow+temp2;
+ 
+		int SV_jy=temp1*(2*SVLength-overlappingDistance1);
+		int SV_jx=temp2*(2*SVLength-overlappingDistance2);
+		int VoxelPosition=(jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
+		/*
+		fprintf(stdout,"jy %d jx %d SVPosition %d SV_jy %d SV_jx %d VoxelPosition %d \n",jy,jx,SVPosition,SV_jy,SV_jx,VoxelPosition);
+		*/
+		if (A_Padded_Map[SVPosition][VoxelPosition].length > 0 && VoxelPosition < ((2*SVLength+1)*(2*SVLength+1)))
 		{
-			fprintf(stderr, "ERROR in read golden: can't open file %s.\n", slicefname);
-			exit(-1);
-		}
+			/*XW: remove the index field in struct ACol and exploit the spatial locality */
+			unsigned char* A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][VoxelPosition].val[0];
+			for(p=0;p<NViewsdivided;p++) 
+			{
+				const int myCount=A_Padded_Map[SVPosition][VoxelPosition].pieceWiseWidth[p];
+				int position=p*pieceLength*sinoparams->NChannels+A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p];
 
-		fread(&golden[i][0],sizeof(float),N,fp);
-		fclose(fp);
+				for(r=0;r<myCount;r++)
+				for(j=0;j< pieceLength;j++)
+				{
+					if((A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>=sinoparams->NChannels)
+						fprintf(stdout, "p %d r %d j %d total_1 %d \n",p,r,j,A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
+
+					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>= M)
+						fprintf(stdout, "p %d r %d j %d total_2 %d \n",p,r,j,position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
+
+					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)< M)
+						e[position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r] += A_padd_Tranpose_pointer[r*pieceLength+j]*max_num_pointer[jy*Nx+jx]*inverseNumber*InitValue;
+
+				}
+				A_padd_Tranpose_pointer+=myCount*pieceLength;
+			}
+		}
 	}
 
-}
+}   /* END forwardProject2D() */
+
+
+
 
 
 void super_voxel_recon(
@@ -765,8 +760,7 @@ void super_voxel_recon(
 				#pragma vector aligned
 				#pragma simd reduction(+:tempTHETA2,tempTHETA1)
 				for(t=0;t<myCount*pieceLength;t++)
-				{
-					/* summing over voxels which are not skipped or masked*/     
+				{	/* summing over voxels which are not skipped or masked*/     
 					tempTHETA1 += A_padd_Tranpose_pointer[t]*WTransposeArrayPointer[t]*ETransposeArrayPointer[t];
 					tempTHETA2 += A_padd_Tranpose_pointer[t]*WTransposeArrayPointer[t]*A_padd_Tranpose_pointer[t];
 				}
@@ -885,11 +879,49 @@ void super_voxel_recon(
 
 	(*total_updates)+=updateChange;	
 
+}   /* END super_voxel_recon() */
+
+
+
+
+void coordinateShuffle(int *order1, int *order2,int len)
+{
+	int i, j, tmp1,tmp2;
+
+	for (i = 0; i < len-1; i++)
+	{
+		j = i + (rand() % (len-i));
+		tmp1 = order1[j];
+		tmp2 = order2[j];
+		order1[j] = order1[i];
+		order2[j] = order2[i];
+		order1[i] = tmp1;
+		order2[i] = tmp2;
+	}
+}
+
+void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len)
+{
+	int i, j, tmp1,tmp2;
+
+	float temp_x;
+
+	for (i = 0; i < len-1; i++)
+	{
+		j = i + (rand() % (len-i));
+		tmp1 = order1[j];
+		tmp2 = order2[j];
+		temp_x=headNodeArray[j].x;
+		order1[j] = order1[i];
+		order2[j] = order2[i];
+		headNodeArray[j].x=headNodeArray[i].x;
+		order1[i] = tmp1;
+		order2[i] = tmp2;
+		headNodeArray[i].x=temp_x;
+	}
 }
 
 
-
-/* The function to compute cost function */
 
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams)
 {
@@ -946,86 +978,6 @@ float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *s
 
 
 
-void forwardProject2D(
-	float *e,
-	float InitValue,
-	float *max_num_pointer,
-	struct AValues_char ** A_Padded_Map,
-	struct minStruct *bandMinMap,
-	struct SinoParams3DParallel *sinoparams,
-	struct ImageParams3D *imgparams,
-	int pieceLength)
-{
-	int jx=0;
-	int jy=0;
-	int Nx, Ny, i, M, r,j,p, SVNumPerRow;
-	float inverseNumber=1.0/255;
-	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
-
-	Nx = imgparams->Nx;
-	Ny = imgparams->Ny;
-	M = sinoparams->NViews*sinoparams->NChannels;
-
-	for (i = 0; i < M; i++)
-	{
-		e[i] = 0.0;
-	}
-
-	if((Nx%(2*SVLength-overlappingDistance2))==0)
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2);
-	else
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2)+1;
-
-	for (jy = 0; jy < Ny; jy++)
-	for (jx = 0; jx < Nx; jx++)
-	{
-
-		int temp1=jy/(2*SVLength-overlappingDistance1);
-
-		if(temp1==SVNumPerRow){
-			temp1=SVNumPerRow-1;
-		}
-
-		int temp2=jx/(2*SVLength-overlappingDistance2);
-		if(temp2==SVNumPerRow){
-			temp2=SVNumPerRow-1;
-		}
-
-		int SVPosition=temp1*SVNumPerRow+temp2;
- 
-		int SV_jy=temp1*(2*SVLength-overlappingDistance1);
-		int SV_jx=temp2*(2*SVLength-overlappingDistance2);
-		int VoxelPosition=(jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
-		/*
-		fprintf(stdout,"jy %d jx %d SVPosition %d SV_jy %d SV_jx %d VoxelPosition %d \n",jy,jx,SVPosition,SV_jy,SV_jx,VoxelPosition);
-		*/
-		if (A_Padded_Map[SVPosition][VoxelPosition].length > 0 && VoxelPosition < ((2*SVLength+1)*(2*SVLength+1)))
-		{
-			/*XW: remove the index field in struct ACol and exploit the spatial locality */
-			unsigned char* A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][VoxelPosition].val[0];
-			for(p=0;p<NViewsdivided;p++) {
-				const int myCount=A_Padded_Map[SVPosition][VoxelPosition].pieceWiseWidth[p];
-				int position=p*pieceLength*sinoparams->NChannels+A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p];
-
-				for(r=0;r<myCount;r++)
-				for(j=0;j< pieceLength;j++){
-					if((A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>=sinoparams->NChannels)
-						fprintf(stdout, "p %d r %d j %d total_1 %d \n",p,r,j,A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p]+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
-
-					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)>= M)
-						fprintf(stdout, "p %d r %d j %d total_2 %d \n",p,r,j,position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
-
-					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)< M)
-						e[position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r] += A_padd_Tranpose_pointer[r*pieceLength+j]*max_num_pointer[jy*Nx+jx]*inverseNumber*InitValue;
-
-
-				}
-				A_padd_Tranpose_pointer+=myCount*pieceLength;
-			}
-		}
-	}
-}
-
 
 
 #if 0
@@ -1068,7 +1020,35 @@ void forwardProject3D(
 }
 #endif
 
+#if 0
+// NOTE this needs to be updated
+void read_golden(char *fname,float **golden,int Nslices,int N, struct Image3D *Image)
+{
+	FILE *fp;
+	int i;
+        char slicefname[200];
+        char *sliceindex;
+	sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
+	for(i=0;i<Nslices;i++){
+		sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,Image->imgparams.FirstSliceNumber+i);
 
+		/* Obtain file name for the given slice */
+		strcpy(slicefname,fname);
+		strcat(slicefname,"_slice"); 
+		strcat(slicefname,sliceindex); /* append slice index */
+		strcat(slicefname,".2Dimgdata");
+		if ((fp = fopen(slicefname, "r")) == NULL)
+		{
+			fprintf(stderr, "ERROR in read golden: can't open file %s.\n", slicefname);
+			exit(-1);
+		}
+
+		fread(&golden[i][0],sizeof(float),N,fp);
+		fclose(fp);
+	}
+
+}
+#endif
 
 #if 0
 static __inline__ unsigned long long rdtsc()

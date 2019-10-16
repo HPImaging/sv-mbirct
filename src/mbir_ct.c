@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 
 	gettimeofday(&tm1,NULL);
 
-	MBIRReconstruct3D(&Image,&sinogram,reconparams,ImageReconMask,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum,pieceLength);
+	MBIRReconstruct3D(&Image,&sinogram,reconparams,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&cmdline,sum,pieceLength);
 
 	gettimeofday(&tm2,NULL);
 	unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;

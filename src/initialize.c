@@ -1,7 +1,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
 #include <getopt.h>
 
@@ -19,12 +18,9 @@ void Initialize_Image(
 	float InitValue,
 	float OutsideROIValue)
 {
-    char *mask;
-    int j,jz,Nxy,Nz;
-
-    mask = ImageReconMask;
-    Nxy = Image->imgparams.Nx * Image->imgparams.Ny;
-    Nz = Image->imgparams.Nz;
+    int j,jz;
+    int Nxy = Image->imgparams.Nx * Image->imgparams.Ny;
+    int Nz = Image->imgparams.Nz;
 
     //fprintf(stdout, "\nInitializing Image ... \n");
     
@@ -41,14 +37,10 @@ void Initialize_Image(
     // ***move this up when projector is fixed
     for(jz=0; jz<Nz; jz++)
     for(j=0; j<Nxy; j++)
+    if(ImageReconMask[j]==0)
+        Image->image[jz][j] = OutsideROIValue;
+    else
         Image->image[jz][j] = InitValue;
-
-    /* Set ROIValue outside mask */
-    for(jz=0; jz<Nz; jz++)
-    for(j=0; j<Nxy; j++) {
-        Image->image[jz][j] *= mask[j];
-        Image->image[jz][j] += (float)(1-mask[j])*OutsideROIValue;
-    }
 
 }
 
