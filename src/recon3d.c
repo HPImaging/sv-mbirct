@@ -19,6 +19,8 @@
 #define  c_ratio 0.07
 #define convergence_rho 0.7
 
+//#define USE_INTEL_MEMCPY
+
 /* Internal functions */
 void super_voxel_recon(int jj,float *total_updates,int it,int *phaseMap,int *order,int *indexList,int Nx,int Ny,
 	struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,float **w,float **e,
@@ -584,8 +586,13 @@ void super_voxel_recon(
 	int bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
 	int bandWidth[(sinoparams.NViews)/pieceLength]__attribute__((aligned(32)));	
 
+	#ifdef USE_INTEL_MEMCPY
 	_intel_fast_memcpy(&bandMin[0],&bandMinMap[theSVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
 	_intel_fast_memcpy(&bandMax[0],&bandMaxMap[theSVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews)); 
+	#else
+	memcpy(&bandMin[0],&bandMinMap[theSVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
+	memcpy(&bandMax[0],&bandMaxMap[theSVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews));
+	#endif
 
 	#pragma vector aligned 
 	for(p=0;p< sinoparams.NViews;p++)
@@ -630,16 +637,28 @@ void super_voxel_recon(
 		newWArrayPointer=&newWArray[p][0];
 		newEArrayPointer=&newEArray[p][0];
 		for(i=0;i<SV_depth_modified;i++)
-		for(q=0;q<pieceLength;q++) {
+		for(q=0;q<pieceLength;q++) 
+		{
+			#ifdef USE_INTEL_MEMCPY
 			_intel_fast_memcpy(newWArrayPointer,&w[startSlice+i][p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
 			_intel_fast_memcpy(newEArrayPointer,&e[startSlice+i][p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+			#else
+			memcpy(newWArrayPointer,&w[startSlice+i][p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+			memcpy(newEArrayPointer,&e[startSlice+i][p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+			#endif
 			newWArrayPointer+=bandWidth[p];
 			newEArrayPointer+=bandWidth[p];
 		}
 	}
 
 	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	{
+		#ifdef USE_INTEL_MEMCPY
 		_intel_fast_memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+		#else
+		memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+		#endif
+	}
 
 	float ** newWArrayTransposed = (float **)malloc(sizeof(float *)*(sinoparams.NViews)/pieceLength);
 	float ** newEArrayTransposed = (float **)malloc(sizeof(float *)*(sinoparams.NViews)/pieceLength);

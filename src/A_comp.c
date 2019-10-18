@@ -9,6 +9,8 @@
 #include "allocate.h"
 #include "A_comp.h"
 
+//#define USE_INTEL_MEMCPY
+
 /******************************************************************/
 /* Compute line segment lengths through a pixel for the given set */
 /* of sinogram angles and for multiple displacements (LEN_PIX)    */
@@ -407,8 +409,13 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
 
             bandMinMap[jj].bandMin=(int *)get_spc(sinoparams->NViews,sizeof(int));
             bandMaxMap[jj].bandMax=(int *)get_spc(sinoparams->NViews,sizeof(int));
+            #ifdef USE_INTEL_MEMCPY
             _intel_fast_memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*(sinoparams->NViews));
             _intel_fast_memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*(sinoparams->NViews));
+            #else
+            memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*(sinoparams->NViews));
+            memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*(sinoparams->NViews));
+            #endif
             
             int piecewiseMinArray[countNumber][(sinoparams->NViews)/pieceLength]__attribute__((aligned(64)));
             int piecewiseMaxArray[countNumber][(sinoparams->NViews)/pieceLength]__attribute__((aligned(64)));
@@ -516,9 +523,15 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
                 A_Padded_Map[jj][theVoxelPosition].pieceWiseMin = (int *)get_spc((sinoparams->NViews)/pieceLength,sizeof(int));
                 A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth = (int *)get_spc((sinoparams->NViews)/pieceLength,sizeof(int));
                 A_Padded_Map[jj][theVoxelPosition].length=totalSumArray[i];
+                #ifdef USE_INTEL_MEMCPY
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].val[0],&AMatrixPaddedTranspose[i][0],sizeof(unsigned char)*totalSumArray[i]);
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseMin[0],&piecewiseMinArray[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
+                #else
+                memcpy(&A_Padded_Map[jj][theVoxelPosition].val[0],&AMatrixPaddedTranspose[i][0],sizeof(unsigned char)*totalSumArray[i]);
+                memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseMin[0],&piecewiseMinArray[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
+                memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
+                #endif
             }
 
             for(i=0;i<countNumber;i++){
