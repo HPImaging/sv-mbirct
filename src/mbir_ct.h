@@ -3,6 +3,7 @@
 
 
 //#define USE_INTEL_MEMCPY
+//#define find_RMSE 
 
 #define SVLength 9
 #define PIECELEN 48
@@ -10,19 +11,28 @@
 #define overlappingDistance2 2
 #define SV_depth 4
 
-//Experimental
+#if 0
+// Experimental
 struct SVParam
 {
 	struct minStruct *bandMinMap;
 	struct maxStruct *bandMaxMap;
 	int Nsv;
-	//int SVLength;
+	int SVLength;
 	int SV_sidelen;
 	int SV_Nxy;
-	//int SV_depth;
+	int SV_depth;
 	int pieceLength;
 	int overlap;
 };
+
+// Experimental
+struct SysMatrixSV
+{
+	struct AValues_char **A_Padded_Map;
+	float *max_num_pointer;
+};
+#endif
 
 
 struct CmdLine

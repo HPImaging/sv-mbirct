@@ -27,12 +27,11 @@ int main(int argc, char *argv[])
 	struct Sino3DParallel sinogram;
 	struct ReconParamsQGGMRF3D reconparams;
 	struct CmdLine cmdline;
-	/*struct SysMatrix2D A;*/
 	struct minStruct *bandMinMap;
 	struct maxStruct *bandMaxMap;
-	struct AValues_char ** A_Padded_Map; 
-	float* max_num_pointer;	
-	unsigned int sum=0;
+	struct AValues_char **A_Padded_Map; 
+	float *max_num_pointer;	
+	int sum,pieceLength;
 	int i,j;
 	struct timeval tm1,tm2;
 
@@ -79,12 +78,13 @@ int main(int argc, char *argv[])
 	#endif
 
 	/* Read System Matrix */
-	int pieceLength=computePieceLength(sinogram.sinoparams.NViews);
+	pieceLength=computePieceLength(sinogram.sinoparams.NViews);
 	if(sinogram.sinoparams.NViews%pieceLength!=0){
 		fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
 		fprintf(stderr, "Exiting %s\n",argv[0]);
 		exit(-1);
 	}
+	sum=0;
 	for(i=0;i<Image.imgparams.Ny;i+=(SVLength*2-overlappingDistance1))
 	for(j=0;j<Image.imgparams.Nx;j+=(SVLength*2-overlappingDistance2))
 		sum++;

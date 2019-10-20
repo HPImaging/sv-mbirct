@@ -1,5 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef _HEAP_H_
+#define _HEAP_H_
+
 
 struct heap {
   int size;
@@ -11,9 +12,11 @@ struct heap {
 };
 
 
-
 void initialize_heap(struct heap *h);
 void free_heap(struct heap *h);
 void heap_insert(struct heap *h, struct heap_node *p);
 void get_heap_max(struct heap *h, struct heap_node *p);
 void maintain_heap(struct heap *h, int n);
+
+
+#endif

@@ -1,3 +1,8 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "allocate.h"
 #include "heap.h"
 
 /*
@@ -31,8 +36,6 @@ char *argv[];
 
 
 #define INIT_SIZE 1024
-
-static void *mget_spc(int num,size_t size);
 
 
 void initialize_heap(struct heap *h)
@@ -143,14 +146,3 @@ void maintain_heap(struct heap *h, int n)
 }
 
 
-
-static void *mget_spc(int num,size_t size)
-{
-	void *pt;
-
-	if( (pt=malloc((size_t)(num*size))) == NULL ) {
-		fprintf(stderr, "==> malloc() error\n");
-		exit(-1);
-		}
-	return(pt);
-}

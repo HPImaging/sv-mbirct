@@ -20,8 +20,6 @@
 #define  c_ratio 0.07
 #define convergence_rho 0.7
 
-//#define USE_INTEL_MEMCPY
-
 /* Internal functions */
 void super_voxel_recon(int jj,float *total_updates,int it,int *phaseMap,int *order,int *indexList,int Nx,int Ny,
 	struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,float **w,float **e,
@@ -404,9 +402,7 @@ void forwardProject2D(
 	struct ImageParams3D *imgparams,
 	int pieceLength)
 {
-	int jx=0;
-	int jy=0;
-	int Nx, Ny, i, M, r,j,p, SVNumPerRow;
+	int jx,jy,Nx,Ny,i,M,r,j,p,SVNumPerRow;
 	float inverseNumber=1.0/255;
 	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
 
@@ -425,14 +421,12 @@ void forwardProject2D(
 	for (jy = 0; jy < Ny; jy++)
 	for (jx = 0; jx < Nx; jx++)
 	{
-
 		int temp1=jy/(2*SVLength-overlappingDistance1);
-
-		if(temp1==SVNumPerRow)
+		if(temp1==SVNumPerRow)  // I don't think this will happen
 			temp1=SVNumPerRow-1;
 
 		int temp2=jx/(2*SVLength-overlappingDistance2);
-		if(temp2==SVNumPerRow)
+		if(temp2==SVNumPerRow)  // I don't think this will happen
 			temp2=SVNumPerRow-1;
 
 		int SVPosition=temp1*SVNumPerRow+temp2;
@@ -443,6 +437,7 @@ void forwardProject2D(
 		/*
 		fprintf(stdout,"jy %d jx %d SVPosition %d SV_jy %d SV_jx %d VoxelPosition %d \n",jy,jx,SVPosition,SV_jy,SV_jx,VoxelPosition);
 		*/
+		// I think the second condition will always be true
 		if (A_Padded_Map[SVPosition][VoxelPosition].length > 0 && VoxelPosition < ((2*SVLength+1)*(2*SVLength+1)))
 		{
 			/*XW: remove the index field in struct ACol and exploit the spatial locality */

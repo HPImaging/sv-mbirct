@@ -10,7 +10,12 @@
 #include "allocate.h"
 #include "A_comp.h"
 
-//#define USE_INTEL_MEMCPY
+/* Pixel profile params */
+#define WIDE_BEAM   /* Finite element analysis of detector channel, accounts for sensitivity variation across its aperture */
+#define LEN_PIX 511 /* determines the spatial resolution for Detector-Pixel computation. Higher LEN_PIX, higher resolution */
+                    /* In this implementation, spatial resolution is : [2*PixelDimension/LEN_PIX]^(-1) */
+#define LEN_DET 101 /* Each detector channel is "split" into LEN_DET sub-elements ... */
+                    /* to account for detector sensitivity variation across its aperture */
 
 /******************************************************************/
 /* Compute line segment lengths through a pixel for the given set */
@@ -25,8 +30,6 @@
  */
 
 
-/* Compute Pixel-detector profile */
-/* Refer to slides "Parallel_beam_CT_FwdModel_v2.pptx" in documentation folder */
 /* The System matrix does not vary with slice for 3-D Parallel Geometry */
 /* So, the method of compuatation is same as that of 2-D Parallel Geometry */
 
@@ -36,7 +39,7 @@ float **ComputePixelProfile3DParallel(
 {
 	int i, j;
 	float pi, ang, d1, d2, t, t_1, t_2, t_3, t_4, maxval, rc, DeltaPix;
-    float **pix_prof ; /* Detector-pixel profile, indexed by view angle and detector-pixel displacement */
+	float **pix_prof ; /* Detector-pixel profile, indexed by view angle and detector-pixel displacement */
 
 	DeltaPix = imgparams->Deltaxy;
 
@@ -45,11 +48,8 @@ float **ComputePixelProfile3DParallel(
 	pi = PI; /* defined in MBIRModularUtils_2D.h */
 	rc = sin(pi/4.0); /* Constant sin(pi/4) */
     
-    /* For pixel-detector profile parameters .. */
-    /* Refer to slides "Parallel_beam_CT_FwdModel_v2.pptx" in documentation folder */
-    /* Compute 3 parameters of the profile function */
-    /* Here the corresponding parameters are : maxval, d1 and d2 */
-    
+	/* Compute 3 parameters of the profile function */
+	/* Here the corresponding parameters are : maxval, d1 and d2 */
     
 	for (i = 0; i < sinoparams->NViews; i++)
 	{
@@ -108,10 +108,6 @@ float **ComputePixelProfile3DParallel(
 }
 
 /* Compute the System Matrix column for a given pixel */
-/* Refer to slides "Parallel_beam_CT_FwdModel_v2.pptx" in documentation folder */
-/* The System matrix does not vary with slice for 3-D Parallel Geometry */
-/* So, the method of compuatation is same as that of 2-D Parallel Geometry */
-
 
 void A_comp_ij(
 	int im_row,
@@ -121,6 +117,9 @@ void A_comp_ij(
 	float **pix_prof,
 	struct ACol *A_col,float *A_Values)
 {
+	static int first_call=1;
+	static int Ntheta, NChannels, N_x, N_y;
+	static float DeltaChannel, DeltaPix, t_0, x_0, y_0, dprof[LEN_DET];
 	int ind, ind_min, ind_max, pr;
 	int prof_ind, pix_prof_ind, pind, i, proj_count;
 	float Aval, t_min, t_max, ang, x, y;
@@ -135,9 +134,9 @@ void A_comp_ij(
 	pix_prof_ind = 0;
 	sum = 0;
 
-	if (compA_ij_first == 0)
+	if (first_call == 1)
 	{
-		compA_ij_first = 1;
+		first_call = 0;
 
 		Ntheta = sinoparams->NViews;
 		NChannels = sinoparams->NChannels;
@@ -207,7 +206,6 @@ void A_comp_ij(
 			continue;
 		}
 
-
 		/* Changed 10/2000 (TF): more general, old implementation assumed
 		   that geom->dia=sino->NChannels*sino->delta_t; */ 
 
@@ -228,7 +226,7 @@ void A_comp_ij(
 		{
 			ind = pind + i;
 
-#ifdef WIDE_BEAM
+		#ifdef WIDE_BEAM
 			/* step through values of detector profile, inner product with PIX prof */
 			Aval = 0;
 			for (k = 0; k < LEN_DET; k++)
@@ -240,7 +238,7 @@ void A_comp_ij(
 					Aval+= dprof[k]*pix_prof[pr][pix_prof_ind];
 				}
 			}
-#else
+		#else
 			/*** this block computes zero-beam-width projection model ****/
 			prof_ind = LEN_PIX*(t_0+i*DeltaChannel+const3)/(2.0*DeltaPix);
 
@@ -261,7 +259,7 @@ void A_comp_ij(
 				}
 			}
 			Aval = pix_prof[pr][prof_ind];
-#endif
+		#endif
 
 			if (Aval > 0.0)  
 			{
@@ -317,7 +315,7 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
             for(j_newAA=jy;j_newAA<=(jy+2*radius);j_newAA++){
                 for(k_newAA=jx;k_newAA<=(jx+2*radius);k_newAA++){
                     if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx){
-                        if(recon_mask[j_newAA][k_newAA]){    /* temporary disable for Synchrotron */
+                        if(recon_mask[j_newAA][k_newAA]){
                             if(A_Col_pointer[j_newAA][k_newAA].n_index >0){
                                 j_newCoordinate[countNumber]=j_newAA;
                                 k_newCoordinate[countNumber]=k_newAA;

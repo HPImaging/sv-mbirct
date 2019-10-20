@@ -1,10 +1,10 @@
 #ifndef _RECON3D_H_
 #define _RECON3D_H_
 
+#include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 #include "A_comp.h"
 
-// #define find_RMSE 
 
 void MBIRReconstruct3D(
 	struct Image3D *Image,
