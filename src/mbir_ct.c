@@ -29,6 +29,8 @@ int main(int argc, char *argv[])
 	struct CmdLine cmdline;
 	struct minStruct *bandMinMap;
 	struct maxStruct *bandMaxMap;
+	int SVLength=SVLENGTH;
+	int overlappingDistance=OVERLAPPINGDISTANCE;
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
 	int sum,pieceLength;
@@ -39,6 +41,7 @@ int main(int argc, char *argv[])
 	float InitValue;	/* Image data initial condition is read in from a file if available ... */
 				/* else intialize it to a uniform image with value InitValue */
 	float OutsideROIValue;	/* Image pixel value outside ROI Radius */
+
 
 	fprintf(stdout, "Starting Reconstruction...\n\n");
 
@@ -85,8 +88,8 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 	sum=0;
-	for(i=0;i<Image.imgparams.Ny;i+=(SVLength*2-overlappingDistance1))
-	for(j=0;j<Image.imgparams.Nx;j+=(SVLength*2-overlappingDistance2))
+	for(i=0;i<Image.imgparams.Ny;i+=(SVLength*2-overlappingDistance))
+	for(j=0;j<Image.imgparams.Nx;j+=(SVLength*2-overlappingDistance))
 		sum++;
 
 	bandMinMap = (struct minStruct *)get_spc(sum,sizeof(struct minStruct));

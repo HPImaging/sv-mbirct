@@ -57,6 +57,8 @@ int main(int argc, char *argv[])
 	int NViews=sinoparams.NViews;
 	int NChannels=sinoparams.NChannels;
 	int NvNc = NViews*NChannels;
+	int SVLength=SVLENGTH;
+	int overlappingDistance=OVERLAPPINGDISTANCE;
 
 	fprintf(stdout, "Generating System Matrix...\n\n");
 
@@ -68,8 +70,8 @@ int main(int argc, char *argv[])
 		exit(-1);
         }        
 
-	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1))
-	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2))
+	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance))
+	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance))
 		sum++;
 
 	//fprintf(stdout, "Ny is %d Nx %d sum %d channels %d views %d\n",Ny,Nx,sum,sinoparams.NChannels,sinoparams.NViews);
@@ -78,8 +80,8 @@ int main(int argc, char *argv[])
 	
 	t=0;	
 	
-	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1))
-	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2)){
+	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance))
+	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance)){
 		order[t]=i*Nx+j;  /* order is the first voxel coordinate, not the center */
 		t++;
 	}	

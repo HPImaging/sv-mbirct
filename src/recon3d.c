@@ -51,7 +51,9 @@ void MBIRReconstruct3D(
 	float **w;  /* projections weights data */
 	float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
 	float *voxelsBuffer2;
-
+	int SVLength=SVLENGTH;
+	int overlappingDistance=OVERLAPPINGDISTANCE;
+	int SV_depth=SV_DEPTH;
 	float cost, avg_update, total_updates;
 	char fname[200];
 
@@ -118,8 +120,8 @@ void MBIRReconstruct3D(
 	t=0;
 
 	for(p=0;p<Nz;p+=SV_depth)
-	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance1))
-	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance2))
+	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance))
+	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance))
 	{
 		order[t]=p*Nxy+i*Nx+j;  /* order is the first voxel coordinate, not the center */
 		t++;
@@ -127,10 +129,10 @@ void MBIRReconstruct3D(
 
 	int phaseMap[sum*SV_per_Z];
 	int SVsPerLine=0;
-	if((Nx%(2*SVLength-overlappingDistance2))==0)
-		SVsPerLine=Nx/(2*SVLength-overlappingDistance2);
+	if((Nx%(2*SVLength-overlappingDistance))==0)
+		SVsPerLine=Nx/(2*SVLength-overlappingDistance);
 	else	
-		SVsPerLine=Nx/(2*SVLength-overlappingDistance2)+1; 
+		SVsPerLine=Nx/(2*SVLength-overlappingDistance)+1; 
 
 	#pragma omp parallel for private(jj) schedule(dynamic)
 	for(i=0;i<SV_per_Z;i++)
@@ -405,6 +407,8 @@ void forwardProject2D(
 	int jx,jy,Nx,Ny,i,M,r,j,p,SVNumPerRow;
 	float inverseNumber=1.0/255;
 	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
+	int SVLength=SVLENGTH;
+	int overlappingDistance=OVERLAPPINGDISTANCE;
 
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
@@ -413,26 +417,26 @@ void forwardProject2D(
 	for (i = 0; i < M; i++)
 		e[i] = 0.0;
 
-	if((Nx%(2*SVLength-overlappingDistance2))==0)
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2);
+	if((Nx%(2*SVLength-overlappingDistance))==0)
+		SVNumPerRow=Nx/(2*SVLength-overlappingDistance);
 	else
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance2)+1;
+		SVNumPerRow=Nx/(2*SVLength-overlappingDistance)+1;
 
 	for (jy = 0; jy < Ny; jy++)
 	for (jx = 0; jx < Nx; jx++)
 	{
-		int temp1=jy/(2*SVLength-overlappingDistance1);
+		int temp1=jy/(2*SVLength-overlappingDistance);
 		if(temp1==SVNumPerRow)  // I don't think this will happen
 			temp1=SVNumPerRow-1;
 
-		int temp2=jx/(2*SVLength-overlappingDistance2);
+		int temp2=jx/(2*SVLength-overlappingDistance);
 		if(temp2==SVNumPerRow)  // I don't think this will happen
 			temp2=SVNumPerRow-1;
 
 		int SVPosition=temp1*SVNumPerRow+temp2;
  
-		int SV_jy=temp1*(2*SVLength-overlappingDistance1);
-		int SV_jx=temp2*(2*SVLength-overlappingDistance2);
+		int SV_jy=temp1*(2*SVLength-overlappingDistance);
+		int SV_jx=temp2*(2*SVLength-overlappingDistance);
 		int VoxelPosition=(jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
 		/*
 		fprintf(stdout,"jy %d jx %d SVPosition %d SV_jy %d SV_jx %d VoxelPosition %d \n",jy,jx,SVPosition,SV_jy,SV_jx,VoxelPosition);
@@ -509,6 +513,9 @@ void super_voxel_recon(
 	int jy,jx,p,i,q,t,j,currentSlice;
 	int startSlice;	
 	int SV_depth_modified;	
+	int SVLength=SVLENGTH;
+	int overlappingDistance=OVERLAPPINGDISTANCE;
+	int SV_depth=SV_DEPTH;
 
 	if(it%2==0)
 	{
@@ -528,7 +535,7 @@ void super_voxel_recon(
 	else
 		SV_depth_modified=SV_depth;
 
-	int theSVPosition=jy/(2*SVLength-overlappingDistance1)*SVsPerLine+jx/(2*SVLength-overlappingDistance2);
+	int theSVPosition=jy/(2*SVLength-overlappingDistance)*SVsPerLine+jx/(2*SVLength-overlappingDistance);
 	if(it%2==0)
 	{
 		if(phaseMap[jj]!=group_array[startSlice/SV_depth*4+group_id])

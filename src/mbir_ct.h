@@ -5,11 +5,10 @@
 //#define USE_INTEL_MEMCPY
 //#define find_RMSE 
 
-#define SVLength 9
+#define SVLENGTH 9
 #define PIECELEN 48
-#define overlappingDistance1 2
-#define overlappingDistance2 2
-#define SV_depth 4
+#define OVERLAPPINGDISTANCE 2
+#define SV_DEPTH 4
 
 #if 0
 // Experimental

@@ -290,6 +290,7 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
 	int j,jj,i,jy,jx,p,q,t;
 	int Nx = imgparams->Nx;
 	int Ny = imgparams->Ny;	
+	int SVLength=SVLENGTH;
 
         for(jj=0;jj<sum;jj++){
             	for(i=0;i<(SVLength*2+1)*(SVLength*2+1);i++){
@@ -646,6 +647,7 @@ void readAmatrix(
 	FILE *fp;
 	int i, j, Nx, Ny;
 	int M_nonzero;
+	int SVLength=SVLENGTH;
 
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
@@ -693,6 +695,7 @@ void writeAmatrix(
 	FILE *fp;
 	int i,j, Nx, Ny;
 	int M_nonzero;
+	int SVLength=SVLENGTH;
 
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
