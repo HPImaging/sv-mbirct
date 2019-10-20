@@ -3,7 +3,6 @@
 
 #include "MBIRModularDefs.h"
 #include "A_comp.h"
-#include "initialize.h"
 
 // #define find_RMSE 
 
@@ -15,7 +14,7 @@ void MBIRReconstruct3D(
 	struct maxStruct *bandMaxMap,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
-	struct CmdLineMBIR * cmdLine,
+	struct CmdLine *cmdLine,
 	int sum,
 	int pieceLength);
 

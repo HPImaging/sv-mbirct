@@ -1,6 +1,7 @@
-
 #ifndef _ACOMP_H_
 #define _ACOMP_H_
+
+#include "MBIRModularDefs.h"
 
 /* Computation options */
 #define WIDE_BEAM   /* Finite element analysis of detector channel, accounts for sensitivity variation across its aperture */
@@ -15,14 +16,6 @@ int Ntheta, NChannels, N_x, N_y;
 float DeltaChannel, DeltaPix, t_0,x_0,y_0;
 float dprof[101];
 
-#define  SVLength 9
-	
-#define PIECELEN 48
-	
-#define overlappingDistance1 2
-#define overlappingDistance2 2
-
-#define SV_depth 4
 
 struct ACol
 {

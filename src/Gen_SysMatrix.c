@@ -5,14 +5,13 @@
 #include <string.h>
 #include <getopt.h>
 
+#include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
 #include "recon3d.h"
 #include "A_comp.h"
 
-/* #ifdef STORE_A_MATRIX - This option set by default in A_comp.h */
-/* This option is to precompute and store the forward matrix rather than compute it on the fly */
 
 /* Command Line structure for Generating System matrix */
 struct CmdLineSysGen

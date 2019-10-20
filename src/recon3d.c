@@ -7,6 +7,7 @@
 #include <string.h>
 #include <omp.h>
 
+#include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
@@ -41,7 +42,7 @@ void MBIRReconstruct3D(
 	struct maxStruct *bandMaxMap,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
-	struct CmdLineMBIR * cmdline,
+	struct CmdLine *cmdline,
 	int sum,
 	int pieceLength)
 {
