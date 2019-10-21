@@ -6,25 +6,21 @@
 //#define find_RMSE 
 
 #define SVLENGTH 9
-#define PIECELEN 48
 #define OVERLAPPINGDISTANCE 2
-#define SV_DEPTH 4
+#define SVDEPTH 4
 
-#if 0
-// Experimental
-struct SVParam
+struct SVParams
 {
 	struct minStruct *bandMinMap;
 	struct maxStruct *bandMaxMap;
-	int Nsv;
 	int SVLength;
-	int SV_sidelen;
-	int SV_Nxy;
-	int SV_depth;
-	int pieceLength;
 	int overlap;
+	int SVDepth;
+	int Nsv;
+	int pieceLength;
 };
 
+#if 0
 // Experimental
 struct SysMatrixSV
 {

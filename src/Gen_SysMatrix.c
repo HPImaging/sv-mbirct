@@ -9,6 +9,7 @@
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
+#include "initialize.h"
 #include "recon3d.h"
 #include "A_comp.h"
 
@@ -34,8 +35,6 @@ int main(int argc, char *argv[])
 	struct SinoParams3DParallel sinoparams;
 	//struct ReconParamsQGGMRF3D reconparams;
 	float **PixelDetector_profile;
-	struct minStruct *bandMinMap;
-	struct maxStruct *bandMaxMap;
 	struct AValues_char ** A_Padded_Map;
 	int *order;
 	float x_0, y_0, Deltaxy, x, y, yy, ROIRadius, R_sq, R_sq_max;
@@ -50,29 +49,25 @@ int main(int argc, char *argv[])
 	printImageParams3D(&imgparams);
 	fprintf(stdout, "\n");
 
-	unsigned int sum=0;
 	int i,j,p,t;
 	int Ny=imgparams.Ny;
 	int Nx=imgparams.Nx;
 	int NViews=sinoparams.NViews;
 	int NChannels=sinoparams.NChannels;
 	int NvNc = NViews*NChannels;
-	int SVLength=SVLENGTH;
-	int overlappingDistance=OVERLAPPINGDISTANCE;
+	struct SVParams svpar;
+
+	initSVParams(&svpar, imgparams, sinoparams);
+	svpar.bandMinMap = (struct minStruct *)get_spc(svpar.Nsv,sizeof(struct minStruct));
+	svpar.bandMaxMap = (struct maxStruct *)get_spc(svpar.Nsv,sizeof(struct maxStruct));
+	int SVLength = svpar.SVLength;
+	int overlappingDistance = svpar.overlap;
+	int sum = svpar.Nsv;
+	struct minStruct * bandMinMap = svpar.bandMinMap;
+	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
+	int pieceLength = svpar.pieceLength;
 
 	fprintf(stdout, "Generating System Matrix...\n\n");
-
-	int pieceLength=computePieceLength(NViews);
-
-	if(NViews%pieceLength!=0){
-		fprintf(stderr, "Error: NViews mod pieceLength must be 0\n");
-		fprintf(stderr, "Exiting %s\n",argv[0]);
-		exit(-1);
-        }        
-
-	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance))
-	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance))
-		sum++;
 
 	//fprintf(stdout, "Ny is %d Nx %d sum %d channels %d views %d\n",Ny,Nx,sum,sinoparams.NChannels,sinoparams.NViews);
 
@@ -86,8 +81,6 @@ int main(int argc, char *argv[])
 		t++;
 	}	
 
-    	bandMinMap = (struct minStruct *)get_spc(sum,sizeof(struct minStruct));
-    	bandMaxMap = (struct maxStruct *)get_spc(sum,sizeof(struct maxStruct));
     	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, sum, (SVLength*2+1)*(SVLength*2+1));	
 
 	float* max_num_pointer = (float *)malloc(Ny*Nx*sizeof(float));	
@@ -132,7 +125,8 @@ int main(int argc, char *argv[])
         	}
     	}
 	
-	A_comp(bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&sinoparams,sum,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName,pieceLength);
+	//A_comp(bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,&sinoparams,sum,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName,pieceLength);
+	A_comp(A_Padded_Map,max_num_pointer,svpar,&sinoparams,ImageReconMask,order,&imgparams,PixelDetector_profile,cmdline.SysMatrixFileName);
 	    
 	fprintf(stdout, "Done generating system matrix\n");
 
@@ -145,7 +139,7 @@ int main(int argc, char *argv[])
 	//float InitValue = reconparams.InitImageValue;
 	float InitValue = MUWATER;   // careful here..this has to match initial value in reconstruction
 	float *initialError = (float *)malloc(sizeof(float)*NvNc);
-	forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map,bandMinMap, &sinoparams, &imgparams, pieceLength);
+	forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map, &sinoparams, &imgparams, svpar);
     
 	char fname[200];
 	sprintf(fname,"%s.initialError",cmdline.SysMatrixFileName);

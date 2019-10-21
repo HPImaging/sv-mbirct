@@ -281,16 +281,28 @@ void A_comp_ij(
 }
 
 
-void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams,char *sysMatrixPath,int pieceLength)
+void A_piecewise(
+	struct pointerAddress twoAddresses,
+	struct AValues_char ** A_Padded_Map,
+	float *max_num_pointer,
+	struct SVParams svpar,
+	struct SinoParams3DParallel *sinoparams,
+	char **recon_mask,
+	int *order,
+	struct ImageParams3D *imgparams,
+	char *sysMatrixPath)
 {
-
 	struct ACol ** A_Col_pointer=twoAddresses.addressA;
 	struct AValues_char ** A_Values_pointer=twoAddresses.addressB;
 	
 	int j,jj,i,jy,jx,p,q,t;
 	int Nx = imgparams->Nx;
 	int Ny = imgparams->Ny;	
-	int SVLength=SVLENGTH;
+	int SVLength = svpar.SVLength; 
+	struct minStruct * bandMinMap = svpar.bandMinMap;
+	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
+	int sum = svpar.Nsv;
+	int pieceLength = svpar.pieceLength;
 
         for(jj=0;jj<sum;jj++){
             	for(i=0;i<(SVLength*2+1)*(SVLength*2+1);i++){
@@ -547,7 +559,7 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
 	char fname[200];
     	sprintf(fname,"%s.2Dsysmatrix",sysMatrixPath);	
  	remove(fname);
-	writeAmatrix(fname,A_Padded_Map, max_num_pointer,imgparams, sinoparams, sum, bandMinMap,bandMaxMap,pieceLength);
+	writeAmatrix(fname,A_Padded_Map,max_num_pointer,imgparams,sinoparams,svpar);
 	//fprintf(stdout, "After write AMatrix\n");  
 	//fflush(stdout);
 					 		
@@ -560,7 +572,16 @@ void A_piecewise(struct pointerAddress twoAddresses,struct minStruct *bandMinMap
 /* The System matrix does not vary with slice for 3-D Parallel Geometry */
 /* So, the method of compuatation is same as that of 2-D Parallel Geometry */
        
-struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,struct AValues_char ** A_Padded_Map,float * max_num_pointer,struct SinoParams3DParallel *sinoparams,int sum,char **recon_mask,int *order,struct ImageParams3D *imgparams, float **pix_prof,char* sysMatrixPath, int pieceLength)
+struct pointerAddress A_comp(
+	struct AValues_char ** A_Padded_Map,
+	float * max_num_pointer,
+	struct SVParams svpar,
+	struct SinoParams3DParallel *sinoparams,
+	char **recon_mask,
+	int *order,
+	struct ImageParams3D *imgparams,
+	float **pix_prof,
+	char* sysMatrixPath)
 {
 	int i, j, r, nr;
 	int col_length, n_x, n_y;
@@ -618,7 +639,7 @@ struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *band
 	free((void *)A_col_sgl.countTheta);
 	free((void *)A_col_sgl.minIndex);
 
-	A_piecewise(address_arr,bandMinMap,bandMaxMap,A_Padded_Map,max_num_pointer,sinoparams,sum,recon_mask,order,imgparams,sysMatrixPath,pieceLength);
+	A_piecewise(address_arr,A_Padded_Map,max_num_pointer,svpar,sinoparams,recon_mask,order,imgparams,sysMatrixPath);
 	
     	for (i = 0; i < n_y; i++)
     	{
@@ -641,13 +662,20 @@ struct pointerAddress A_comp(struct minStruct *bandMinMap,struct maxStruct *band
 
 void readAmatrix(
 	char *fname,
-	struct AValues_char ** A_Padded_Map, float * max_num_pointer,
-	struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum,struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength)
+	struct AValues_char ** A_Padded_Map, 
+	float * max_num_pointer,
+	struct ImageParams3D *imgparams,
+	struct SinoParams3DParallel *sinoparams,
+	struct SVParams svpar)
 {
 	FILE *fp;
 	int i, j, Nx, Ny;
 	int M_nonzero;
-	int SVLength=SVLENGTH;
+	int SVLength=svpar.SVLength;
+	int sum=svpar.Nsv;
+	struct minStruct * bandMinMap = svpar.bandMinMap;
+	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
+	int pieceLength = svpar.pieceLength;
 
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
@@ -689,13 +717,20 @@ void readAmatrix(
 
 void writeAmatrix(
 	char *fname,
-	struct AValues_char ** A_Padded_Map, float * max_num_pointer,
-	struct ImageParams3D *imgparams, struct SinoParams3DParallel *sinoparams, int sum, struct minStruct *bandMinMap,struct maxStruct *bandMaxMap, int pieceLength)
+	struct AValues_char ** A_Padded_Map, 
+	float * max_num_pointer,
+	struct ImageParams3D *imgparams,
+	struct SinoParams3DParallel *sinoparams,
+	struct SVParams svpar)
 {
 	FILE *fp;
 	int i,j, Nx, Ny;
 	int M_nonzero;
-	int SVLength=SVLENGTH;
+	int SVLength = svpar.SVLength;
+	int sum = svpar.Nsv;
+	struct minStruct * bandMinMap = svpar.bandMinMap;
+	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
+	int pieceLength = svpar.pieceLength;
 
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
@@ -724,30 +759,3 @@ void writeAmatrix(
 }
 
 
-
-/* From XW:
- *   The pieceLength is the block size in the super-voxel buffer. From my experiments
- *   in the past, a good block size is about 1/16 of the views. So if we have 1024
- *   views, then the block size needs to be about 64. If 1/16 of the views is not an
- *   integer, then we need to find a divisor that's closest to 1/16 of the views.
- *   For example, if we have 900 views, and 900/16 = 56.25, and it's not an integer.
- *   Then we need to check integers from 56 to 1 in a descending order. The first 
- *   integer we find that is divisible by 900 views should be the block size.
- */
-int computePieceLength(int NViews)
-{
-	int pieceLength;
-
-	pieceLength=NViews/16;
-	if(pieceLength<1)
-		pieceLength=1;
-
-	while( pieceLength>1 && (NViews%pieceLength!=0) )
-	{
-		pieceLength--;
-	}
-	//fprintf(stderr, "Nviews %d, pieceLength %d\n",NViews,pieceLength);
-
-	//pieceLength=PIECELEN;
-	return(pieceLength);
-}

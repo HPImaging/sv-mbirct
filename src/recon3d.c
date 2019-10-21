@@ -21,12 +21,11 @@
 #define convergence_rho 0.7
 
 /* Internal functions */
-void super_voxel_recon(int jj,float *total_updates,int it,int *phaseMap,int *order,int *indexList,int Nx,int Ny,
-	struct minStruct *bandMinMap,struct maxStruct *bandMaxMap,float **w,float **e,
-	struct AValues_char ** A_Padded_Map,const int Nslices,struct heap_node *headNodeArray,const int NViewsdivided,
+void super_voxel_recon(int jj,struct SVParams svpar,float *total_updates,int it,int *phaseMap,int *order,int *indexList,int Nx,int Ny,
+	float **w,float **e, struct AValues_char ** A_Padded_Map,const int Nslices,struct heap_node *headNodeArray,const int NViewsdivided,
 	struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct ImageParams3D imgparams,
 	float *max_num_pointer,float **image,float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,
-	int SV_per_Z,int SVsPerLine,long *updatedVoxels,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp,int pieceLength);
+	int SV_per_Z,int SVsPerLine,long *updatedVoxels,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams);
@@ -36,13 +35,10 @@ void MBIRReconstruct3D(
 	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
 	struct ReconParamsQGGMRF3D reconparams,
-	struct minStruct *bandMinMap,
-	struct maxStruct *bandMaxMap,
+	struct SVParams svpar,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
-	struct CmdLine *cmdline,
-	int sum,
-	int pieceLength)
+	struct CmdLine *cmdline)
 {
 	int it,i,j,currentSlice,jj,p,t;
 	float **x;  /* image data */
@@ -51,9 +47,6 @@ void MBIRReconstruct3D(
 	float **w;  /* projections weights data */
 	float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
 	float *voxelsBuffer2;
-	int SVLength=SVLENGTH;
-	int overlappingDistance=OVERLAPPINGDISTANCE;
-	int SV_depth=SV_DEPTH;
 	float cost, avg_update, total_updates;
 	char fname[200];
 
@@ -69,11 +62,18 @@ void MBIRReconstruct3D(
 	int Nx = Image->imgparams.Nx;
 	int Ny = Image->imgparams.Ny;
 	int Nxy = Nx*Ny;
-	const int Nz = Image->imgparams.Nz;
+	int Nz = Image->imgparams.Nz;
 	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
 	int NViews = sinogram->sinoparams.NViews;
 	int MaxIterations = reconparams.MaxIterations;
 	float StopThreshold = reconparams.StopThreshold;
+	int SVLength = svpar.SVLength;
+	int overlappingDistance = svpar.overlap;
+	int SV_depth = svpar.SVDepth;
+	int sum = svpar.Nsv;
+	int pieceLength = svpar.pieceLength;
+	struct minStruct * bandMinMap = svpar.bandMinMap;
+	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 
 	int SV_per_Z=0;
 	int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
@@ -292,7 +292,7 @@ void MBIRReconstruct3D(
 			
 				#pragma omp for schedule(dynamic)  reduction(+:total_updates)
 				for (jj = startIndex; jj < endIndex; jj+=1)
-					super_voxel_recon(jj,&total_updates,it, &phaseMap[0],order,&indexList[0],Nx,Ny, bandMinMap, bandMaxMap,w,e,A_Padded_Map,Nz,&headNodeArray[0],NViewsdivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,&updatedVoxels,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp,pieceLength);
+					super_voxel_recon(jj,svpar,&total_updates,it, &phaseMap[0],order,&indexList[0],Nx,Ny, w,e,A_Padded_Map,Nz,&headNodeArray[0],NViewsdivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,&updatedVoxels,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
 			}
 
 			#pragma omp single
@@ -365,29 +365,28 @@ void MBIRReconstruct3D(
 	if(priorityheap.size>0)
 		free_heap((void *)&priorityheap); 
 
-        for(jj=0;jj<sum;jj++){
-            	free((void *)bandMinMap[jj].bandMin);
-            	free((void *)bandMaxMap[jj].bandMax);
-        }
+	for(jj=0;jj<sum;jj++){
+		free((void *)bandMinMap[jj].bandMin);
+		free((void *)bandMaxMap[jj].bandMax);
+	}
 
-    	free((void *)bandMinMap);
-    	free((void *)bandMaxMap);
-    	
+	//free((void *)bandMinMap);
+	//free((void *)bandMaxMap);
+ 
 	#ifdef find_RMSE
-    	multifree(golden,2);        	
-        #endif
-            	
-    	for(i=0;i<sum;i++){
-        	for(jj=0;jj<((2*SVLength+1)*(2*SVLength+1));jj++){
-            		if(A_Padded_Map[i][jj].length>0){
-                		free((void *)A_Padded_Map[i][jj].val);
-                		free((void *)A_Padded_Map[i][jj].pieceWiseMin);
-                		free((void *)A_Padded_Map[i][jj].pieceWiseWidth);
-            		}
-        	}
-    	}
-    	multifree(A_Padded_Map,2);
-    	free((void *)max_num_pointer);
+	multifree(golden,2);
+	#endif
+
+	for(i=0;i<sum;i++)
+	for(jj=0;jj<((2*SVLength+1)*(2*SVLength+1));jj++)
+	if(A_Padded_Map[i][jj].length>0)
+	{
+		free((void *)A_Padded_Map[i][jj].val);
+		free((void *)A_Padded_Map[i][jj].pieceWiseMin);
+		free((void *)A_Padded_Map[i][jj].pieceWiseWidth);
+	}
+	multifree(A_Padded_Map,2);
+	free((void *)max_num_pointer);
 
 }   /*  END MBIRReconstruct3D()  */
 
@@ -399,16 +398,18 @@ void forwardProject2D(
 	float InitValue,
 	float *max_num_pointer,
 	struct AValues_char ** A_Padded_Map,
-	struct minStruct *bandMinMap,
 	struct SinoParams3DParallel *sinoparams,
 	struct ImageParams3D *imgparams,
-	int pieceLength)
+	struct SVParams svpar)
 {
 	int jx,jy,Nx,Ny,i,M,r,j,p,SVNumPerRow;
 	float inverseNumber=1.0/255;
+	int SVLength = svpar.SVLength;
+	int overlappingDistance = svpar.overlap;
+	struct minStruct * bandMinMap = svpar.bandMinMap;
+	int pieceLength = svpar.pieceLength;
+
 	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
-	int SVLength=SVLENGTH;
-	int overlappingDistance=OVERLAPPINGDISTANCE;
 
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
@@ -477,6 +478,7 @@ void forwardProject2D(
 
 void super_voxel_recon(
 	int jj,
+	struct SVParams svpar,
 	float *total_updates,
 	int it,
 	int *phaseMap,
@@ -484,8 +486,6 @@ void super_voxel_recon(
 	int *indexList,
 	int Nx,
 	int Ny,
-	struct minStruct *bandMinMap,
-	struct maxStruct *bandMaxMap,
 	float **w,
 	float **e,
 	struct AValues_char ** A_Padded_Map,
@@ -506,16 +506,18 @@ void super_voxel_recon(
 	long *updatedVoxels,
 	float pow_sigmaX_p,
 	float pow_sigmaX_q,
-	float pow_T_qmp,
-	int pieceLength)
+	float pow_T_qmp)
 {
 
 	int jy,jx,p,i,q,t,j,currentSlice;
 	int startSlice;	
 	int SV_depth_modified;	
-	int SVLength=SVLENGTH;
-	int overlappingDistance=OVERLAPPINGDISTANCE;
-	int SV_depth=SV_DEPTH;
+	int SVLength = svpar.SVLength;
+	int overlappingDistance = svpar.overlap;
+	int SV_depth = svpar.SVDepth;
+	struct minStruct * bandMinMap = svpar.bandMinMap;
+	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
+	int pieceLength = svpar.pieceLength;
 
 	if(it%2==0)
 	{
