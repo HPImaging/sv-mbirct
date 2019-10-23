@@ -16,31 +16,29 @@
 
 /* Internal Functions */
 void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline);
-void PrintCmdLineUsage(char *ExecFileName);
-int CmdLineHelp(char *string);
-
+void printCmdLineUsage(char *ExecFileName);
+int CmdLineHelpOption(char *string);
 
 int main(int argc, char *argv[])
 {
 	struct CmdLine cmdline;
-
 	struct Image3D Image;
 	struct Sino3DParallel sinogram;
 	struct ReconParamsQGGMRF3D reconparams;
 	struct SVParams svpar;
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
-	struct timeval tm1,tm2;
-
 	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
 	float InitValue=MUWATER;/* If initial image not specified, set to uniform image w/ */
 	float OutsideROIValue=0;/* value InitValue inside ROI radius and OutsideROIValue outside */
 	char fname[200];
+	struct timeval tm1,tm2;
 
-	fprintf(stdout, "Starting Reconstruction...\n\n");
+	fprintf(stdout,"MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
+	fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
 
-	/* Parse command line and parameter files */
 	readCmdLine(argc, argv, &cmdline);
+
 	readSystemParams(&cmdline, &Image.imgparams, &sinogram.sinoparams, &reconparams);
 	fprintf(stdout,"INPUT ");
 	printSinoParams3DParallel(&sinogram.sinoparams);
@@ -48,6 +46,8 @@ int main(int argc, char *argv[])
 	printImageParams3D(&Image.imgparams);
 	printReconParamsQGGMRF3D(&reconparams);
 	fprintf(stdout,"\n");
+
+	fprintf(stdout, "Starting Reconstruction...\n\n");
 
 	/* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
 	/* relevant sinogram parameters so it pulls the correct slices and indexes consistently */
@@ -79,9 +79,9 @@ int main(int argc, char *argv[])
 	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, svpar.Nsv, (svpar.SVLength*2+1)*(svpar.SVLength*2+1));
 	max_num_pointer = (float *)malloc(Image.imgparams.Ny*Image.imgparams.Nx*sizeof(float));	
 	sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);
-	//readAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,svpar.Nsv,svpar.bandMinMap,svpar.bandMaxMap,svpar.pieceLength);
 	readAmatrix(fname, A_Padded_Map, max_num_pointer, &Image.imgparams, &sinogram.sinoparams, svpar);
 
+	/* Reconstruct */
 	gettimeofday(&tm1,NULL);
 
 	MBIRReconstruct3D(&Image,&sinogram,reconparams,svpar,A_Padded_Map,max_num_pointer,&cmdline);
@@ -114,22 +114,22 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
 {
     char ch;
     
-    strcpy(cmdline->InitImageDataFile, "NA"); /* default */
-    
-    if(argc<15)
+    /* set defaults */
+    cmdline->SinoParamsFileFlag=0;
+    cmdline->ImageParamsFileFlag=0;
+    cmdline->ReconParamsFileFlag=0;
+    cmdline->SinoDataFileFlag=0;
+    cmdline->SinoWeightsFileFlag=0;
+    cmdline->ReconImageDataFileFlag=0;
+    cmdline->SysMatrixFileFlag=0;
+    cmdline->InitImageDataFileFlag=0;
+
+    /* Print usage statement if no arguments, or help argument given */
+    if(argc==1 || CmdLineHelpOption(argv[1]))
     {
-        if(argc==2 && CmdLineHelp(argv[1]))
-        {
-            fprintf(stdout,"\n=========HELP==========\n");
-            PrintCmdLineUsage(argv[0]);
-            exit(-1);
-        }
-        else
-        {
-         fprintf(stderr, "\nError : Improper Command line for exec-program %s, Number of arguments lower than needed \n",argv[0]);
-         PrintCmdLineUsage(argv[0]);
-         exit(-1);
-        }
+        //fprintf(stdout,"Printing usage statement for %s\n",argv[0]);
+        printCmdLineUsage(argv[0]);
+        exit(0);
     }
     
     /* get options */
@@ -139,41 +139,49 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
         {
             case 'i':
             {
+                cmdline->ImageParamsFileFlag=1;
                 sprintf(cmdline->ImageParamsFile, "%s", optarg);
                 break;
             }
             case 'j':
             {
+                cmdline->SinoParamsFileFlag=1;
                 sprintf(cmdline->SinoParamsFile, "%s", optarg);
                 break;
             }
             case 'k':
             {
+                cmdline->ReconParamsFileFlag=1;
                 sprintf(cmdline->ReconParamsFile, "%s", optarg);
                 break;
             }
             case 'm':
             {
+                cmdline->SysMatrixFileFlag=1;
                 sprintf(cmdline->SysMatrixFile, "%s", optarg);
                 break;
             }
             case 's':
             {
+                cmdline->SinoDataFileFlag=1;
                 sprintf(cmdline->SinoDataFile, "%s", optarg);
                 break;
             }
             case 'w':
             {
+                cmdline->SinoWeightsFileFlag=1;
                 sprintf(cmdline->SinoWeightsFile, "%s", optarg);
                 break;
             }
             case 'r':
             {
+                cmdline->ReconImageDataFileFlag=1;
                 sprintf(cmdline->ReconImageDataFile, "%s", optarg);
                 break;
             }
             case 't':
             {
+                cmdline->InitImageDataFileFlag=1;
                 sprintf(cmdline->InitImageDataFile, "%s", optarg);
                 break;
             }
@@ -184,53 +192,139 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             }
             default:
             {
-                printf("\nError : Command line Symbol not recongized\n");
-                PrintCmdLineUsage(argv[0]);
+                //fprintf(stderr,"%s: invalid option '%c'\n",argv[0],ch);  //getopt does this already
+                fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
                 exit(-1);
                 break;
             }
         }
     }
 
+    fprintf(stdout,"Parsing command line...\n");
+
+    /* Check for mandatory arguments */
+    if(!cmdline->SinoParamsFileFlag){
+        fprintf(stderr,"OOPS: No [].sinoparams file specified\n");
+        fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
+        exit(-1);
+    }
+    if(!cmdline->ImageParamsFileFlag){
+        fprintf(stderr,"OOPS: No [].imgparams file specified\n");
+        fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
+        exit(-1);
+    }
+
+    /* Determine what to do based on supplied options */
+    cmdline->reconFlag=0;
+    cmdline->readAmatrixFlag=0;
+    cmdline->writeAmatrixFlag=0;
+
+    if(cmdline->ReconImageDataFileFlag)
+    {
+        //If output images specified assume we want to reconstruct
+        cmdline->reconFlag=1;
+        fprintf(stdout,"-> will perform reconstruction\n");
+
+        if(!cmdline->ReconParamsFileFlag || !cmdline->SinoDataFileFlag || !cmdline->SinoWeightsFileFlag)
+        {
+            fprintf(stderr,"OOPS: Output images specified, but input data or parameters are missing.\n");
+            fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
+            exit(-1);
+        }
+
+        if(cmdline->SysMatrixFileFlag)
+        {
+            cmdline->readAmatrixFlag=1;
+            fprintf(stdout,"-> will read precomputed system matrix\n");
+        }
+        else
+        {
+            fprintf(stdout,"-> will compute system matrix\n");
+            fprintf(stdout,"NOTE if you precompute/store the forward matrix, all reconstructions for the\n");
+            fprintf(stdout,"given sino/img parameters will execute MUCH faster. See help\n");
+        }
+    }
+    else if(cmdline->SysMatrixFileFlag)
+    {
+        //If no output images specified assume we just want to compute/store forward matrix
+        cmdline->writeAmatrixFlag=1;
+        fprintf(stdout,"-> will compute/write system matrix only\n");
+        //if(cmdline->ReconParamsFileFlag || cmdline->SinoDataFileFlag || cmdline->SinoWeightsFileFlag)
+        if(argc>7)
+        {
+            fprintf(stdout,"Note some command line options are being ignored.\n");
+        }
+    }
+    else
+    {
+        fprintf(stderr,"%s: From the given command options, not sure what you want to do.\n",argv[0]);
+        fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
+        exit(-1);
+    }
+    fprintf(stdout,"\n");
+
 }
 
-void PrintCmdLineUsage(char *ExecFileName)
+void printBanner(void)
 {
-    fprintf(stdout, "\nBASELINE MBIR RECONSTRUCTION SOFTWARE FOR 3D PARALLEL-BEAM  CT \n");
-    fprintf(stdout, "build time: %s, %s\n", __DATE__,  __TIME__);
-    fprintf(stdout, "\nCommand line Format for Executable File %s : \n", ExecFileName);
-    fprintf(stdout, "%s -i <InputFileName>[.imgparams] -j <InputFileName>[.sinoparams]\n",ExecFileName);
-    fprintf(stdout, "   -k <InputFileName>[.reconparams] -m <InputFileName>[.2Dsysmatrix]\n");
-    fprintf(stdout, "   -s <InputProjectionsBaseFileName> -w <InputWeightsBaseFileName>\n");
-    fprintf(stdout, "   -r <OutputImageBaseFileName>\n\n");
-    fprintf(stdout, "Additional option to read in initial image: -t <InitialImageBaseFileName> \n\n");
-    fprintf(stdout, "Note : The necessary extensions for certain input files are mentioned above within\n");
-    fprintf(stdout, "a \"[]\" symbol above, however the extensions should be OMITTED in the command line\n\n");
-    fprintf(stdout, "The following instructions pertain to the -s, -w and -r options: \n");
-    fprintf(stdout, "A) The Sinogram Projection data files should be stored slice by slice in a single\n");
-    fprintf(stdout, "   directory. All files within this directory must share a common BaseFileName and\n");
-    fprintf(stdout, "   adhere to the following format :\n");
-    fprintf(stdout, "      <ProjectionsBaseFileName>_slice<SliceIndex>.2Dsinodata \n");
-    fprintf(stdout, "   where \"SliceIndex\" is a non-negative integer indexing each slice and is printed\n");
-    fprintf(stdout, "   with 4 digits. Eg : 0000 to 9999 is a valid descriptor for \"SliceIndex\" \n");
-    fprintf(stdout, "B) Similarly, the format for the Sinogram Weights files is :\n");
-    fprintf(stdout, "      <WeightsBaseFileName>_slice<SliceIndex>.2Dweightdata \n");
-    fprintf(stdout, "C) Similarly, the Reconstructed (Output) Image is organized slice by slice :\n");
-    fprintf(stdout, "      <ImageBaseFileName>_slice<SliceIndex>.2Dimgdata\n\n");
+    fprintf(stdout,"MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
+    fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
+}
+
+void printCmdLineUsage(char *ExecFileName)
+{
+//  fprintf(stdout,"***80 columns*******************************************************************\n\n");
+    fprintf(stdout,"Command Line Help\n\n");
+    fprintf(stdout,"There are two forms for the command line. The first computes the system matrix,\n");
+    fprintf(stdout,"writes it to a file and exits. This matrix is required for the reconstruction\n");
+    fprintf(stdout,"but is fixed for a given set of sinogram and image parameters so it saves a lot\n");
+    fprintf(stdout,"of time in the reconstruction phase to precompute this.\n");
+    fprintf(stdout,"Usage (printed on multiple lines for clarity):\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"  %s\n",ExecFileName);
+    fprintf(stdout,"\t-i <filename>[.imgparams]\t\\\\Input image parameters\n");
+    fprintf(stdout,"\t-j <filename>[.sinoparams]\t\\\\Input sinogram parameters\n");
+    fprintf(stdout,"\t-m <filename>[.2Dsysmatrix]\t\\\\Output matrix file\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"In the above arguments, the exensions given in the '[]' symbols must be part of\n");
+    fprintf(stdout,"the file names but should be omitted from the command line.\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"The second form is for the actual reconstruction:\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"  %s\n",ExecFileName);
+    fprintf(stdout,"\t-i <filename>[.imgparams]  \t\\\\Input image parameters\n");
+    fprintf(stdout,"\t-j <filename>[.sinoparams] \t\\\\Input sinogram parameters\n");
+    fprintf(stdout,"\t-k <filename>[.reconparams]\t\\\\Reconstruction parameters\n");
+    fprintf(stdout,"\t-m <filename>[.2Dsysmatrix]\t\\\\INPUT matrix file (params must match!)\n");
+    fprintf(stdout,"\t-s <baseFilename>          \t\\\\Input sinogram projection file(s)\n");
+    fprintf(stdout,"\t-w <baseFilename>          \t\\\\Input sinogram weight file(s)\n");
+    fprintf(stdout,"\t-r <baseFilename>          \t\\\\Output reconstruced image file(s)\n");
+    fprintf(stdout,"    (following are optional)\n");
+    fprintf(stdout,"\t-t <baseFilename>          \t\\\\Input initial image(s)\n");
+    fprintf(stdout,"\t-v                         \t\\\\verbose mode (TBD)\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"For all the arguments specifying <baseFilename>, the relevant 3D data is split\n");
+    fprintf(stdout,"across files, one file per slice. The file naming convention is as follows,\n");
+    fprintf(stdout,"depending on the data contents:\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"\t<baseFilename>_slice<sliceIndex>.2Dimgdata\n");
+    fprintf(stdout,"\t<baseFilename>_slice<sliceIndex>.2Dsinodata\n");
+    fprintf(stdout,"\t<baseFilename>_slice<sliceIndex>.2Dweightdata\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"where <sliceIndex> (skip '<>' symbols) is a non-negative integer including\n");
+    fprintf(stdout,"leading zeros and no spaces (e.g. 0000 to 1023). The number of digits\n");
+    fprintf(stdout,"is flexible (up to %d) but must be consistent.\n",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
+    fprintf(stdout,"\n");
 }
 
 
-int CmdLineHelp(char *string)
+int CmdLineHelpOption(char *string)
 {
     if( (strcmp(string,"-h")==0) || (strcmp(string,"-help")==0) || (strcmp(string,"--help")==0) || (strcmp(string,"help")==0) )
         return 1;
     else
         return 0;
 }
-
-
-
-
 
 
 

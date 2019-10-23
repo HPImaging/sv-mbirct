@@ -20,7 +20,7 @@ CFLAGS := $(CFLAGS) -Wall
 #CFLAGS := $(CFLAGS) -qopt-report=4 -qopt-report-phase=vec
 #CFLAGS := $(CFLAGS) -w3
 #CFLAGS := $(CFLAGS) -debug
-CFLAGS := $(CFLAGS) -wd3948   # suppress warning about "pragma simd" deprecation
+CFLAGS := $(CFLAGS) -wd3948 # suppress warning about "pragma simd" deprecation
 
 all: mbir_ct Gen_SysMatrix clean
 

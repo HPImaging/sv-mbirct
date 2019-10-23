@@ -1,9 +1,5 @@
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <getopt.h>
-
 #include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
@@ -70,7 +66,7 @@ void Initialize_Image(
 
     //fprintf(stdout, "\nInitializing Image ... \n");
     
-    if(strcmp(cmdline->InitImageDataFile,"NA") == 0) /* Image file not available */
+    if(cmdline->InitImageDataFileFlag == 0) /* Image file not available */
     {
         //GenConstImage(Image, InitValue);               /* generate image with uniform pixel value */
     }
