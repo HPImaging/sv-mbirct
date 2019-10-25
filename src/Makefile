@@ -22,7 +22,7 @@ CFLAGS := $(CFLAGS) -Wall
 #CFLAGS := $(CFLAGS) -debug
 CFLAGS := $(CFLAGS) -wd3948 # suppress warning about "pragma simd" deprecation
 
-all: mbir_ct Gen_SysMatrix clean
+all: mbir_ct clean
 
 clean:
 	rm *.o 
@@ -30,10 +30,6 @@ clean:
 OBJ = initialize.o recon3d.o heap.o icd3d.o A_comp.o allocate.o MBIRModularUtils.o
 
 mbir_ct: mbir_ct.o $(OBJ)
-	$(CC) $(CFLAGS) $^ -o $@ -lm
-	mv $@ ../bin
-
-Gen_SysMatrix: Gen_SysMatrix.o $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@ -lm
 	mv $@ ../bin
 
