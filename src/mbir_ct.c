@@ -18,6 +18,8 @@
 void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline);
 void printCmdLineUsage(char *ExecFileName);
 int CmdLineHelpOption(char *string);
+void setNumSliceDigits(struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams, struct CmdLine *cmdline, char *cmd);
+
 
 int main(int argc, char *argv[])
 {
@@ -26,8 +28,10 @@ int main(int argc, char *argv[])
 	struct Sino3DParallel sinogram;
 	struct ReconParamsQGGMRF3D reconparams;
 	struct SVParams svpar;
+
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
+
 	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
 	float InitValue=MUWATER;/* If initial image not specified, set to uniform image w/ */
 	float OutsideROIValue=0;/* value InitValue inside ROI radius and OutsideROIValue outside */
@@ -39,66 +43,142 @@ int main(int argc, char *argv[])
 
 	readCmdLine(argc, argv, &cmdline);
 
-	readSystemParams(&cmdline, &Image.imgparams, &sinogram.sinoparams, &reconparams);
+	/* Read image/sino parameter files */
+	ReadImageParams3D(cmdline.ImageParamsFile,&Image.imgparams);
+	ReadSinoParams3DParallel(cmdline.SinoParamsFile,&sinogram.sinoparams);
 	fprintf(stdout,"INPUT ");
 	printSinoParams3DParallel(&sinogram.sinoparams);
 	fprintf(stdout,"OUTPUT ");
 	printImageParams3D(&Image.imgparams);
-	printReconParamsQGGMRF3D(&reconparams);
+	if(cmdline.reconFlag)
+	{
+		ReadReconParamsQGGMRF3D(cmdline.ReconParamsFile,&reconparams);
+		printReconParamsQGGMRF3D(&reconparams);
+		NormalizePriorWeights3D(&reconparams);
+	}
 	fprintf(stdout,"\n");
-
-	fprintf(stdout, "Starting Reconstruction...\n\n");
-
-	/* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
-	/* relevant sinogram parameters so it pulls the correct slices and indexes consistently */
-	sinogram.sinoparams.NSlices = Image.imgparams.Nz;
-	sinogram.sinoparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
-
-	/* Read Sinogram and Weights */
-	AllocateSinoData3DParallel(&sinogram);
-	ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
-	ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
-
-	/* Allocate memory for image */
-	AllocateImageData3D(&Image);
-
-	/* Allocate and generate recon mask based on ROIRadius */
-	/* Initialize image and reconstruction mask */
-	/* --Careful..the initial forward projection is written out in GenSysMatrix, so the inital image has to match */
-	/* --Pixels outside ROI radius never get touched so the these values will pass */
-	/*     through to the output and will NOT be included in the projection */
-	ImageReconMask = GenImageReconMask(&(Image.imgparams));
-	Initialize_Image(&Image, &cmdline, ImageReconMask, InitValue, OutsideROIValue);
 
 	/* Initialize SV parameters */
 	initSVParams(&svpar, Image.imgparams, sinogram.sinoparams);
 	svpar.bandMinMap = (struct minStruct *)get_spc(svpar.Nsv,sizeof(struct minStruct));
 	svpar.bandMaxMap = (struct maxStruct *)get_spc(svpar.Nsv,sizeof(struct maxStruct));
 
-	/* Read System Matrix */
-	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, svpar.Nsv, (svpar.SVLength*2+1)*(svpar.SVLength*2+1));
-	max_num_pointer = (float *)malloc(Image.imgparams.Ny*Image.imgparams.Nx*sizeof(float));	
-	sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);
-	readAmatrix(fname, A_Padded_Map, max_num_pointer, &Image.imgparams, &sinogram.sinoparams, svpar);
+	/* Allocate and generate recon mask based on ROIRadius */
+	ImageReconMask = GenImageReconMask(&Image.imgparams);
 
-	/* Reconstruct */
+	/* Set up System Matrix */
+	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, svpar.Nsv, (svpar.SVLength*2+1)*(svpar.SVLength*2+1));
+	max_num_pointer = (float *)malloc(Image.imgparams.Ny*Image.imgparams.Nx*sizeof(float));
+
+	/* In progress */
+	/* Currently there are only 2 modes available:  */
+	/*   1) compute and write Amatrix (and initial projection of constant image) when readAmatrixFlag==0 */
+	/*   2) read Amatrix (and initial projection) and reconstruct (readAmatrixFlag==1) */
+	/* TBD:  */
+	/*   1) Obtain A matrix: read or compute (readAmatrixFlag=1/0) */
+	/*   2) If requested, write A matrix (writeAmatrixFlag=1/0) [NEED TO SPLIT OFF writeAmatrix() FROM A_comp()] */ 
+	/*   3) If requested, reconstruct (reconFlag=1/0) */
+	/*   For now, tie initial projection to Amatrix (compute both OR write both OR read both) */
+
+	if(cmdline.readAmatrixFlag)
+	{
+		fprintf(stdout,"Reading system matrix...\n");
+		sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);
+		readAmatrix(fname, A_Padded_Map, max_num_pointer, &Image.imgparams, &sinogram.sinoparams, svpar);
+	}
+	else  //compute A matrix
+	{
+		fprintf(stdout,"Computing system matrix...\n");
+		int i,j;
+		int Ny=Image.imgparams.Ny;
+		int Nx=Image.imgparams.Nx;
+
+		int *order = (int *)_mm_malloc(svpar.Nsv*sizeof(int),64);
+		float **PixelDetector_profile = ComputePixelProfile3DParallel(&sinogram.sinoparams,&Image.imgparams);
+		char **ImageReconMask2 = (char **)multialloc(sizeof(char), 2, Ny, Nx);
+
+		for(i=0;i<Ny;i++)
+		for(j=0;j<Nx;j++)
+			ImageReconMask2[i][j]=ImageReconMask[i*Nx+j];
+
+		int t=0;
+		for(i=0;i<Ny;i+=(svpar.SVLength*2-svpar.overlap))
+		for(j=0;j<Nx;j+=(svpar.SVLength*2-svpar.overlap)){
+			order[t]=i*Nx+j;  /* order is the first voxel coordinate, not the center */
+			t++;
+		}
+
+	        A_comp(A_Padded_Map,max_num_pointer,svpar,&sinogram.sinoparams,ImageReconMask2,order,&Image.imgparams,PixelDetector_profile,cmdline.SysMatrixFile);
+
+		_mm_free(order);
+		free_img((void **)PixelDetector_profile);
+	        multifree(ImageReconMask2,2);
+
+		/* COMPUTE INTIAL ERROR IMAGE, ASSUMING CONSTANT INITIAL IMAGE */
+		/* TBD: add flag to determine if this should be done */
+		int NvNc = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
+		float *initialError = (float *)malloc(sizeof(float)* NvNc);
+		forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map, &sinogram.sinoparams, &Image.imgparams, svpar);
+
+		sprintf(fname,"%s.initialError",cmdline.SysMatrixFile);
+		int exitcode;
+		if( (exitcode=WriteFloatArray(fname,initialError,NvNc)) ) {
+			if(exitcode==1) fprintf(stderr, "ERROR: can't open file %s for writing\n",fname);
+			if(exitcode==2) fprintf(stderr, "ERROR: write to file %s terminated early\n",fname);
+			exit(-1);
+		}
+
+		free((void *)initialError);
+        }
+
+	//if(cmdline.writeAmatrixFlag)
+	//{
+		//currently writing is done within A_comp(). Separation TBD
+	//}
+
+	/*** Exit here if we're not reconstructing ***/
+	if(!cmdline.reconFlag) exit(0);
+
+
+	/* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
+	/* relevant sinogram parameters so it pulls the correct slices and indexes consistently */
+	sinogram.sinoparams.NSlices = Image.imgparams.Nz;
+	sinogram.sinoparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+
+	/* Determine and SET number of slice index digits for input data and output images */
+	setNumSliceDigits(&sinogram.sinoparams, &Image.imgparams, &cmdline, argv[0]);
+
+	/* Allocate memory for data and image volume */
+	AllocateSinoData3DParallel(&sinogram);
+	AllocateImageData3D(&Image);
+
+	/* Read sinogram data */
+	ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
+	ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
+
+	/* Initialize image */
+	/* --Careful..the initial forward projection is written out in Amatrix comp stage, so the inital image has to match */
+	/* --Pixels outside ROI radius never get touched so the these values will pass */
+	/*     through to the output and will NOT be included in the projection */
+	Initialize_Image(&Image, &cmdline, ImageReconMask, InitValue, OutsideROIValue);
+
 	gettimeofday(&tm1,NULL);
 
+	fprintf(stdout,"Reconstructing...\n");
 	MBIRReconstruct3D(&Image,&sinogram,reconparams,svpar,A_Padded_Map,max_num_pointer,&cmdline);
 
 	gettimeofday(&tm2,NULL);
 	unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-	printf("run time %llu ms \n", tt);
-
-	fprintf(stdout, "Done with reconstruction. Writing output files...\n");
+	printf("\trun time %llu ms \n", tt);
 
 	/* Write out reconstructed image */
+	fprintf(stdout,"Writing image files...\n");
 	WriteImage3D(cmdline.ReconImageDataFile, &Image);
 
 	/* free image, sinogram and system matrix memory allocation */
 	FreeImageData3D(&Image);
 	FreeSinoData3DParallel(&sinogram);
-	free((char *)ImageReconMask);
+	free((void *)ImageReconMask);
 	free((void *)svpar.bandMinMap);
 	free((void *)svpar.bandMaxMap);
     
@@ -264,6 +344,27 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     fprintf(stdout,"\n");
 
 }
+
+
+void setNumSliceDigits(
+	struct SinoParams3DParallel *sinoparams,
+	struct ImageParams3D *imgparams,
+	struct CmdLine *cmdline,
+	char *cmd)
+{
+	int i,Ndigits;
+	if( (Ndigits = NumSinoSliceDigits(cmdline->SinoDataFile, sinoparams->FirstSliceNumber))==0 )
+	{
+		fprintf(stderr,"Error: Can't read the first data file. Looking for any one of the following:\n");
+		for(i=MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS; i>0; i--)
+			fprintf(stderr,"\t%s_slice%.*d.2Dsinodata\n",cmdline->SinoDataFile, i, sinoparams->FirstSliceNumber);
+		fprintf(stderr,"Try '%s -help' for more information.\n",cmd);
+		exit(-1);
+	}
+	sinoparams->NumSliceDigits = Ndigits;
+	imgparams->NumSliceDigits = Ndigits;
+}
+
 
 void printBanner(void)
 {
