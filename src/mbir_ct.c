@@ -70,15 +70,10 @@ int main(int argc, char *argv[])
 	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, svpar.Nsv, (svpar.SVLength*2+1)*(svpar.SVLength*2+1));
 	max_num_pointer = (float *)malloc(Image.imgparams.Ny*Image.imgparams.Nx*sizeof(float));
 
-	/* In progress */
-	/* Currently there are only 2 modes available:  */
-	/*   1) compute and write Amatrix (and initial projection of constant image) when readAmatrixFlag==0 */
-	/*   2) read Amatrix (and initial projection) and reconstruct (readAmatrixFlag==1) */
 	/* TBD:  */
-	/*   1) Obtain A matrix: read or compute (readAmatrixFlag=1/0) */
-	/*   2) If requested, write A matrix (writeAmatrixFlag=1/0) [NEED TO SPLIT OFF writeAmatrix() FROM A_comp()] */ 
-	/*   3) If requested, reconstruct (reconFlag=1/0) */
-	/*   For now, tie initial projection to Amatrix (compute both OR write both OR read both) */
+	/* Write "initialError" based on command line flag */
+	/*   -pattern this after how precomputed Amatrix is handled */
+	/*   -need to fix projector so it doesn't require constant initial image */
 
 	if(cmdline.readAmatrixFlag)
 	{
@@ -89,33 +84,9 @@ int main(int argc, char *argv[])
 	else  //compute A matrix
 	{
 		fprintf(stdout,"Computing system matrix...\n");
-		int i,j;
-		int Ny=Image.imgparams.Ny;
-		int Nx=Image.imgparams.Nx;
-
-		int *order = (int *)_mm_malloc(svpar.Nsv*sizeof(int),64);
-		float **PixelDetector_profile = ComputePixelProfile3DParallel(&sinogram.sinoparams,&Image.imgparams);
-		char **ImageReconMask2 = (char **)multialloc(sizeof(char), 2, Ny, Nx);
-
-		for(i=0;i<Ny;i++)
-		for(j=0;j<Nx;j++)
-			ImageReconMask2[i][j]=ImageReconMask[i*Nx+j];
-
-		int t=0;
-		for(i=0;i<Ny;i+=(svpar.SVLength*2-svpar.overlap))
-		for(j=0;j<Nx;j+=(svpar.SVLength*2-svpar.overlap)){
-			order[t]=i*Nx+j;  /* order is the first voxel coordinate, not the center */
-			t++;
-		}
-
-	        A_comp(A_Padded_Map,max_num_pointer,svpar,&sinogram.sinoparams,ImageReconMask2,order,&Image.imgparams,PixelDetector_profile,cmdline.SysMatrixFile);
-
-		_mm_free(order);
-		free_img((void **)PixelDetector_profile);
-	        multifree(ImageReconMask2,2);
+	        A_comp(A_Padded_Map,max_num_pointer,svpar,&sinogram.sinoparams,ImageReconMask,&Image.imgparams);
 
 		/* COMPUTE INTIAL ERROR IMAGE, ASSUMING CONSTANT INITIAL IMAGE */
-		/* TBD: add flag to determine if this should be done */
 		int NvNc = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
 		float *initialError = (float *)malloc(sizeof(float)* NvNc);
 		forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map, &sinogram.sinoparams, &Image.imgparams, svpar);
@@ -127,14 +98,16 @@ int main(int argc, char *argv[])
 			if(exitcode==2) fprintf(stderr, "ERROR: write to file %s terminated early\n",fname);
 			exit(-1);
 		}
-
 		free((void *)initialError);
         }
 
-	//if(cmdline.writeAmatrixFlag)
-	//{
-		//currently writing is done within A_comp(). Separation TBD
-	//}
+	if(cmdline.writeAmatrixFlag)
+	{
+		fprintf(stdout,"Writing system matrix...\n");
+		sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);
+		remove(fname);
+		writeAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,svpar);
+	}
 
 	/*** Exit here if we're not reconstructing ***/
 	if(!cmdline.reconFlag) exit(0);

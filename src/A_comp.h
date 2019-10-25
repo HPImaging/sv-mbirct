@@ -35,18 +35,13 @@ struct maxStruct
 
 
 /* Functions */
-float **ComputePixelProfile3DParallel(struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams);
 struct pointerAddress A_comp(
 	struct AValues_char ** A_Padded_Map,
 	float * max_num_pointer,
 	struct SVParams svpar,
 	struct SinoParams3DParallel *sinoparams,
-	char **recon_mask,
-	int *order,
-	struct ImageParams3D *imgparams,
-	float** pix_prof,
-	char* sysMatrixPath);
-void A_comp_ij(int im_row,int im_col,struct SinoParams3DParallel *sinoparams,struct ImageParams3D *imgparams,float **pix_prof,struct ACol *A_col,float *A_Values);
+	char *recon_mask,
+	struct ImageParams3D *imgparams);
 
 void readAmatrix(
 	char *fname,
@@ -55,6 +50,7 @@ void readAmatrix(
 	struct ImageParams3D *imgparams,
 	struct SinoParams3DParallel *sinoparams,
 	struct SVParams svpar);
+
 void writeAmatrix(
 	char *fname,
 	struct AValues_char ** A_Padded_Map,

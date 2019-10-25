@@ -1,7 +1,7 @@
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>	/* strcmp */
+#include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #include "mbir_ct.h"
@@ -55,23 +55,13 @@ float **ComputePixelProfile3DParallel(
 	{
 		ang = sinoparams->ViewAngles[i];
 
-		while (ang >= pi/2.0)
-		{
-			ang -= pi/2.0;
-		}
-		while(ang < 0.0)
-		{
-			ang += pi/2.0;
-		}
+		while(ang >= pi/2.0) ang -= pi/2.0;
+		while(ang < 0.0) ang += pi/2.0;
 
 		if (ang <= pi/4.0)
-		{
 			maxval = DeltaPix/cos(ang);
-		}
 		else
-		{
 			maxval = DeltaPix/cos(pi/2.0-ang);
-		}
 
 		d1 = rc*cos(pi/4.0-ang);
 		d2 = rc*fabs(sin(pi/4.0-ang));
@@ -81,30 +71,26 @@ float **ComputePixelProfile3DParallel(
 		t_3 = 1.0 + d2;
 		t_4 = 1.0 + d1;
         
-        /* Profile is a trapezoidal function of detector-pixel displacement*/
+		/* Profile is a trapezoidal function of detector-pixel displacement*/
 		for (j = 0; j < LEN_PIX; j++)
 		{
 			t = 2.0*j/(float)LEN_PIX;
-			if (t <= t_1 || t > t_4)
-			{
+			if(t <= t_1 || t > t_4) {
 				pix_prof[i][j] = 0.0;
 			}
-			else if (t <= t_2)
-			{
+			else if(t <= t_2) {
 				pix_prof[i][j] = maxval*(t-t_1)/(t_2-t_1);
 			}
-			else if (t <= t_3)
-			{
+			else if(t <= t_3) {
 				pix_prof[i][j] = maxval;
 			}
-			else
-			{
+			else {
 				pix_prof[i][j] = maxval*(t_4-t)/(t_4-t_3);
 			}
 		}
 	}
     
-    return pix_prof;
+	return pix_prof;
 }
 
 /* Compute the System Matrix column for a given pixel */
@@ -287,10 +273,8 @@ void A_piecewise(
 	float *max_num_pointer,
 	struct SVParams svpar,
 	struct SinoParams3DParallel *sinoparams,
-	char **recon_mask,
-	int *order,
-	struct ImageParams3D *imgparams,
-	char *sysMatrixPath)
+	char *recon_mask,
+	struct ImageParams3D *imgparams)
 {
 	struct ACol ** A_Col_pointer=twoAddresses.addressA;
 	struct AValues_char ** A_Values_pointer=twoAddresses.addressB;
@@ -304,12 +288,19 @@ void A_piecewise(
 	int sum = svpar.Nsv;
 	int pieceLength = svpar.pieceLength;
 
-        for(jj=0;jj<sum;jj++){
-            	for(i=0;i<(SVLength*2+1)*(SVLength*2+1);i++){
-                	A_Padded_Map[jj][i].val=NULL;
-                	A_Padded_Map[jj][i].length=0;
-            	}
-        }
+	int *order = (int *)_mm_malloc(svpar.Nsv*sizeof(int),64);
+	t=0;
+	for(i=0;i<Ny;i+=(svpar.SVLength*2-svpar.overlap))
+	for(j=0;j<Nx;j+=(svpar.SVLength*2-svpar.overlap)){
+		order[t]=i*Nx+j;  /* order is the first voxel coordinate, not the center */
+		t++;
+	}
+
+	for(jj=0;jj<sum;jj++)
+	for(i=0;i<(SVLength*2+1)*(SVLength*2+1);i++) {
+		A_Padded_Map[jj][i].val=NULL;
+		A_Padded_Map[jj][i].length=0;
+	}
 
         for (jj = 0; jj < sum; jj++)
         {
@@ -325,18 +316,16 @@ void A_piecewise(
             int j_newAA=0;
             int k_newAA=0;
 
-            for(j_newAA=jy;j_newAA<=(jy+2*radius);j_newAA++){
-                for(k_newAA=jx;k_newAA<=(jx+2*radius);k_newAA++){
-                    if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx){
-                        if(recon_mask[j_newAA][k_newAA]){
-                            if(A_Col_pointer[j_newAA][k_newAA].n_index >0){
-                                j_newCoordinate[countNumber]=j_newAA;
-                                k_newCoordinate[countNumber]=k_newAA;
-                                countNumber++;
-                            }
-                        } 
+            for(j_newAA=jy;j_newAA<=(jy+2*radius);j_newAA++)
+            for(k_newAA=jx;k_newAA<=(jx+2*radius);k_newAA++)
+            if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx){
+                if(recon_mask[j_newAA*Nx + k_newAA]){
+                    if(A_Col_pointer[j_newAA][k_newAA].n_index >0){
+                        j_newCoordinate[countNumber]=j_newAA;
+                        k_newCoordinate[countNumber]=k_newAA;
+                        countNumber++;
                     }
-                }
+                } 
             }
 
             int bandMin[sinoparams->NViews]__attribute__((aligned(64)));
@@ -346,11 +335,14 @@ void A_piecewise(
                 bandMin[p]=sinoparams->NChannels;
             }
 
-            for(i=0;i<countNumber;i++){
+            for(i=0;i<countNumber;i++)
+            {
                 int j_new= j_newCoordinate[i];
                 int k_new= k_newCoordinate[i];
-                for(p=0;p< sinoparams->NViews;p++){
-                    if(A_Col_pointer[j_new][k_new].minIndex[p]==0 && A_Col_pointer[j_new][k_new].countTheta[p]==0){
+                for(p=0;p< sinoparams->NViews;p++)
+                {
+                    if(A_Col_pointer[j_new][k_new].minIndex[p]==0 && A_Col_pointer[j_new][k_new].countTheta[p]==0)
+                    {
 			if(p!=0){
                     		A_Col_pointer[j_new][k_new].minIndex[p]=A_Col_pointer[j_new][k_new].minIndex[p-1];
 			}
@@ -362,7 +354,8 @@ void A_piecewise(
 				A_Col_pointer[j_new][k_new].minIndex[p]=A_Col_pointer[j_new][k_new].minIndex[k];
 			}
                     }
-                    else if(A_Col_pointer[j_new][k_new].minIndex[p]==(sinoparams->NChannels-1) && A_Col_pointer[j_new][k_new].countTheta[p]==0){
+                    else if(A_Col_pointer[j_new][k_new].minIndex[p]==(sinoparams->NChannels-1) && A_Col_pointer[j_new][k_new].countTheta[p]==0)
+                    {
 			if(p!=0){
                     		A_Col_pointer[j_new][k_new].minIndex[p]=A_Col_pointer[j_new][k_new].minIndex[p-1];
 			}
@@ -449,23 +442,22 @@ void A_piecewise(
                 {
                     piecewiseMinArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength]-bandMin[p*pieceLength];
                     piecewiseMaxArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength]-bandMin[p*pieceLength]+A_Col_pointer[j_new][k_new].countTheta[p*pieceLength];
-                    for(t=0;t<pieceLength;t++){
-                        	if(piecewiseMinArray[i][p]>(A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t]))
-                        		piecewiseMinArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t];
-                        	if((A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t]+A_Col_pointer[j_new][k_new].countTheta[p*pieceLength+t])>piecewiseMaxArray[i][p])
-                        		piecewiseMaxArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t]+A_Col_pointer[j_new][k_new].countTheta[p*pieceLength+t];
+                    for(t=0;t<pieceLength;t++)
+                    {
+                        if(piecewiseMinArray[i][p]>(A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t]))
+                            piecewiseMinArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t];
+                        if((A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t]+A_Col_pointer[j_new][k_new].countTheta[p*pieceLength+t])>piecewiseMaxArray[i][p])
+                            piecewiseMaxArray[i][p]=A_Col_pointer[j_new][k_new].minIndex[p*pieceLength+t]-bandMin[p*pieceLength+t]+A_Col_pointer[j_new][k_new].countTheta[p*pieceLength+t];
                     }
                 }
             }
 
-            for(i=0;i<countNumber;i++){
-                for (p = 0; p < (sinoparams->NViews)/pieceLength; p++)
-                {
-                    piecewiseWidth[i][p]=piecewiseMaxArray[i][p]-piecewiseMinArray[i][p];
-                }
-            }
+            for(i=0;i<countNumber;i++)
+            for(p = 0; p < (sinoparams->NViews)/pieceLength; p++)
+                piecewiseWidth[i][p]=piecewiseMaxArray[i][p]-piecewiseMinArray[i][p];
 
-            for(i=0;i<countNumber;i++){
+            for(i=0;i<countNumber;i++)
+            {
                 #pragma vector aligned
                 for (p = 0; p < (sinoparams->NViews)/pieceLength; p++)
                 {
@@ -555,14 +547,7 @@ void A_piecewise(
             free((void *)AMatrixPaddedTranspose);
         }
     
-	//fprintf(stdout, "Before write AMatrix\n");   
-	char fname[200];
-    	sprintf(fname,"%s.2Dsysmatrix",sysMatrixPath);	
- 	remove(fname);
-	writeAmatrix(fname,A_Padded_Map,max_num_pointer,imgparams,sinoparams,svpar);
-	//fprintf(stdout, "After write AMatrix\n");  
-	//fflush(stdout);
-					 		
+	_mm_free(order);
 }
 
 
@@ -577,11 +562,8 @@ struct pointerAddress A_comp(
 	float * max_num_pointer,
 	struct SVParams svpar,
 	struct SinoParams3DParallel *sinoparams,
-	char **recon_mask,
-	int *order,
-	struct ImageParams3D *imgparams,
-	float **pix_prof,
-	char* sysMatrixPath)
+	char *recon_mask,
+	struct ImageParams3D *imgparams)
 {
 	int i, j, r, nr;
 	int col_length, n_x, n_y;
@@ -589,8 +571,6 @@ struct pointerAddress A_comp(
 	struct ACol A_col_sgl;
 	float* A_Values_sgl;	
 	struct pointerAddress address_arr;	
-	//fprintf(stdout, "Initializing A-matrix...\n");
-	//fflush(stdout);
 
 	col_length = sinoparams->NChannels*sinoparams->NViews;
 
@@ -603,55 +583,46 @@ struct pointerAddress A_comp(
 	address_arr.addressA = (struct ACol **)multialloc(sizeof(struct ACol), 2, n_y, n_x);
 	address_arr.addressB = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, n_y, n_x);
 
+	float **pix_prof = ComputePixelProfile3DParallel(sinoparams,imgparams);
+
 	for (i = 0; i < n_y; i++)
+	for (j = 0; j < n_x; j++)
 	{
-		for (j = 0; j < n_x; j++)
+		A_comp_ij(i, j, sinoparams, imgparams, pix_prof,  &A_col_sgl,A_Values_sgl);  
+		address_arr.addressA[i][j].n_index = A_col_sgl.n_index;
+		address_arr.addressA[i][j].countTheta=(unsigned char *)get_spc(sinoparams->NViews,sizeof(unsigned char));
+		address_arr.addressA[i][j].minIndex=(int *)get_spc(sinoparams->NViews,sizeof(int));
+		address_arr.addressB[i][j].val = (unsigned char *)get_spc(A_col_sgl.n_index, sizeof(unsigned char));
+
+		float max=A_Values_sgl[0];
+		for (r = 0; r < A_col_sgl.n_index; r++)
 		{
-				
-			A_comp_ij(i, j, sinoparams, imgparams, pix_prof,  &A_col_sgl,A_Values_sgl);  
-			address_arr.addressA[i][j].n_index = A_col_sgl.n_index;
-			address_arr.addressA[i][j].countTheta=(unsigned char *)get_spc(sinoparams->NViews,sizeof(unsigned char));
-			address_arr.addressA[i][j].minIndex=(int *)get_spc(sinoparams->NViews,sizeof(int));
-			address_arr.addressB[i][j].val = (unsigned char *)get_spc(A_col_sgl.n_index, sizeof(unsigned char));
-			
-			float max=A_Values_sgl[0];
-			for (r = 0; r < A_col_sgl.n_index; r++)
-			{
-				if(A_Values_sgl[r]>max)
-					max = A_Values_sgl[r];
-			}			
-			max_num_pointer[i*n_x+j]=max;
-
-			for (r = 0; r < A_col_sgl.n_index; r++)
-			{
-				address_arr.addressB[i][j].val[r] = (unsigned char)((A_Values_sgl[r])/max*255+0.5);
-			}
-
-			for (r = 0; r < sinoparams->NViews; r++)
-			{
-				address_arr.addressA[i][j].countTheta[r]=A_col_sgl.countTheta[r];
-				address_arr.addressA[i][j].minIndex[r]=A_col_sgl.minIndex[r];
-			}
-	
+			if(A_Values_sgl[r]>max)
+				max = A_Values_sgl[r];
 		}
+		max_num_pointer[i*n_x+j]=max;
+
+		for (r = 0; r < A_col_sgl.n_index; r++)
+			address_arr.addressB[i][j].val[r] = (unsigned char)((A_Values_sgl[r])/max*255+0.5);
+
+		for (r = 0; r < sinoparams->NViews; r++) {
+			address_arr.addressA[i][j].countTheta[r]=A_col_sgl.countTheta[r];
+			address_arr.addressA[i][j].minIndex[r]=A_col_sgl.minIndex[r];
+		}
+
 	}
 	free((void *)A_Values_sgl);
 	free((void *)A_col_sgl.countTheta);
 	free((void *)A_col_sgl.minIndex);
 
-	A_piecewise(address_arr,A_Padded_Map,max_num_pointer,svpar,sinoparams,recon_mask,order,imgparams,sysMatrixPath);
+	A_piecewise(address_arr,A_Padded_Map,max_num_pointer,svpar,sinoparams,recon_mask,imgparams);
 	
-    	for (i = 0; i < n_y; i++)
-    	{
-        	for (j = 0; j < n_x; j++)
-        	{
-            		free((void *)address_arr.addressA[i][j].countTheta);
-            		free((void *)address_arr.addressA[i][j].minIndex);
-            		free((void *)address_arr.addressB[i][j].val);
-        	}
-    	}
-    	
-	//fprintf(stdout, "Deallocate address A and address B\n");         	    	
+	for (i = 0; i < n_y; i++)
+	for (j = 0; j < n_x; j++) {
+		free((void *)address_arr.addressA[i][j].countTheta);
+		free((void *)address_arr.addressA[i][j].minIndex);
+		free((void *)address_arr.addressB[i][j].val);
+	}
     	multifree(address_arr.addressA,2);
     	multifree(address_arr.addressB,2);	    		
 	return address_arr;
