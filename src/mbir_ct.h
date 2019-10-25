@@ -32,14 +32,17 @@ struct SysMatrixSV
 
 struct CmdLine
 {
-    char SinoParamsFile[256];
-    char ImageParamsFile[256];
-    char ReconParamsFile[256];
-    char SinoDataFile[256];
-    char SinoWeightsFile[256];
-    char ReconImageDataFile[256]; /* output */
-    char SysMatrixFile[256];
-    char InitImageDataFile[256]; /* optional input */
+    char SinoParamsFile[256], SinoParamsFileFlag;
+    char ImageParamsFile[256], ImageParamsFileFlag;
+    char ReconParamsFile[256], ReconParamsFileFlag;
+    char SinoDataFile[256], SinoDataFileFlag;
+    char SinoWeightsFile[256], SinoWeightsFileFlag;
+    char ReconImageDataFile[256], ReconImageDataFileFlag;
+    char SysMatrixFile[256], SysMatrixFileFlag;
+    char InitImageDataFile[256], InitImageDataFileFlag;
+    char reconFlag;
+    char readAmatrixFlag;
+    char writeAmatrixFlag;
 };
 
 
