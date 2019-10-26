@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
-#include <time.h>
+//#include <time.h>
 #include <sys/time.h>
 
 #include "mbir_ct.h"
@@ -28,15 +28,17 @@ int main(int argc, char *argv[])
 	struct Sino3DParallel sinogram;
 	struct ReconParamsQGGMRF3D reconparams;
 	struct SVParams svpar;
-
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
-
 	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
-	float InitValue=MUWATER;/* If initial image not specified, set to uniform image w/ */
-	float OutsideROIValue=0;/* value InitValue inside ROI radius and OutsideROIValue outside */
 	char fname[200];
 	struct timeval tm1,tm2;
+	unsigned long long tdiff;
+	int i,j;
+	/* For the uniform-image initial condition, need to use this image value */
+	/* rather than the InitImageValue in recon param file. This is to ensure */
+	/* consistency when using a precomputed/stored initial projection */
+	float InitValue=MUWATER;
 
 	fprintf(stdout,"MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
 	fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
@@ -56,24 +58,19 @@ int main(int argc, char *argv[])
 		printReconParamsQGGMRF3D(&reconparams);
 		NormalizePriorWeights3D(&reconparams);
 	}
+	initSVParams(&svpar, Image.imgparams, sinogram.sinoparams);  /* Initialize/allocate SV parameters */
 	fprintf(stdout,"\n");
 
 	int NvNc = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
 	int NxNy = Image.imgparams.Nx * Image.imgparams.Ny;
 	int Nz = Image.imgparams.Nz;
 
-	/* Initialize SV parameters */
-	initSVParams(&svpar, Image.imgparams, sinogram.sinoparams);
-	svpar.bandMinMap = (struct minStruct *)get_spc(svpar.Nsv,sizeof(struct minStruct));
-	svpar.bandMaxMap = (struct maxStruct *)get_spc(svpar.Nsv,sizeof(struct maxStruct));
-
 	/* Allocate and generate recon mask based on ROIRadius */
 	ImageReconMask = GenImageReconMask(&Image.imgparams);
 
-	/* Set up System Matrix */
+	/* Read or compute System Matrix */
 	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, svpar.Nsv, (svpar.SVLength*2+1)*(svpar.SVLength*2+1));
 	max_num_pointer = (float *) get_spc(NxNy,sizeof(float));
-
 	if(cmdline.readAmatrixFlag)
 	{
 		fprintf(stdout,"Reading system matrix...\n");
@@ -91,7 +88,6 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stdout,"Writing system matrix...\n");
 		sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);
-		remove(fname);
 		writeAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,svpar);
 
 		if(cmdline.precompInitProjFlag)
@@ -99,7 +95,6 @@ int main(int argc, char *argv[])
 			/* compute initial projection, assuming constant initial image */
 			float *initProjection = (float *) get_spc(NvNc,sizeof(float));
 			float *x = (float *) get_spc(NxNy,sizeof(float));
-			int i;
 			for(i=0; i<NxNy; i++) 
 				x[i]=InitValue;
 			forwardProject2D(initProjection, x, A_Padded_Map, max_num_pointer, &sinogram.sinoparams, &Image.imgparams, svpar);
@@ -129,39 +124,71 @@ int main(int argc, char *argv[])
 		/* Allocate memory for data and image volume */
 		AllocateSinoData3DParallel(&sinogram);
 		AllocateImageData3D(&Image);
-		float **e = (float **)multialloc(sizeof(float), 2, sinogram.sinoparams.NSlices,NvNc);     /* projection error */
 
 		/* Read sinogram data */
 		ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
 		ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
 
-		/* Initialize image */
+		/* Read or define initial image */
 		/** Note the pixels outside the ROI radius never get touched by the projector or updates */
 		/** so these values will pass through to the output */
+		float OutsideROIValue=0; 
 		initImage(&Image, &cmdline, ImageReconMask, InitValue, OutsideROIValue);
-		initProjectionError(e,&Image,&sinogram,svpar,A_Padded_Map,max_num_pointer,&cmdline);
+
+		/* Forward project and compute initial proj error */
+		float **e = (float **)multialloc(sizeof(float), 2, sinogram.sinoparams.NSlices,NvNc);
+		if(cmdline.readInitProjFlag) 
+			readProjectionError(e,&Image,&sinogram,A_Padded_Map,max_num_pointer,cmdline);
+		else 
+		{
+			fprintf(stdout,"Projecting initial image...\n");
+			gettimeofday(&tm1,NULL);
+
+			compProjectionError(e,&Image,&sinogram,A_Padded_Map,max_num_pointer,svpar);
+
+			gettimeofday(&tm2,NULL);
+			tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+			fprintf(stdout,"\tProjection time %llu ms\n",tdiff);
+		}
 
 		fprintf(stdout,"Reconstructing...\n");
 		gettimeofday(&tm1,NULL);
-		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,&cmdline);
-		gettimeofday(&tm2,NULL);
 
-		unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-		printf("\trun time %llu ms \n", tt);
+		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,&cmdline);
+
+		gettimeofday(&tm2,NULL);
+		tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+		fprintf(stdout,"\tReconstruction time %llu ms\n",tdiff);
 
 		/* Write out reconstructed image */
 		fprintf(stdout,"Writing image files...\n");
 		WriteImage3D(cmdline.ReconImageDataFile, &Image);
+
 		multifree(e,2);
 		FreeImageData3D(&Image);
 		FreeSinoData3DParallel(&sinogram);
 	}
 
-	free((void *)ImageReconMask);
+	/* Free SV memory */
+	for(j=0;j<svpar.Nsv;j++)  free((void *)svpar.bandMinMap[j].bandMin);
+	for(j=0;j<svpar.Nsv;j++)  free((void *)svpar.bandMaxMap[j].bandMax);
 	free((void *)svpar.bandMinMap);
 	free((void *)svpar.bandMaxMap);
-    
-	fprintf(stdout,"Done.\n");
+
+	/* Free system matrix */
+	for(i=0;i<svpar.Nsv;i++)
+	for(j=0;j<((2*svpar.SVLength+1)*(2*svpar.SVLength+1));j++)
+	if(A_Padded_Map[i][j].length>0)
+	{
+		free((void *)A_Padded_Map[i][j].val);
+		free((void *)A_Padded_Map[i][j].pieceWiseMin);
+		free((void *)A_Padded_Map[i][j].pieceWiseWidth);
+	}
+	multifree(A_Padded_Map,2);
+	free((void *)max_num_pointer);
+	free((void *)ImageReconMask);
+
+	fprintf(stdout,"Done.\n\n");
 	return(0);
 }
 
@@ -342,9 +369,10 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     }
     else if(cmdline->precompAmatrixFlag)
     {
-        fprintf(stdout,"-> will compute/write system matrix only\n");
+        fprintf(stdout,"-> will pre-compute/write system matrix only\n");
+
         if(cmdline->precompInitProjFlag)
-            fprintf(stdout,"-> will compute/write projection of default initial condition\n");
+            fprintf(stdout,"-> will pre-compute/write projection of default initial condition\n");
         if(cmdline->ReconParamsFileFlag || cmdline->SinoDataFileFlag || cmdline->SinoWeightsFileFlag)
             fprintf(stdout,"Note some command line options are being ignored.\n");
     }

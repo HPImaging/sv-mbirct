@@ -4,9 +4,19 @@
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
+#include "A_comp.h"
 #include "recon3d.h"
 #include "initialize.h"
 
+
+/* Normalize weights to sum to 1, assuming 10-pt 3D neighborhood */
+void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams)
+{
+    double sum = 4.0*reconparams->b_nearest + 4.0*reconparams->b_diag + 2.0*reconparams->b_interslice;
+    reconparams->b_nearest /= sum;
+    reconparams->b_diag /= sum;
+    reconparams->b_interslice /= sum;
+}
 
 void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams)
 {
@@ -17,19 +27,27 @@ void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct S
 	svpar->Nsv=0;
 	svpar->pieceLength=computePieceLength(sinoparams.NViews);
 
-        for(i=0;i<imgparams.Ny;i+=(svpar->SVLength*2-svpar->overlap))
-        for(j=0;j<imgparams.Nx;j+=(svpar->SVLength*2-svpar->overlap))
-                svpar->Nsv++;
+	for(i=0;i<imgparams.Ny;i+=(svpar->SVLength*2-svpar->overlap))
+	for(j=0;j<imgparams.Nx;j+=(svpar->SVLength*2-svpar->overlap))
+		svpar->Nsv++;
 
-	#if 0
-	fprintf(stdout,"SVlength %d\n",svpar->SVLength);
-	fprintf(stdout,"overlap %d\n",svpar->overlap);
-	fprintf(stdout,"SVDepth %d\n",svpar->SVDepth);
-	fprintf(stdout,"Nsv %d\n",svpar->Nsv);
-	fprintf(stdout,"pieceLength %d\n",svpar->pieceLength);
+        svpar->bandMinMap = (struct minStruct *)get_spc(svpar->Nsv,sizeof(struct minStruct));
+        svpar->bandMaxMap = (struct maxStruct *)get_spc(svpar->Nsv,sizeof(struct maxStruct));
+
+	for(j=0;j<svpar->Nsv;j++) {
+		svpar->bandMinMap[j].bandMin=(int *)get_spc(sinoparams.NViews,sizeof(int));
+		svpar->bandMaxMap[j].bandMax=(int *)get_spc(sinoparams.NViews,sizeof(int));
+	}
+
+	#if 1
+	fprintf(stdout,"SUPER-VOXEL PARAMETERS:\n");
+	fprintf(stdout," - SVlength        = %d\n",svpar->SVLength);
+	fprintf(stdout," - overlap         = %d\n",svpar->overlap);
+	fprintf(stdout," - SVDepth         = %d\n",svpar->SVDepth);
+	fprintf(stdout," - Nsv             = %d\n",svpar->Nsv);
+	fprintf(stdout," - pieceLength     = %d\n",svpar->pieceLength);
 	#endif
 }
-
 
 /* The pieceLength is the block size in the super-voxel buffer. From past 
  * experiments a good block size is about 1/16 of the views but it has to divide
@@ -44,41 +62,10 @@ int computePieceLength(int NViews)
                 pieceLength=1;
 
         while( pieceLength>1 && (NViews%pieceLength!=0) )
-        {
                 pieceLength--;
-        }
+
         //fprintf(stderr, "Nviews %d, pieceLength %d\n",NViews,pieceLength);
-
         return(pieceLength);
-}
-
-
-/* Initialize image state */
-void initImage(
-	struct Image3D *Image,
-	struct CmdLine *cmdline,
-	char *ImageReconMask,
-	float InitValue,
-	float OutsideROIValue)
-{
-    int j,jz;
-    int Nxy = Image->imgparams.Nx * Image->imgparams.Ny;
-    int Nz = Image->imgparams.Nz;
-
-    //fprintf(stdout, "\nInitializing Image ... \n");
-    
-    if(cmdline->InitImageDataFileFlag)
-        ReadImage3D(cmdline->InitImageDataFile, Image);
-    else
-    {
-        /* Generate constant image */
-        for(jz=0; jz<Nz; jz++)
-        for(j=0; j<Nxy; j++)
-        if(ImageReconMask[j]==0)
-            Image->image[jz][j] = OutsideROIValue;
-        else
-            Image->image[jz][j] = InitValue;
-    }
 }
 
 
@@ -125,77 +112,98 @@ char *GenImageReconMask(struct ImageParams3D *imgparams)
     return(ImageReconMask);
 }
 
-
-/* Normalize weights to sum to 1 */
-/* Only neighborhood specific */
-void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams)
+/* Initialize image state */
+void initImage(
+	struct Image3D *Image,
+	struct CmdLine *cmdline,
+	char *ImageReconMask,
+	float InitValue,
+	float OutsideROIValue)
 {
-    double sum;
-    
-    /* All neighbor weights must sum to one, assuming 8 pt neighborhood */
-    sum = 4.0*reconparams->b_nearest + 4.0*reconparams->b_diag + 2.0*reconparams->b_interslice;
-    
-    reconparams->b_nearest /= sum;
-    reconparams->b_diag /= sum;
-    reconparams->b_interslice /= sum;
+    int j,jz;
+    int Nxy = Image->imgparams.Nx * Image->imgparams.Ny;
+    int Nz = Image->imgparams.Nz;
+
+    if(cmdline->InitImageDataFileFlag)
+        ReadImage3D(cmdline->InitImageDataFile, Image);
+    else
+    {
+        /* Generate constant image */
+        for(jz=0; jz<Nz; jz++)
+        for(j=0; j<Nxy; j++)
+        if(ImageReconMask[j]==0)
+            Image->image[jz][j] = OutsideROIValue;
+        else
+            Image->image[jz][j] = InitValue;
+    }
 }
 
 
-/****************************************/
-/* Compute the initial projection error */
-/****************************************/
-void initProjectionError(
+/*******************************************/
+/*  Read projection of initial condition,  */
+/*  and compute initial projection error   */
+/*******************************************/
+void readProjectionError(
 	float **e,
 	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
-	struct SVParams svpar,
 	struct AValues_char **A_Padded_Map,
 	float *max_num_pointer,
-	struct CmdLine *cmdline)
+	struct CmdLine cmdline)
 {
 	int i,jz;
 	char fname[200];
-	float *initProj;
+	float **y = sinogram->sino;
+	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
+	int Nz = Image->imgparams.Nz;
 
+	/* Compute the initial error e=y-Ax */
+	sprintf(fname,"%s.initProj",cmdline.InitProjFile);
+	float *initProj = (float *) get_spc(NvNc,sizeof(float));
+
+	if(ReadFloatArray(fname,initProj,NvNc)) {
+		fprintf(stderr,"Error: read of %s failed\n",fname);
+		exit(-1);
+	}
+
+	//#pragma omp parallel for private(i) schedule(dynamic)
+	for(jz=0; jz<Nz; jz++)
+	for(i = 0; i < NvNc; i++)
+		e[jz][i] = y[jz][i] - initProj[i];
+
+	free((void *)initProj);
+}
+
+
+/********************************************/
+/*  Project initial condition, and compute  */
+/*  initial projection error                */
+/********************************************/
+void compProjectionError(
+	float **e,
+	struct Image3D *Image,
+	struct Sino3DParallel *sinogram,
+	struct AValues_char **A_Padded_Map,
+	float *max_num_pointer,
+	struct SVParams svpar)
+{
+	int i,jz;
 	float **x = Image->image;
 	float **y = sinogram->sino;
 	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
 	int Nz = Image->imgparams.Nz;
 
 	/* Compute the initial error e=y-Ax */
-
-	if(cmdline->readInitProjFlag)
-	{
-		sprintf(fname,"%s.initProj",cmdline->InitProjFile);
-		initProj = (float *) get_spc(NvNc,sizeof(float));
-
-		if(ReadFloatArray(fname,initProj,NvNc)) {
-			fprintf(stderr,"Error: read of %s failed\n",fname);
-			exit(-1);
-		}
-
-		for(jz=0; jz<Nz; jz++)
-		for(i = 0; i < NvNc; i++)
-			e[jz][i] = initProj[i];
-
-		free((void *)initProj);
-	}
-	else
-	{
-		fprintf(stdout,"Projecting initial image...\n");
-		#pragma omp parallel for private(i) schedule(dynamic)
-		for(jz=0;jz<Nz;jz++)
-			forwardProject2D(e[jz], x[jz], A_Padded_Map, max_num_pointer, &sinogram->sinoparams, &Image->imgparams, svpar);
-	}
-
 	#pragma omp parallel for private(i) schedule(dynamic)
 	for(jz=0;jz<Nz;jz++)
 	{
+		forwardProject2D(e[jz], x[jz], A_Padded_Map, max_num_pointer, &sinogram->sinoparams, &Image->imgparams, svpar);
 		for (i = 0; i < NvNc; i++)
 			e[jz][i] = y[jz][i]-e[jz][i];
 	}
 
 }
+
 
 
 

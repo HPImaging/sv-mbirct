@@ -412,8 +412,6 @@ void A_piecewise(
                 }
             }            
 
-            bandMinMap[jj].bandMin=(int *)get_spc(sinoparams->NViews,sizeof(int));
-            bandMaxMap[jj].bandMax=(int *)get_spc(sinoparams->NViews,sizeof(int));
             #ifdef USE_INTEL_MEMCPY
             _intel_fast_memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*(sinoparams->NViews));
             _intel_fast_memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*(sinoparams->NViews));
@@ -658,8 +656,6 @@ void readAmatrix(
 	}
 
 	for (i =0; i < sum ; i ++ ){
-		bandMinMap[i].bandMin=(int *)get_spc(sinoparams->NViews,sizeof(int));
-		bandMaxMap[i].bandMax=(int *)get_spc(sinoparams->NViews,sizeof(int));	
 	
 		fread(bandMinMap[i].bandMin,sizeof(int),sinoparams->NViews,fp);
 		fread(bandMaxMap[i].bandMax,sizeof(int),sinoparams->NViews,fp);	

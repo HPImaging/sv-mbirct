@@ -4,10 +4,10 @@
 #include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 
+void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams);
 void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams);
 int computePieceLength(int NViews);
 char *GenImageReconMask(struct ImageParams3D *imgparams);
-void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams);
 
 void initImage(
 	struct Image3D *Image,
@@ -16,14 +16,22 @@ void initImage(
 	float InitValue,
 	float OutsideROIValue);
 
-void initProjectionError(
+void readProjectionError(
 	float **e,
 	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
-	struct SVParams svpar,
 	struct AValues_char **A_Padded_Map,
 	float *max_num_pointer,
-	struct CmdLine *cmdline);
+	struct CmdLine cmdline);
+
+void compProjectionError(
+	float **e,
+	struct Image3D *Image,
+	struct Sino3DParallel *sinogram,
+	struct AValues_char **A_Padded_Map,
+	float *max_num_pointer,
+	struct SVParams svpar);
+
 
 
 #endif

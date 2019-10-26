@@ -54,7 +54,6 @@ void MBIRReconstruct3D(
 	int *order;
 	struct timeval tm1,tm2;
 
-	/*struct ICDInfo icd_info; */ /* Local Cost Function Information */
 	x = Image->image;   /* x is the image vector */
 	y = sinogram->sino;  /* y is the sinogram vector */
 	w = sinogram->weight; /* vector of weights for each sinogram measurement */
@@ -197,11 +196,8 @@ void MBIRReconstruct3D(
 	voxelsBuffer1 = (float *)_mm_malloc(Nxy*sizeof(float),64);
 	voxelsBuffer2 = (float *)_mm_malloc(Nxy*sizeof(float),64);
 
-	for(i=0;i<Nxy;i++)
-		voxelsBuffer1[i]=0;
-
-	for(i=0;i<Nxy;i++)
-		voxelsBuffer2[i]=0;
+	for(i=0;i<Nxy;i++) voxelsBuffer1[i]=0;
+	for(i=0;i<Nxy;i++) voxelsBuffer2[i]=0;
 
 	it=0;
 
@@ -212,7 +208,7 @@ void MBIRReconstruct3D(
 	int startIndex=0;
 	int endIndex=0;        		
 
-	gettimeofday(&tm1,NULL);
+	//gettimeofday(&tm1,NULL);
          
 	char stop_FLAG=0;
 
@@ -310,9 +306,9 @@ void MBIRReconstruct3D(
 		}		
 	}
 	
-        gettimeofday(&tm2,NULL);
-        unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-        printf("\trun time %llu ms (iterations only)\n", tt);
+        //gettimeofday(&tm2,NULL);
+        //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+        //printf("\trun time %llu ms (iterations only)\n", tt);
 
 	if (stop_FLAG == 0 && StopThreshold > 0)
 	{
@@ -333,28 +329,9 @@ void MBIRReconstruct3D(
 	if(priorityheap.size>0)
 		free_heap((void *)&priorityheap); 
 
-	for(jj=0;jj<sum;jj++){
-		free((void *)bandMinMap[jj].bandMin);
-		free((void *)bandMaxMap[jj].bandMax);
-	}
-
-	//free((void *)bandMinMap);
-	//free((void *)bandMaxMap);
- 
 	#ifdef find_RMSE
 	multifree(golden,2);
 	#endif
-
-	for(i=0;i<sum;i++)
-	for(jj=0;jj<((2*SVLength+1)*(2*SVLength+1));jj++)
-	if(A_Padded_Map[i][jj].length>0)
-	{
-		free((void *)A_Padded_Map[i][jj].val);
-		free((void *)A_Padded_Map[i][jj].pieceWiseMin);
-		free((void *)A_Padded_Map[i][jj].pieceWiseWidth);
-	}
-	multifree(A_Padded_Map,2);
-	free((void *)max_num_pointer);
 
 }   /*  END MBIRReconstruct3D()  */
 
