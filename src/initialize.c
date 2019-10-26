@@ -4,6 +4,7 @@
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
+#include "recon3d.h"
 #include "initialize.h"
 
 
@@ -53,7 +54,7 @@ int computePieceLength(int NViews)
 
 
 /* Initialize image state */
-void Initialize_Image(
+void initImage(
 	struct Image3D *Image,
 	struct CmdLine *cmdline,
 	char *ImageReconMask,
@@ -66,24 +67,18 @@ void Initialize_Image(
 
     //fprintf(stdout, "\nInitializing Image ... \n");
     
-    if(cmdline->InitImageDataFileFlag == 0) /* Image file not available */
-    {
-        //GenConstImage(Image, InitValue);               /* generate image with uniform pixel value */
-    }
-    else {
-        //ReadImage3D(cmdline->InitImageDataFile, Image); /* read image which has values in HU units */
-        fprintf(stdout, "Note initial image feature not implemented--using constant initial condition\n");
-    }
-
-    /* Generate constant image */
-    // ***move this up when projector is fixed
-    for(jz=0; jz<Nz; jz++)
-    for(j=0; j<Nxy; j++)
-    if(ImageReconMask[j]==0)
-        Image->image[jz][j] = OutsideROIValue;
+    if(cmdline->InitImageDataFileFlag)
+        ReadImage3D(cmdline->InitImageDataFile, Image);
     else
-        Image->image[jz][j] = InitValue;
-
+    {
+        /* Generate constant image */
+        for(jz=0; jz<Nz; jz++)
+        for(j=0; j<Nxy; j++)
+        if(ImageReconMask[j]==0)
+            Image->image[jz][j] = OutsideROIValue;
+        else
+            Image->image[jz][j] = InitValue;
+    }
 }
 
 
@@ -143,6 +138,63 @@ void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams)
     reconparams->b_nearest /= sum;
     reconparams->b_diag /= sum;
     reconparams->b_interslice /= sum;
+}
+
+
+/****************************************/
+/* Compute the initial projection error */
+/****************************************/
+void initProjectionError(
+	float **e,
+	struct Image3D *Image,
+	struct Sino3DParallel *sinogram,
+	struct SVParams svpar,
+	struct AValues_char **A_Padded_Map,
+	float *max_num_pointer,
+	struct CmdLine *cmdline)
+{
+	int i,jz;
+	char fname[200];
+	float *initProj;
+
+	float **x = Image->image;
+	float **y = sinogram->sino;
+	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
+	int Nz = Image->imgparams.Nz;
+
+	/* Compute the initial error e=y-Ax */
+
+	if(cmdline->readInitProjFlag)
+	{
+		sprintf(fname,"%s.initProj",cmdline->InitProjFile);
+		initProj = (float *) get_spc(NvNc,sizeof(float));
+
+		if(ReadFloatArray(fname,initProj,NvNc)) {
+			fprintf(stderr,"Error: read of %s failed\n",fname);
+			exit(-1);
+		}
+
+		for(jz=0; jz<Nz; jz++)
+		for(i = 0; i < NvNc; i++)
+			e[jz][i] = initProj[i];
+
+		free((void *)initProj);
+	}
+	else
+	{
+		fprintf(stdout,"Projecting initial image...\n");
+		#pragma omp parallel for private(i) schedule(dynamic)
+		for(jz=0;jz<Nz;jz++)
+			forwardProject2D(e[jz], x[jz], A_Padded_Map, max_num_pointer, &sinogram->sinoparams, &Image->imgparams, svpar);
+	}
+
+	#pragma omp parallel for private(i) schedule(dynamic)
+	for(jz=0;jz<Nz;jz++)
+	{
+		for (i = 0; i < NvNc; i++)
+			e[jz][i] = y[jz][i]-e[jz][i];
+	}
+
 }
 
 

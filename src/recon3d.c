@@ -34,21 +34,20 @@ float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *s
 void MBIRReconstruct3D(
 	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
+	float **e,  /* e=y-Ax, error */
 	struct ReconParamsQGGMRF3D reconparams,
 	struct SVParams svpar,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
 	struct CmdLine *cmdline)
 {
-	int it,i,j,currentSlice,jj,p,t;
+	int it,i,j,jj,p,t;
 	float **x;  /* image data */
 	float **y;  /* sinogram projections data */
-	float **e;  /* e=y-Ax, error */
 	float **w;  /* projections weights data */
 	float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
 	float *voxelsBuffer2;
 	float cost, avg_update, total_updates;
-	char fname[200];
 
 	struct heap priorityheap;
 	initialize_heap(&priorityheap);
@@ -194,37 +193,7 @@ void MBIRReconstruct3D(
 	int indexList_size=(int) sum*SV_per_Z*4*c_ratio*(1-convergence_rho);	
 	int indexList[indexList_size];   	             	    
     
-	/********************************************/
-	/* Forward Projection and Error Calculation */
-	/********************************************/
-	e = (float **)multialloc(sizeof(float), 2, Nz,NvNc);  	 /* error term memory allocation */
 
-	/* OLD* Initialize error to zero, since it is first computed as forward-projection Ax */
-	/* OLD* compute Ax (store it in e as of now) */
-
-	//fprintf(stdout, "Computing projection of initial image\n");
-	//float InitValue = MUWATER;
-	//forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map,bandMinMap, &sinoparams, &imgparams, pieceLength);
-	//fprintf(stdout, "Done projecting initial error\n\n");
-
-	/* FIX THIS: initial error is currently computed and written to file in GenSysMatrix assuming the initial */
-	/* image is constant. Need to make this accomodate initial condition image */
-	sprintf(fname,"%s.initialError",cmdline->SysMatrixFile);
-
-	#pragma omp parallel for private(i) schedule(dynamic)
-	for(currentSlice=0;currentSlice<Nz;currentSlice++)
-	{
-		int exitcode;
-		if( (exitcode=ReadFloatArray(fname,e[currentSlice],NvNc)) ) {
-			if(exitcode==1) fprintf(stderr, "ERROR in MBIRReconstruct3D: can't open file %s\n",fname);
-			if(exitcode==2) fprintf(stderr, "ERROR in MBIRReconstruct3D: read from file %s terminated early\n",fname);
-			exit(-1);
-		}
-		/* Compute the initial error e=y-Ax */    		
-		for (i = 0; i < NvNc; i++){
-			e[currentSlice][i]=y[currentSlice][i]-e[currentSlice][i];
-		}	
-	}   
 	voxelsBuffer1 = (float *)_mm_malloc(Nxy*sizeof(float),64);
 	voxelsBuffer2 = (float *)_mm_malloc(Nxy*sizeof(float),64);
 
@@ -343,22 +312,21 @@ void MBIRReconstruct3D(
 	
         gettimeofday(&tm2,NULL);
         unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-        printf("run time %llu ms (iterations only)\n", tt);
+        printf("\trun time %llu ms (iterations only)\n", tt);
 
 	if (stop_FLAG == 0 && StopThreshold > 0)
 	{
-		fprintf(stdout, "WARNING: Didn't reach stopping condition.\n");
-		fprintf(stdout, "Average update magnitude = %f\n", avg_update);
+		fprintf(stdout, "\tWARNING: Didn't reach stopping condition.\n");
+		fprintf(stdout, "\tAverage update magnitude = %f\n", avg_update);
 	}
 	else if (stop_FLAG == 0 && StopThreshold <= 0)
 	{
-		fprintf(stdout, "No stopping condition.\n");
-		fprintf(stdout, "Average update magnitude = %f\n", avg_update);
+		fprintf(stdout,"\tNo stopping condition.\n");
+		fprintf(stdout,"\tAverage update magnitude = %f\n", avg_update);
 	}
 	//if(AvgVoxelValue>0)
 	//fprintf(stdout, "Average Update to Average Voxel-Value Ratio = %f %% \n", ratio);
 	
-	multifree(e,2);
 	_mm_free((void *)order);
 	_mm_free((void *)voxelsBuffer1);
 	_mm_free((void *)voxelsBuffer2);
@@ -471,8 +439,6 @@ void forwardProject2D(
 	}
 
 }   /* END forwardProject2D() */
-
-
 
 
 

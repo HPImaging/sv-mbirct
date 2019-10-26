@@ -40,9 +40,12 @@ struct CmdLine
     char ReconImageDataFile[256], ReconImageDataFileFlag;
     char SysMatrixFile[256], SysMatrixFileFlag;
     char InitImageDataFile[256], InitImageDataFileFlag;
+    char InitProjFile[256], InitProjFileFlag;
+    char precompAmatrixFlag;
+    char precompInitProjFlag;
     char reconFlag;
     char readAmatrixFlag;
-    char writeAmatrixFlag;
+    char readInitProjFlag;
 };
 
 
