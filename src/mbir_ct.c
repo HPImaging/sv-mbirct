@@ -88,8 +88,12 @@ int main(int argc, char *argv[])
 
 		/* COMPUTE INTIAL ERROR IMAGE, ASSUMING CONSTANT INITIAL IMAGE */
 		int NvNc = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
-		float *initialError = (float *)malloc(sizeof(float)* NvNc);
-		forwardProject2D(initialError, InitValue, max_num_pointer,A_Padded_Map, &sinogram.sinoparams, &Image.imgparams, svpar);
+		int NxNy = Image.imgparams.Nx * Image.imgparams.Ny;
+		int i;
+		float *initialError = (float *) get_spc(NvNc,sizeof(float));
+		float *x = (float *) get_spc(NxNy,sizeof(float));
+		for(i=0; i<NxNy; i++) x[i]=InitValue;
+		forwardProject2D(initialError, x, A_Padded_Map, max_num_pointer, &sinogram.sinoparams, &Image.imgparams, svpar);
 
 		sprintf(fname,"%s.initialError",cmdline.SysMatrixFile);
 		int exitcode;
@@ -99,6 +103,7 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 		free((void *)initialError);
+		free((void *)x);
         }
 
 	if(cmdline.writeAmatrixFlag)

@@ -395,9 +395,9 @@ void MBIRReconstruct3D(
 
 void forwardProject2D(
 	float *e,
-	float InitValue,
-	float *max_num_pointer,
+	float *x,
 	struct AValues_char ** A_Padded_Map,
+	float *max_num_pointer,
 	struct SinoParams3DParallel *sinoparams,
 	struct ImageParams3D *imgparams,
 	struct SVParams svpar)
@@ -462,7 +462,7 @@ void forwardProject2D(
 						fprintf(stdout, "p %d r %d j %d total_2 %d \n",p,r,j,position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r);
 
 					if((position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r)< M)
-						e[position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r] += A_padd_Tranpose_pointer[r*pieceLength+j]*max_num_pointer[jy*Nx+jx]*inverseNumber*InitValue;
+						e[position+j*sinoparams->NChannels+bandMinMap[SVPosition].bandMin[p*pieceLength+j]+r] += A_padd_Tranpose_pointer[r*pieceLength+j]*max_num_pointer[jy*Nx+jx]*inverseNumber*x[jy*Nx+jx];
 
 				}
 				A_padd_Tranpose_pointer+=myCount*pieceLength;
@@ -1002,47 +1002,6 @@ float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *s
 
 
 
-
-
-#if 0
-void forwardProject3D(
-                      float *AX,           
-                      struct Image3D *X,
-                      struct SysMatrix2D *A,
-                      struct SinoParams3DParallel sinoparams)
-{
-    int j,k,n, jz, Nxy, NViewsTimesNChannels, NSlices ;
-    struct SparseColumn A_column;
-    
-    printf("\nComputing Forward Projection ... \n");
-    
-    Nxy = X->imgparams.Nx * X->imgparams.Ny; 
-    NViewsTimesNChannels = sinoparams.NViews * sinoparams.NChannels; 
-    NSlices = sinoparams.NSlices;
-    
-    if(A->Ncolumns != Nxy)
-    {
-      fprintf(stderr,"Error in forwardProject3D : dimensions of System Matrix and Image are not compatible \n");
-      exit(-1);
-    }
-    
-    for (j = 0; j < A->Ncolumns; j++) 
-    {
-        A_column = A->column[j]; 
-        if (A_column.Nnonzero > 0)
-        {
-            for (n = 0; n < A_column.Nnonzero; n++)
-            {
-                for(jz=0;jz<NSlices;jz++)                          
-                {
-                  k = A_column.RowIndex[n] + jz*NViewsTimesNChannels ; 
-                  AX[k] += A_column.Value[n]*X->image[j+jz*Nxy] ;      
-                }
-            }
-        }
-    }
-}
-#endif
 
 #if 0
 // NOTE this needs to be updated

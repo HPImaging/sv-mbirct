@@ -17,9 +17,9 @@ void MBIRReconstruct3D(
 
 void forwardProject2D(
 	float *e,
-	float InitValue,
-	float *max_num_pointer,
+	float *x,
 	struct AValues_char ** A_Padded_Map,
+	float *max_num_pointer,
 	struct SinoParams3DParallel *sinoparams,
 	struct ImageParams3D *imgparams,
 	struct SVParams svpar);
