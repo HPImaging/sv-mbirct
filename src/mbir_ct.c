@@ -31,14 +31,11 @@ int main(int argc, char *argv[])
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
 	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
+	float InitValue, OutsideROIValue; 
 	char fname[200];
 	struct timeval tm1,tm2;
 	unsigned long long tdiff;
 	int i,j;
-	/* For the uniform-image initial condition, need to use this image value */
-	/* rather than the InitImageValue in recon param file. This is to ensure */
-	/* consistency when using a precomputed/stored initial projection */
-	float InitValue=MUWATER;
 
 	fprintf(stdout,"MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
 	fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
@@ -92,6 +89,7 @@ int main(int argc, char *argv[])
 
 		if(cmdline.precompInitProjFlag)
 		{
+			InitValue=MUWATER;  //Use this initial image value if using pre-computed initial projection
 			/* compute initial projection, assuming constant initial image */
 			float *initProjection = (float *) get_spc(NvNc,sizeof(float));
 			float *x = (float *) get_spc(NxNy,sizeof(float));
@@ -129,10 +127,13 @@ int main(int argc, char *argv[])
 		ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
 		ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
 
-		/* Read or define initial image */
+		/* Read initial image if supplied, or initialize to uniform constant image */
 		/** Note the pixels outside the ROI radius never get touched by the projector or updates */
 		/** so these values will pass through to the output */
-		float OutsideROIValue=0; 
+		OutsideROIValue=0; 
+		InitValue = reconparams.InitImageValue;
+		if(cmdline.readInitProjFlag) 
+			InitValue=MUWATER;  //Use this initial image value if using pre-computed initial projection
 		initImage(&Image, &cmdline, ImageReconMask, InitValue, OutsideROIValue);
 
 		/* Forward project and compute initial proj error */
@@ -151,6 +152,7 @@ int main(int argc, char *argv[])
 			fprintf(stdout,"\tProjection time %llu ms\n",tdiff);
 		}
 
+		/* Start Reconstruction */
 		fprintf(stdout,"Reconstructing...\n");
 		gettimeofday(&tm1,NULL);
 
@@ -160,7 +162,7 @@ int main(int argc, char *argv[])
 		tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
 		fprintf(stdout,"\tReconstruction time %llu ms\n",tdiff);
 
-		/* Write out reconstructed image */
+		/* Write out reconstructed image(s) */
 		fprintf(stdout,"Writing image files...\n");
 		WriteImage3D(cmdline.ReconImageDataFile, &Image);
 
