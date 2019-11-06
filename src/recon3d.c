@@ -47,7 +47,7 @@ void MBIRReconstruct3D(
 	float **w;  /* projections weights data */
 	float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
 	float *voxelsBuffer2;
-	float cost, avg_update, total_updates;
+	float cost, avg_update, total_updates=0, equits=0;
 
 	struct heap priorityheap;
 	initialize_heap(&priorityheap);
@@ -214,7 +214,7 @@ void MBIRReconstruct3D(
 
 	#pragma omp parallel
 	{
-		while(stop_FLAG==0 && it <MaxIterations)
+		while(stop_FLAG==0 && equits<MaxIterations && it<20*MaxIterations)
 		{
 			#pragma omp single
 			{		
@@ -295,15 +295,18 @@ void MBIRReconstruct3D(
 
 			#endif		
 
-			if (avg_update < StopThreshold && (endIndex!=0))
-				stop_FLAG = 1;
+			//if (avg_update < StopThreshold && (endIndex!=0))
+			//	stop_FLAG = 1;
 
 			it++;
+			equits += total_updates/(Nxy*Nz);
+			//fprintf(stdout,"iteration %d, equits %f\n",it,equits);
+
 			total_updates = 0.0;
 
 			}
 
-		}		
+		}
 	}
 	
         //gettimeofday(&tm2,NULL);
@@ -318,7 +321,8 @@ void MBIRReconstruct3D(
 	else if (stop_FLAG == 0 && StopThreshold <= 0)
 	{
 		fprintf(stdout,"\tNo stopping condition.\n");
-		fprintf(stdout,"\tAverage update magnitude = %f\n", avg_update);
+		fprintf(stdout,"\titerations %d, equits %.1f\n",it,equits);
+		//fprintf(stdout,"\tAverage update magnitude = %f\n", avg_update);
 	}
 	//if(AvgVoxelValue>0)
 	//fprintf(stdout, "Average Update to Average Voxel-Value Ratio = %f %% \n", ratio);
@@ -416,7 +420,6 @@ void forwardProject2D(
 	}
 
 }   /* END forwardProject2D() */
-
 
 
 void super_voxel_recon(
@@ -844,7 +847,9 @@ void super_voxel_recon(
 	free((void **)newEArray);
 	free((void **)CopyNewEArray);
 
-	(*total_updates)+=updateChange;	
+	/* SJK: The stopping condition needs to be changed..for now I'm using total_updates to track number of voxel updates */
+	//(*total_updates)+=updateChange;	
+	(*total_updates)+= (float)(countNumber*SV_depth_modified);
 
 }   /* END super_voxel_recon() */
 
