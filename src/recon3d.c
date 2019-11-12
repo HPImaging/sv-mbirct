@@ -21,11 +21,12 @@
 #define convergence_rho 0.7
 
 /* Internal functions */
-void super_voxel_recon(int jj,struct SVParams svpar,float *total_updates,int it,int *phaseMap,int *order,int *indexList,int Nx,int Ny,
-	float **w,float **e, struct AValues_char ** A_Padded_Map,const int Nslices,struct heap_node *headNodeArray,const int NViewsdivided,
+void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int it,int *phaseMap,
+	int *order,int *indexList,int Nx,int Ny,float **w,float **e,struct AValues_char ** A_Padded_Map,const int Nslices,
+	struct heap_node *headNodeArray,const int NViewsdivided,
 	struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct ImageParams3D imgparams,
 	float *max_num_pointer,float **image,float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,
-	int SV_per_Z,int SVsPerLine,long *updatedVoxels,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp);
+	int SV_per_Z,int SVsPerLine,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams);
@@ -39,6 +40,7 @@ void MBIRReconstruct3D(
 	struct SVParams svpar,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
+	int NumMaskVoxels,
 	struct CmdLine *cmdline)
 {
 	int it,i,j,jj,p,t;
@@ -47,7 +49,9 @@ void MBIRReconstruct3D(
 	float **w;  /* projections weights data */
 	float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
 	float *voxelsBuffer2;
-	float cost, avg_update, total_updates=0, equits=0;
+	unsigned long NumUpdates=0;
+	float totalValue=0,totalChange=0,equits=0;
+	float avg_update,avg_update_rel;
 
 	struct heap priorityheap;
 	initialize_heap(&priorityheap);
@@ -201,8 +205,6 @@ void MBIRReconstruct3D(
 
 	it=0;
 
-	long updatedVoxels=0;
-	
 	coordinateShuffle(&order[0],&phaseMap[0],sum*SV_per_Z);
 	
 	int startIndex=0;
@@ -214,7 +216,7 @@ void MBIRReconstruct3D(
 
 	#pragma omp parallel
 	{
-		while(stop_FLAG==0 && equits<MaxIterations && it<20*MaxIterations)
+		while(stop_FLAG==0 && equits<MaxIterations && it<100*MaxIterations)
 		{
 			#pragma omp single
 			{		
@@ -254,55 +256,50 @@ void MBIRReconstruct3D(
 
 			for (group = 0; group < 4; group++)
 			{
-			
-				#pragma omp for schedule(dynamic)  reduction(+:total_updates)
+				#pragma omp for schedule(dynamic)  reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
 				for (jj = startIndex; jj < endIndex; jj+=1)
-					super_voxel_recon(jj,svpar,&total_updates,it, &phaseMap[0],order,&indexList[0],Nx,Ny, w,e,A_Padded_Map,Nz,&headNodeArray[0],NViewsdivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,&updatedVoxels,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
+					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,it, &phaseMap[0],order,&indexList[0],Nx,Ny, w,e,A_Padded_Map,Nz,&headNodeArray[0],NViewsdivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
 			}
 
 			#pragma omp single
 			{
  
-			if(it==0)
-				avg_update = total_updates/(float)Nxy/Nz;
-			else
+			if(NumUpdates>0)
 			{
-				if(it%2==1)
-					avg_update = (total_updates/(float)Nxy)*(4*convergence_rho/(1-convergence_rho))/Nz;
-				else
-					avg_update = (total_updates/(float)Nxy)*4/Nz;
-			}           		
+				avg_update = totalChange/NumUpdates;
+				float avg_value = totalValue/NumUpdates;
+				avg_update_rel = avg_update/avg_value * 100;
+			}
 			
 			/*
-			cost = MAPCostFunction3D(e, Image, sinogram, &reconparams);
+			float cost = MAPCostFunction3D(e, Image, sinogram, &reconparams);
 			fprintf(stdout, "it %d cost = %-15f, avg_update %f \n", it, cost, avg_update);           	
 			*/
 
 			#if 0
 			//#ifdef find_RMSE
-			if(it<300)
-				updatedVoxelsList[it]=updatedVoxels*1.0/Nxy/Nz;
-	
 			float sumOfSE=0;
 			for(i=0;i<Nz;i++)
 			for(j=0;j<Nxy;j++)
 				sumOfSE+=(Image->image[i][j]-golden[i][j])*(Image->image[i][j]-golden[i][j]);
-
 			float MSE=sumOfSE/Nxy/Nz;
 			float RMSE=sqrt(MSE);
-
-			fprintf(stdout,"Rho: %f Equits: %f RMSE: %f \n",convergence_rho,updatedVoxelsList[it],RMSE);
-
+			if(it<300) {
+				updatedVoxelsList[it]=NumUpdates*1.0/Nxy/Nz;
+				fprintf(stdout,"Rho: %f Equits: %f RMSE: %f \n",convergence_rho,updatedVoxelsList[it],RMSE);
+			}
 			#endif		
 
-			//if (avg_update < StopThreshold && (endIndex!=0))
-			//	stop_FLAG = 1;
+			if (avg_update_rel < StopThreshold && (endIndex!=0))
+				stop_FLAG = 1;
 
 			it++;
-			equits += total_updates/(Nxy*Nz);
+			equits += (float)NumUpdates/(NumMaskVoxels*Nz);
 			//fprintf(stdout,"iteration %d, equits %f\n",it,equits);
 
-			total_updates = 0.0;
+			NumUpdates=0;
+			totalValue=0;
+			totalChange=0;
 
 			}
 
@@ -313,19 +310,16 @@ void MBIRReconstruct3D(
         //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
         //printf("\trun time %llu ms (iterations only)\n", tt);
 
-	if (stop_FLAG == 0 && StopThreshold > 0)
-	{
-		fprintf(stdout, "\tWARNING: Didn't reach stopping condition.\n");
-		fprintf(stdout, "\tAverage update magnitude = %f\n", avg_update);
-	}
-	else if (stop_FLAG == 0 && StopThreshold <= 0)
-	{
-		fprintf(stdout,"\tNo stopping condition.\n");
-		fprintf(stdout,"\titerations %d, equits %.1f\n",it,equits);
-		//fprintf(stdout,"\tAverage update magnitude = %f\n", avg_update);
-	}
-	//if(AvgVoxelValue>0)
-	//fprintf(stdout, "Average Update to Average Voxel-Value Ratio = %f %% \n", ratio);
+	if(StopThreshold <= 0)
+		fprintf(stdout,"\tNo stopping condition--running fixed iterations\n");
+	else if(stop_FLAG == 1)
+		fprintf(stdout,"\tReached stopping condition\n");
+	else
+		fprintf(stdout,"\tWARNING: Didn't reach stopping condition\n");
+
+	fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,it);
+	fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
+	fprintf(stdout,"\tAverage update in last iteration (magnitude) = %f mm^-1\n",avg_update);
 	
 	_mm_free((void *)order);
 	_mm_free((void *)voxelsBuffer1);
@@ -425,7 +419,9 @@ void forwardProject2D(
 void super_voxel_recon(
 	int jj,
 	struct SVParams svpar,
-	float *total_updates,
+	unsigned long *NumUpdates,
+	float *totalValue,
+	float *totalChange,
 	int it,
 	int *phaseMap,
 	int *order,
@@ -449,7 +445,6 @@ void super_voxel_recon(
 	int group_id,
 	int SV_per_Z,
 	int SVsPerLine,
-	long *updatedVoxels,
 	float pow_sigmaX_p,
 	float pow_sigmaX_q,
 	float pow_T_qmp)
@@ -464,6 +459,8 @@ void super_voxel_recon(
 	struct minStruct * bandMinMap = svpar.bandMinMap;
 	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 	int pieceLength = svpar.pieceLength;
+	int NumUpdates_loc=0;
+	float totalValue_loc=0,totalChange_loc=0;
 
 	if(it%2==0)
 	{
@@ -644,7 +641,6 @@ void super_voxel_recon(
 	WTransposeArrayPointer=&newWArrayTransposed[0][0];
 	ETransposeArrayPointer=&newEArrayTransposed[0][0];
 	newEArrayPointer=&newEArray[0][0];
-	float updateChange=0;
 	float inverseNumber=1.0/255;
 
 	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
@@ -702,16 +698,6 @@ void super_voxel_recon(
 			}
 		}
 
-		#ifdef find_RMSE
-		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-		{
-			if(zero_skip_FLAG[currentSlice] == 0 ){
-				#pragma omp atomic
-				(*updatedVoxels)=(*updatedVoxels)+1;
-			}
-		}
-		#endif
-
 		A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];
 		for(p=0;p<NViewsdivided;p++)
 		{
@@ -749,20 +735,19 @@ void super_voxel_recon(
 
 		A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];
 	
-		/* float previousVoxel=0.0; */
 		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 		if(zero_skip_FLAG[currentSlice] == 0)
 		{
-			//if(currentSlice!=0)
-			//	neighbors[currentSlice][8]=previousVoxel;
 			float pixel = ICDStep3D(reconparams,THETA1[currentSlice],THETA2[currentSlice],tempV[currentSlice],&neighbors[currentSlice][0],pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp); 
 			/* For Synchrotron dataset.  Don't clip it */
-			/* SJK: put positivity condition here */
 			image[startSlice+currentSlice][j_new*Nx+k_new]= ((pixel < 0.0) ? 0.0 : pixel);  
 
-			/* previousVoxel=image->img[currentSlice][j_new*Nx+k_new]; */
 			diff[currentSlice] = image[startSlice+currentSlice][j_new*Nx+k_new] - tempV[currentSlice];
-			updateChange += fabs(diff[currentSlice]);
+
+			totalChange_loc += fabs(diff[currentSlice]);
+			totalValue_loc += tempV[currentSlice];
+			NumUpdates_loc++;
+
 			diff[currentSlice]=diff[currentSlice]*max*inverseNumber;
 		}
 
@@ -791,9 +776,9 @@ void super_voxel_recon(
 	free((void **)newWArrayTransposed);
 
 	if((it%2)==0)
-		headNodeArray[jj].x=updateChange;
+		headNodeArray[jj].x=totalChange_loc;
 	else
-		headNodeArray[indexList[jj]].x=updateChange;
+		headNodeArray[indexList[jj]].x=totalChange_loc;
 
 	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
 	for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
@@ -847,9 +832,9 @@ void super_voxel_recon(
 	free((void **)newEArray);
 	free((void **)CopyNewEArray);
 
-	/* SJK: The stopping condition needs to be changed..for now I'm using total_updates to track number of voxel updates */
-	//(*total_updates)+=updateChange;	
-	(*total_updates)+= (float)(countNumber*SV_depth_modified);
+	*NumUpdates += NumUpdates_loc;
+	*totalValue += totalValue_loc;
+	*totalChange += totalChange_loc;
 
 }   /* END super_voxel_recon() */
 

@@ -31,13 +31,14 @@ int main(int argc, char *argv[])
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
 	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
+	int NumMaskVoxels=0;
 	float InitValue, OutsideROIValue; 
 	char fname[200];
 	struct timeval tm1,tm2;
 	unsigned long long tdiff;
 	int i,j;
 
-	fprintf(stdout,"MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
+	fprintf(stdout,"SUPER-VOXEL MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
 	fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
 
 	readCmdLine(argc, argv, &cmdline);
@@ -59,15 +60,17 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"\n");
 
 	int NvNc = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
-	int NxNy = Image.imgparams.Nx * Image.imgparams.Ny;
-	int Nz = Image.imgparams.Nz;
+	int Nxy = Image.imgparams.Nx * Image.imgparams.Ny;
 
 	/* Allocate and generate recon mask based on ROIRadius */
 	ImageReconMask = GenImageReconMask(&Image.imgparams);
+	for(j=0;j<Nxy;j++)
+	if(ImageReconMask[j])
+		NumMaskVoxels++;
 
 	/* Read or compute System Matrix */
-	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, svpar.Nsv, (svpar.SVLength*2+1)*(svpar.SVLength*2+1));
-	max_num_pointer = (float *) get_spc(NxNy,sizeof(float));
+	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,svpar.Nsv,(2*svpar.SVLength+1)*(2*svpar.SVLength+1));
+	max_num_pointer = (float *) get_spc(Nxy,sizeof(float));
 	if(cmdline.readAmatrixFlag)
 	{
 		fprintf(stdout,"Reading system matrix...\n");
@@ -92,8 +95,8 @@ int main(int argc, char *argv[])
 			InitValue=MUWATER;  //Use this initial image value if using pre-computed initial projection
 			/* compute initial projection, assuming constant initial image */
 			float *initProjection = (float *) get_spc(NvNc,sizeof(float));
-			float *x = (float *) get_spc(NxNy,sizeof(float));
-			for(i=0; i<NxNy; i++) 
+			float *x = (float *) get_spc(Nxy,sizeof(float));
+			for(i=0; i<Nxy; i++)
 				x[i]=InitValue;
 			forwardProject2D(initProjection, x, A_Padded_Map, max_num_pointer, &sinogram.sinoparams, &Image.imgparams, svpar);
 
@@ -149,18 +152,18 @@ int main(int argc, char *argv[])
 
 			gettimeofday(&tm2,NULL);
 			tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-			fprintf(stdout,"\tProjection time %llu ms\n",tdiff);
+			fprintf(stdout,"\tProjection time = %llu ms\n",tdiff);
 		}
 
 		/* Start Reconstruction */
 		fprintf(stdout,"Reconstructing...\n");
 		gettimeofday(&tm1,NULL);
 
-		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,&cmdline);
+		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,NumMaskVoxels,&cmdline);
 
 		gettimeofday(&tm2,NULL);
 		tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-		fprintf(stdout,"\tReconstruction time %llu ms\n",tdiff);
+		fprintf(stdout,"\tReconstruction time = %llu ms\n",tdiff);
 
 		/* Write out reconstructed image(s) */
 		fprintf(stdout,"Writing image files...\n");
@@ -179,7 +182,7 @@ int main(int argc, char *argv[])
 
 	/* Free system matrix */
 	for(i=0;i<svpar.Nsv;i++)
-	for(j=0;j<((2*svpar.SVLength+1)*(2*svpar.SVLength+1));j++)
+	for(j=0;j<(2*svpar.SVLength+1)*(2*svpar.SVLength+1);j++)
 	if(A_Padded_Map[i][j].length>0)
 	{
 		free((void *)A_Padded_Map[i][j].val);
