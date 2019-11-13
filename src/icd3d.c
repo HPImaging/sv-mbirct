@@ -8,27 +8,17 @@
 #include "icd3d.h"
 
 	
-float ICDStep3D(struct ReconParamsQGGMRF3D reconparams, float THETA1, float THETA2,float tempV, float *neighbors,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp)	
+float ICDStep3D(struct ReconParamsQGGMRF3D reconparams,float THETA1,float THETA2,float tempV,float *neighbors,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp)
 {
-	int i, n, Nxy, NViewsTimesNChannels, XYPixelIndex, SliceIndex;
-	float UpdatedVoxelValue;
-    	/*
-    	float adjustedTheta1=THETA1;
-    	float adjustedTheta2=THETA2;
-   	*/
-    	/* theta1 and theta2 must be further adjusted according to Prior Model */
-    	/* Step can be skipped if merely ML estimation (no prior model) is followed rather than MAP estimation */
-    	float ratio=QGGMRF3D_UpdateICDParams(reconparams,tempV,neighbors,THETA1,THETA2,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
-	
-    	/* Calculate Updated Pixel Value */
-    	UpdatedVoxelValue = tempV - ratio ;
-    
-	return UpdatedVoxelValue;
+    float step=QGGMRF3D_Update(reconparams,tempV,neighbors,THETA1,THETA2,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
+    float UpdatedVoxelValue = tempV + step;
+
+    return UpdatedVoxelValue;
 }
 
 /* ICD update with the QGGMRF prior model */
 /* Prior and neighborhood specific */
-float QGGMRF3D_UpdateICDParams(struct ReconParamsQGGMRF3D reconparams,float tempV, float *neighbors,float THETA1,float THETA2,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp)
+float QGGMRF3D_Update(struct ReconParamsQGGMRF3D reconparams,float tempV, float *neighbors,float THETA1,float THETA2,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp)
 {
     int j; /* Neighbor relative position to Pixel being updated */
     float sum1_Nearest=0, sum1_Diag=0, sum1_Interslice=0; /* for theta1 calculation */
@@ -47,7 +37,7 @@ float QGGMRF3D_UpdateICDParams(struct ReconParamsQGGMRF3D reconparams,float temp
     
     for (j = 0; j < 10; j++)
         SurrogateCoeff[j] = QGGMRF_SurrogateCoeff(delta[j],reconparams,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
-    
+
     #pragma vector aligned											
     for (j = 0; j < 10; j++)
     {        
@@ -71,7 +61,7 @@ float QGGMRF3D_UpdateICDParams(struct ReconParamsQGGMRF3D reconparams,float temp
     
     THETA1 +=  (b_nearest * sum1_Nearest + b_diag * sum1_Diag + b_interslice * sum1_Interslice) ;
     THETA2 +=  (b_nearest * sum2_Nearest + b_diag * sum2_Diag + b_interslice * sum2_Interslice) ;
-    return THETA1/THETA2;
+    return(-THETA1/THETA2);
     
 }
 

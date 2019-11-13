@@ -33,11 +33,20 @@ void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct S
 
         svpar->bandMinMap = (struct minStruct *)get_spc(svpar->Nsv,sizeof(struct minStruct));
         svpar->bandMaxMap = (struct maxStruct *)get_spc(svpar->Nsv,sizeof(struct maxStruct));
-
 	for(j=0;j<svpar->Nsv;j++) {
 		svpar->bandMinMap[j].bandMin=(int *)get_spc(sinoparams.NViews,sizeof(int));
 		svpar->bandMaxMap[j].bandMax=(int *)get_spc(sinoparams.NViews,sizeof(int));
 	}
+
+	if((imgparams.Nz % svpar->SVDepth)==0)
+		svpar->SV_per_Z = imgparams.Nz/svpar->SVDepth;
+	else
+		svpar->SV_per_Z = imgparams.Nz/svpar->SVDepth+1;
+
+	if((imgparams.Nx%(2*svpar->SVLength - svpar->overlap))==0)
+		svpar->SVsPerLine = imgparams.Nx/(2*svpar->SVLength - svpar->overlap);
+	else
+		svpar->SVsPerLine = imgparams.Nx/(2*svpar->SVLength - svpar->overlap) + 1;
 
 	#if 1
 	fprintf(stdout,"SUPER-VOXEL PARAMETERS:\n");

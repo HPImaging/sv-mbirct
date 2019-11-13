@@ -16,6 +16,8 @@ struct SVParams
 	int SVLength;
 	int overlap;
 	int SVDepth;
+	int SV_per_Z;
+	int SVsPerLine;
 	int Nsv;
 	int pieceLength;
 };

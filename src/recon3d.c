@@ -22,11 +22,10 @@
 
 /* Internal functions */
 void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int it,int *phaseMap,
-	int *order,int *indexList,int Nx,int Ny,float **w,float **e,struct AValues_char ** A_Padded_Map,const int Nslices,
-	struct heap_node *headNodeArray,const int NViewsdivided,
-	struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct ImageParams3D imgparams,
-	float *max_num_pointer,float **image,float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,
-	int SV_per_Z,int SVsPerLine,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp);
+	int *order,int *indexList,float **w,float **e,
+	struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct heap_node *headNodeArray,
+	struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct Image3D *Image,
+	float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams);
@@ -72,22 +71,18 @@ void MBIRReconstruct3D(
 	int SVLength = svpar.SVLength;
 	int overlappingDistance = svpar.overlap;
 	int SV_depth = svpar.SVDepth;
+	int SV_per_Z = svpar.SV_per_Z;
+	int SVsPerLine = svpar.SVsPerLine;
 	int sum = svpar.Nsv;
 	int pieceLength = svpar.pieceLength;
 	struct minStruct * bandMinMap = svpar.bandMinMap;
 	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 
-	int SV_per_Z=0;
 	int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
 
 	float pow_sigmaX_p = pow(reconparams.SigmaX,reconparams.p);
 	float pow_sigmaX_q = pow(reconparams.SigmaX,reconparams.q);
 	float pow_T_qmp = pow(reconparams.T,reconparams.q - reconparams.p);
-
-	if((Nz%SV_depth)==0)
-		SV_per_Z=Nz/SV_depth;
-	else
-		SV_per_Z=Nz/SV_depth+1;
 
 	if(NViews%pieceLength !=0)
 	{
@@ -130,11 +125,6 @@ void MBIRReconstruct3D(
 	}
 
 	int phaseMap[sum*SV_per_Z];
-	int SVsPerLine=0;
-	if((Nx%(2*SVLength-overlappingDistance))==0)
-		SVsPerLine=Nx/(2*SVLength-overlappingDistance);
-	else	
-		SVsPerLine=Nx/(2*SVLength-overlappingDistance)+1; 
 
 	#pragma omp parallel for private(jj) schedule(dynamic)
 	for(i=0;i<SV_per_Z;i++)
@@ -258,7 +248,7 @@ void MBIRReconstruct3D(
 			{
 				#pragma omp for schedule(dynamic)  reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
 				for (jj = startIndex; jj < endIndex; jj+=1)
-					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,it, &phaseMap[0],order,&indexList[0],Nx,Ny, w,e,A_Padded_Map,Nz,&headNodeArray[0],NViewsdivided,sinogram->sinoparams,reconparams,Image->imgparams,&max_num_pointer[0],Image->image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,SV_per_Z,SVsPerLine,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
+					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,it, &phaseMap[0],order,&indexList[0],w,e,A_Padded_Map,&max_num_pointer[0],&headNodeArray[0],sinogram->sinoparams,reconparams,Image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
 			}
 
 			#pragma omp single
@@ -269,6 +259,7 @@ void MBIRReconstruct3D(
 				avg_update = totalChange/NumUpdates;
 				float avg_value = totalValue/NumUpdates;
 				avg_update_rel = avg_update/avg_value * 100;
+				//printf("avg_update %f, avg_value %f, avg_update_rel %f\n",avg_update,avg_value,avg_update_rel);
 			}
 			
 			/*
@@ -426,41 +417,42 @@ void super_voxel_recon(
 	int *phaseMap,
 	int *order,
 	int *indexList,
-	int Nx,
-	int Ny,
 	float **w,
 	float **e,
 	struct AValues_char ** A_Padded_Map,
-	const int Nslices,
+	float *max_num_pointer,
 	struct heap_node *headNodeArray,
-	const int NViewsdivided,
 	struct SinoParams3DParallel sinoparams,
 	struct ReconParamsQGGMRF3D reconparams,
-	struct ImageParams3D imgparams,
-	float *max_num_pointer,
-	float **image,
+	struct Image3D *Image,
 	float *voxelsBuffer1,
 	float *voxelsBuffer2,
-	int* group_array,
+	int *group_array,
 	int group_id,
-	int SV_per_Z,
-	int SVsPerLine,
 	float pow_sigmaX_p,
 	float pow_sigmaX_q,
 	float pow_T_qmp)
 {
 
-	int jy,jx,p,i,q,t,j,currentSlice;
-	int startSlice;	
-	int SV_depth_modified;	
+	int jy,jx,p,i,q,t,j,currentSlice,startSlice;
+	int SV_depth_modified;
+	int NumUpdates_loc=0;
+	float totalValue_loc=0,totalChange_loc=0;
+
+	float ** image = Image->image;
+	struct ImageParams3D imgparams = Image->imgparams;
+	int Nx = imgparams.Nx;
+	int Ny = imgparams.Ny;
+	int Nz = imgparams.Nz;
+
 	int SVLength = svpar.SVLength;
 	int overlappingDistance = svpar.overlap;
 	int SV_depth = svpar.SVDepth;
+	int SVsPerLine = svpar.SVsPerLine;
 	struct minStruct * bandMinMap = svpar.bandMinMap;
 	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 	int pieceLength = svpar.pieceLength;
-	int NumUpdates_loc=0;
-	float totalValue_loc=0,totalChange_loc=0;
+	int NViewsdivided = sinoparams.NViews/pieceLength;
 
 	if(it%2==0)
 	{
@@ -475,8 +467,8 @@ void super_voxel_recon(
 		jx=(order[indexList[jj]] - startSlice* Nx * Ny) %Nx;	
 	}
 
-	if((startSlice+SV_depth)>Nslices)
-		SV_depth_modified=Nslices-startSlice;
+	if((startSlice+SV_depth)>Nz)
+		SV_depth_modified=Nz-startSlice;
 	else
 		SV_depth_modified=SV_depth;
 
@@ -532,7 +524,7 @@ void super_voxel_recon(
 	int bandMin[sinoparams.NViews]__attribute__((aligned(32)));
 	int bandMax[sinoparams.NViews]__attribute__((aligned(32)));
 	int bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
-	int bandWidth[(sinoparams.NViews)/pieceLength]__attribute__((aligned(32)));	
+	int bandWidth[NViewsdivided]__attribute__((aligned(32)));
 
 	#ifdef USE_INTEL_MEMCPY
 	_intel_fast_memcpy(&bandMin[0],&bandMinMap[theSVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
@@ -546,7 +538,7 @@ void super_voxel_recon(
 	for(p=0;p< sinoparams.NViews;p++)
 		bandWidthTemp[p]=bandMax[p]-bandMin[p];
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	{
 		int bandWidthMax=bandWidthTemp[p*pieceLength];
 		for(t=0;t<pieceLength;t++){
@@ -560,14 +552,14 @@ void super_voxel_recon(
 
 	#pragma vector aligned
 	#pragma simd reduction(+:tempCount) 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 		tempCount+=bandWidth[p]*pieceLength;
 
-	float ** newWArray = (float **)malloc(sizeof(float *)*(sinoparams.NViews)/pieceLength);
-	float ** newEArray = (float **)malloc(sizeof(float *)*(sinoparams.NViews)/pieceLength);
-	float ** CopyNewEArray = (float **)malloc(sizeof(float *)*(sinoparams.NViews)/pieceLength); 
+	float ** newWArray = (float **)malloc(sizeof(float *) * NViewsdivided);
+	float ** newEArray = (float **)malloc(sizeof(float *) * NViewsdivided);
+	float ** CopyNewEArray = (float **)malloc(sizeof(float *) * NViewsdivided); 
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	{
 		newWArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
 		newEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
@@ -580,7 +572,7 @@ void super_voxel_recon(
 	const int n_theta=sinoparams.NViews;
 
 	/*XW: copy the interlaced we into the memory buffer*/ 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	{
 		newWArrayPointer=&newWArray[p][0];
 		newEArrayPointer=&newEArray[p][0];
@@ -599,7 +591,7 @@ void super_voxel_recon(
 		}
 	}
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	{
 		#ifdef USE_INTEL_MEMCPY
 		_intel_fast_memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
@@ -608,10 +600,10 @@ void super_voxel_recon(
 		#endif
 	}
 
-	float ** newWArrayTransposed = (float **)malloc(sizeof(float *)*(sinoparams.NViews)/pieceLength);
-	float ** newEArrayTransposed = (float **)malloc(sizeof(float *)*(sinoparams.NViews)/pieceLength);
+	float ** newWArrayTransposed = (float **)malloc(sizeof(float *) * NViewsdivided);
+	float ** newEArrayTransposed = (float **)malloc(sizeof(float *) * NViewsdivided);
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	{
 		newWArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
 		newEArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
@@ -620,7 +612,7 @@ void super_voxel_recon(
 	float *WTransposeArrayPointer=&newWArrayTransposed[0][0];
 	float *ETransposeArrayPointer=&newEArrayTransposed[0][0];
 	
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	for(currentSlice=0;currentSlice<(SV_depth_modified);currentSlice++) 
 	{
 		WTransposeArrayPointer=&newWArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
@@ -643,7 +635,7 @@ void super_voxel_recon(
 	newEArrayPointer=&newEArray[0][0];
 	float inverseNumber=1.0/255;
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 		free((void *)newWArray[p]);
 
 	free((void **)newWArray);
@@ -677,7 +669,7 @@ void super_voxel_recon(
 			else
 				neighbors[currentSlice][8]=image[startSlice+currentSlice-1][j_new*Nx+k_new];
 
-			if((startSlice+currentSlice)<(Nslices-1))
+			if((startSlice+currentSlice)<(Nz-1))
 				neighbors[currentSlice][9]=image[startSlice+currentSlice+1][j_new*Nx+k_new];
 			else
 				neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
@@ -738,8 +730,9 @@ void super_voxel_recon(
 		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 		if(zero_skip_FLAG[currentSlice] == 0)
 		{
-			float pixel = ICDStep3D(reconparams,THETA1[currentSlice],THETA2[currentSlice],tempV[currentSlice],&neighbors[currentSlice][0],pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp); 
-			/* For Synchrotron dataset.  Don't clip it */
+			float step = QGGMRF3D_Update(reconparams,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice],pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
+			float pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
+
 			image[startSlice+currentSlice][j_new*Nx+k_new]= ((pixel < 0.0) ? 0.0 : pixel);  
 
 			diff[currentSlice] = image[startSlice+currentSlice][j_new*Nx+k_new] - tempV[currentSlice];
@@ -770,7 +763,7 @@ void super_voxel_recon(
 		}
 	}
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 		free((void *)newWArrayTransposed[p]);
 
 	free((void **)newWArrayTransposed);
@@ -780,7 +773,7 @@ void super_voxel_recon(
 	else
 		headNodeArray[indexList[jj]].x=totalChange_loc;
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 	{
 		ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
@@ -793,7 +786,7 @@ void super_voxel_recon(
 		}
 	}
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 		free((void *)newEArrayTransposed[p]);
 
 	free((void **)newEArrayTransposed);
@@ -802,7 +795,7 @@ void super_voxel_recon(
 	float* CopyNewEArrayPointer=&CopyNewEArray[0][0];
 	float* eArrayPointer=&e[0][0];
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)      /*XW: update the error term in the memory buffer*/
+	for (p = 0; p < NViewsdivided; p++)      /*XW: update the error term in the memory buffer*/
 	{
 		newEArrayPointer=&newEArray[p][0];
 		CopyNewEArrayPointer=&CopyNewEArray[p][0];
@@ -824,7 +817,7 @@ void super_voxel_recon(
 		}
 	}
 
-	for (p = 0; p < (sinoparams.NViews)/pieceLength; p++)
+	for (p = 0; p < NViewsdivided; p++)
 	{
 		free((void *)newEArray[p]);
 		free((void *)CopyNewEArray[p]);
@@ -938,14 +931,14 @@ float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *s
 
 #if 0
 // NOTE this needs to be updated
-void read_golden(char *fname,float **golden,int Nslices,int N, struct Image3D *Image)
+void read_golden(char *fname,float **golden,int Nz,int N, struct Image3D *Image)
 {
 	FILE *fp;
 	int i;
         char slicefname[200];
         char *sliceindex;
 	sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-	for(i=0;i<Nslices;i++){
+	for(i=0;i<Nz;i++){
 		sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,Image->imgparams.FirstSliceNumber+i);
 
 		/* Obtain file name for the given slice */
