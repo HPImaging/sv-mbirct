@@ -25,7 +25,7 @@ void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,fl
 	int *order,int *indexList,float **w,float **e,
 	struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct heap_node *headNodeArray,
 	struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct Image3D *Image,
-	float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id,float pow_sigmaX_p,float pow_sigmaX_q,float pow_T_qmp);
+	float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams);
@@ -79,10 +79,6 @@ void MBIRReconstruct3D(
 	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 
 	int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
-
-	float pow_sigmaX_p = pow(reconparams.SigmaX,reconparams.p);
-	float pow_sigmaX_q = pow(reconparams.SigmaX,reconparams.q);
-	float pow_T_qmp = pow(reconparams.T,reconparams.q - reconparams.p);
 
 	if(NViews%pieceLength !=0)
 	{
@@ -248,7 +244,7 @@ void MBIRReconstruct3D(
 			{
 				#pragma omp for schedule(dynamic)  reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
 				for (jj = startIndex; jj < endIndex; jj+=1)
-					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,it, &phaseMap[0],order,&indexList[0],w,e,A_Padded_Map,&max_num_pointer[0],&headNodeArray[0],sinogram->sinoparams,reconparams,Image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group,pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
+					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,it, &phaseMap[0],order,&indexList[0],w,e,A_Padded_Map,&max_num_pointer[0],&headNodeArray[0],sinogram->sinoparams,reconparams,Image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
 			}
 
 			#pragma omp single
@@ -428,10 +424,7 @@ void super_voxel_recon(
 	float *voxelsBuffer1,
 	float *voxelsBuffer2,
 	int *group_array,
-	int group_id,
-	float pow_sigmaX_p,
-	float pow_sigmaX_q,
-	float pow_T_qmp)
+	int group_id)
 {
 
 	int jy,jx,p,i,q,t,j,currentSlice,startSlice;
@@ -730,7 +723,7 @@ void super_voxel_recon(
 		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 		if(zero_skip_FLAG[currentSlice] == 0)
 		{
-			float step = QGGMRF3D_Update(reconparams,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice],pow_sigmaX_p,pow_sigmaX_q,pow_T_qmp);
+			float step = QGGMRF3D_Update(reconparams,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice]);
 			float pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
 
 			image[startSlice+currentSlice][j_new*Nx+k_new]= ((pixel < 0.0) ? 0.0 : pixel);  

@@ -91,12 +91,15 @@ struct ReconParamsQGGMRF3D
   double b_nearest;       /* Relative nearest neighbor weight [default = 1] */
   double b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
   double b_interslice;    /* Relative neighbor weight along z direction [default = 1] */
-    
   int Positivity;         /* Positivity constraint: 1=yes, 0=no */
   double StopThreshold;   /* Stopping threshold in percent */
   int MaxIterations;      /* Maximum number of iterations */
-    
   double InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
+
+  /* the following are derived values useful for the update calculation */
+  double pow_sigmaX_p;    /* pow(sigmaX,p) */
+  double pow_sigmaX_q;    /* pow(sigmaX,q) */
+  double pow_T_qmp;       /* pow(T,q-p) */
 };
 
 

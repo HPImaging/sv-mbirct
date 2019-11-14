@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>  /* for dirname */
+#include <math.h>
 
 #include "allocate.h"
 #include "MBIRModularDefs.h"
@@ -504,6 +505,11 @@ int ReadReconParamsQGGMRF3D(
 		fprintf(stderr,"Error in %s: Need (p <= q) for convexity. (p<q for strict convexity)\n",fname);
 		exit(-1);
 	}
+
+	/* calculate derived parameters */
+	reconparams->pow_sigmaX_p = pow(reconparams->SigmaX,reconparams->p);
+	reconparams->pow_sigmaX_q = pow(reconparams->SigmaX,reconparams->q);
+	reconparams->pow_T_qmp    = pow(reconparams->T,reconparams->q - reconparams->p);
 
 	return(0);
 }
