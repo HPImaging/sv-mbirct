@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 	struct CmdLine cmdline;
 	struct Image3D Image;
 	struct Sino3DParallel sinogram;
-	struct ReconParamsQGGMRF3D reconparams;
+	struct ReconParams reconparams;
 	struct SVParams svpar;
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	

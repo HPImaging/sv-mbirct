@@ -80,23 +80,24 @@ struct Image3D
 
 
 /* Reconstruction Parameters Data Structure */
-struct ReconParamsQGGMRF3D
+struct ReconParams
 {
+  /* General parameters */
+  double InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
+  double StopThreshold;   /* Stopping threshold in percent */
+  int MaxIterations;      /* Maximum number of iterations */
+  int Positivity;         /* Positivity constraint: 1=yes, 0=no */
+  /* neighbor weights */
+  double b_nearest;       /* Relative nearest neighbor weight [default = 1] */
+  double b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
+  double b_interslice;    /* Relative neighbor weight along z direction [default = 1] */
+  /* QGGMRF */
   double p;               /* q-GGMRF p parameter */
   double q;               /* q-GGMRF q parameter (q=2 is typical choice) */
   double T;               /* q-GGMRF T parameter */
   double SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
-  double SigmaY;          /* Scaling constant for weight matrix (W<-W/SigmaY^2); */
-                          /* If SigmaY=0, then it is estimated */
-  double b_nearest;       /* Relative nearest neighbor weight [default = 1] */
-  double b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
-  double b_interslice;    /* Relative neighbor weight along z direction [default = 1] */
-  int Positivity;         /* Positivity constraint: 1=yes, 0=no */
-  double StopThreshold;   /* Stopping threshold in percent */
-  int MaxIterations;      /* Maximum number of iterations */
-  double InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
-
-  /* the following are derived values useful for the update calculation */
+  double SigmaY;          /* Scaling constant for weight matrix (W<-W/SigmaY^2); if SigmaY=0, then it is estimated */
+  /* QGGMRF derived parameters */
   double pow_sigmaX_p;    /* pow(sigmaX,p) */
   double pow_sigmaX_q;    /* pow(sigmaX,q) */
   double pow_T_qmp;       /* pow(T,q-p) */

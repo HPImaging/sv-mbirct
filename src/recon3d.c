@@ -24,18 +24,18 @@
 void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int it,int *phaseMap,
 	int *order,int *indexList,float **w,float **e,
 	struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct heap_node *headNodeArray,
-	struct SinoParams3DParallel sinoparams,struct ReconParamsQGGMRF3D reconparams,struct Image3D *Image,
+	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct Image3D *Image,
 	float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
-float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams);
+float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams *reconparams);
 
 
 void MBIRReconstruct3D(
 	struct Image3D *Image,
 	struct Sino3DParallel *sinogram,
 	float **e,  /* e=y-Ax, error */
-	struct ReconParamsQGGMRF3D reconparams,
+	struct ReconParams reconparams,
 	struct SVParams svpar,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
@@ -419,7 +419,7 @@ void super_voxel_recon(
 	float *max_num_pointer,
 	struct heap_node *headNodeArray,
 	struct SinoParams3DParallel sinoparams,
-	struct ReconParamsQGGMRF3D reconparams,
+	struct ReconParams reconparams,
 	struct Image3D *Image,
 	float *voxelsBuffer1,
 	float *voxelsBuffer2,
@@ -866,7 +866,7 @@ void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,
 
 
 
-float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParamsQGGMRF3D *reconparams)
+float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams *reconparams)
 {
 	int i, M, j, jx, jy, jz, Nx, Ny, Nz, plusx, minusx, plusy, plusz ;
     	float **x ;

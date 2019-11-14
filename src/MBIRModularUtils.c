@@ -307,7 +307,7 @@ int ReadImageParams3D(
 
 
 /* Print QGGMRF reconstruction parameters */
-void printReconParamsQGGMRF3D(struct ReconParamsQGGMRF3D *reconparams)
+void printReconParamsQGGMRF3D(struct ReconParams *reconparams)
 {
     fprintf(stdout, "RECONSTRUCTION/PRIOR PARAMETERS:\n");
     fprintf(stdout, " - Q-GGMRF Prior Parameter, q                            = %f\n", reconparams->p);
@@ -328,7 +328,7 @@ void printReconParamsQGGMRF3D(struct ReconParamsQGGMRF3D *reconparams)
 /* Returns 0 if no error occurs */
 int ReadReconParamsQGGMRF3D(
 	char *basename,				/* Source base filename, i.e. <basename>.reconparams */
-	struct ReconParamsQGGMRF3D *reconparams)  /* Reconstruction parameters data structure */
+	struct ReconParams *reconparams)  /* Reconstruction parameters data structure */
 {
 	FILE *fp;
 	char fname[200];
