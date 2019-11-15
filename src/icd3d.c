@@ -8,7 +8,7 @@
 #include "icd3d.h"
 
 	
-float ICDStep3D(struct ReconParamsQGGMRF3D reconparams,float THETA1,float THETA2,float tempV,float *neighbors)
+float ICDStep3D(struct ReconParams reconparams,float THETA1,float THETA2,float tempV,float *neighbors)
 {
     float step=QGGMRF3D_Update(reconparams,tempV,neighbors,THETA1,THETA2);
     float UpdatedVoxelValue = tempV + step;
@@ -16,9 +16,16 @@ float ICDStep3D(struct ReconParamsQGGMRF3D reconparams,float THETA1,float THETA2
     return UpdatedVoxelValue;
 }
 
+/* Plug & Play update w/ proximal map prior */
+float PandP_Update(struct ReconParams reconparams,float tempV,float tempProxMap,float THETA1,float THETA2)
+{
+    float SigmaXsq = reconparams.SigmaXsq;
+    return(-(SigmaXsq*THETA1 + tempV - tempProxMap) / (SigmaXsq*THETA2 + 1.0));
+}
+
 /* ICD update with the QGGMRF prior model */
 /* Prior and neighborhood specific */
-float QGGMRF3D_Update(struct ReconParamsQGGMRF3D reconparams,float tempV, float *neighbors,float THETA1,float THETA2)
+float QGGMRF3D_Update(struct ReconParams reconparams,float tempV, float *neighbors,float THETA1,float THETA2)
 {
     int j; /* Neighbor relative position to Pixel being updated */
     float sum1_Nearest=0, sum1_Diag=0, sum1_Interslice=0; /* for theta1 calculation */
@@ -67,7 +74,7 @@ float QGGMRF3D_Update(struct ReconParamsQGGMRF3D reconparams,float tempV, float 
 
 
 /* the potential function of the QGGMRF prior model.  p << q <= 2 */
-float QGGMRF_Potential(float delta, struct ReconParamsQGGMRF3D *reconparams)
+float QGGMRF_Potential(float delta, struct ReconParams *reconparams)
 {
     float p, q, T, SigmaX;
     float temp, GGMRF_Pot;
@@ -92,7 +99,7 @@ float QGGMRF_Potential(float delta, struct ReconParamsQGGMRF3D *reconparams)
 /* Return this coefficient a(delta_p) */
 /* Prior-model specific, independent of neighborhood */
 
-float QGGMRF_SurrogateCoeff(float delta, struct ReconParamsQGGMRF3D reconparams)
+float QGGMRF_SurrogateCoeff(float delta, struct ReconParams reconparams)
 {
     float p, q, T, SigmaX, qmp;
     float num, denom, temp;

@@ -25,8 +25,9 @@ int main(int argc, char *argv[])
 {
 	struct CmdLine cmdline;
 	struct Image3D Image;
+	struct Image3D ProxMap;
 	struct Sino3DParallel sinogram;
-	struct ReconParamsQGGMRF3D reconparams;
+	struct ReconParams reconparams;
 	struct SVParams svpar;
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
@@ -52,9 +53,22 @@ int main(int argc, char *argv[])
 	printImageParams3D(&Image.imgparams);
 	if(cmdline.reconFlag)
 	{
-		ReadReconParamsQGGMRF3D(cmdline.ReconParamsFile,&reconparams);
-		printReconParamsQGGMRF3D(&reconparams);
-		NormalizePriorWeights3D(&reconparams);
+		ReadReconParams(cmdline.ReconParamsFile,&reconparams);
+
+		if(cmdline.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
+		{
+			NormalizePriorWeights3D(&reconparams);
+			printReconParamsQGGMRF3D(&reconparams);
+		}
+		if(cmdline.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+			printReconParamsPandP(&reconparams);
+
+		if(reconparams.ReconType != cmdline.ReconType)
+		{
+			fprintf(stdout,"**\nWarning: \"PriorModel\" field in reconparams file doesn't agree with\n");
+			fprintf(stdout,"Warning: what the command line is doing. Proceeding anyway.\n**\n");
+			reconparams.ReconType = cmdline.ReconType;
+		}
 	}
 	initSVParams(&svpar, Image.imgparams, sinogram.sinoparams);  /* Initialize/allocate SV parameters */
 	fprintf(stdout,"\n");
@@ -139,6 +153,19 @@ int main(int argc, char *argv[])
 			InitValue=MUWATER;  //Use this initial image value if using pre-computed initial projection
 		initImage(&Image, &cmdline, ImageReconMask, InitValue, OutsideROIValue);
 
+		/* Read Proximal map if necessary */
+		if(cmdline.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+		{
+			ProxMap.imgparams.Nx = Image.imgparams.Nx;
+			ProxMap.imgparams.Ny = Image.imgparams.Ny;
+			ProxMap.imgparams.Nz = Image.imgparams.Nz;
+			ProxMap.imgparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+			ProxMap.imgparams.NumSliceDigits = Image.imgparams.NumSliceDigits;
+			AllocateImageData3D(&ProxMap);
+			ReadImage3D(cmdline.ProxMapImageDataFile,&ProxMap);
+			reconparams.proximalmap = ProxMap.image;  // **ptr to proximal map image
+		}
+
 		/* Forward project and compute initial proj error */
 		float **e = (float **)multialloc(sizeof(float), 2, sinogram.sinoparams.NSlices,NvNc);
 		if(cmdline.readInitProjFlag) 
@@ -172,6 +199,9 @@ int main(int argc, char *argv[])
 		multifree(e,2);
 		FreeImageData3D(&Image);
 		FreeSinoData3DParallel(&sinogram);
+		if(cmdline.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+			FreeImageData3D(&ProxMap);
+
 	}
 
 	/* Free SV memory */
@@ -213,6 +243,8 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     cmdline->SysMatrixFileFlag=0;
     cmdline->InitImageDataFileFlag=0;
     cmdline->InitProjFileFlag=0;
+    cmdline->ProxMapImageDataFileFlag=0;
+    cmdline->ReconType = MBIR_MODULAR_RECONTYPE_QGGMRF_3D;
 
     /* Print usage statement if no arguments, or help argument given */
     if(argc==1 || CmdLineHelpOption(argv[1]))
@@ -223,7 +255,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     }
     
     /* get options */
-    while ((ch = getopt(argc, argv, "i:j:k:m:e:s:w:r:t:v")) != EOF)
+    while ((ch = getopt(argc, argv, "i:j:k:m:e:s:w:r:t:p:v")) != EOF)
     {
         switch (ch)
         {
@@ -279,6 +311,13 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             {
                 cmdline->InitImageDataFileFlag=1;
                 sprintf(cmdline->InitImageDataFile, "%s", optarg);
+                break;
+            }
+            case 'p':
+            {
+                cmdline->ProxMapImageDataFileFlag=1;
+                cmdline->ReconType = MBIR_MODULAR_RECONTYPE_PandP;
+                sprintf(cmdline->ProxMapImageDataFile, "%s", optarg);
                 break;
             }
             // Reserve this for verbose-mode flag
@@ -422,15 +461,15 @@ void printCmdLineUsage(char *ExecFileName)
     fprintf(stdout,"writes it to a file and exits. This matrix is required for the reconstruction\n");
     fprintf(stdout,"but is fixed for a given set of sinogram and image parameters so it saves a lot\n");
     fprintf(stdout,"of time in the reconstruction phase to precompute this. You can also choose to\n");
-    fprintf(stdout,"pre-compute the initial projection of the default initial condition, which saves\n");
-    fprintf(stdout,"having to run the projection during the reconstruction phase.\n");
-    fprintf(stdout,"Usage (printed on multiple lines for clarity):\n");
+    fprintf(stdout,"pre-compute the initial projection of the default or specified initial condition\n");
+    fprintf(stdout,"which saves having to run the projection during the reconstruction phase.\n");
+    fprintf(stdout,"Command Line Syntax: (printed on multiple lines for clarity)\n");
     fprintf(stdout,"\n");
     fprintf(stdout,"  %s\n",ExecFileName);
     fprintf(stdout,"\t-i <filename>[.imgparams]    \\\\Input image parameters\n");
     fprintf(stdout,"\t-j <filename>[.sinoparams]   \\\\Input sinogram parameters\n");
     fprintf(stdout,"\t-m <filename>[.2Dsysmatrix]  \\\\Output matrix file\n");
-    fprintf(stdout,"    (following is optional)\n");
+    fprintf(stdout,"    (following are optional)\n");
     fprintf(stdout,"\t-e <filename>[.initProj]     \\\\Projection of constant initial condition\n");
     fprintf(stdout,"\n");
     fprintf(stdout,"In the above arguments, the exensions given in the '[]' symbols must be part of\n");

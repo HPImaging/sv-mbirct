@@ -10,7 +10,7 @@
 
 
 /* Normalize weights to sum to 1, assuming 10-pt 3D neighborhood */
-void NormalizePriorWeights3D(struct ReconParamsQGGMRF3D *reconparams)
+void NormalizePriorWeights3D(struct ReconParams *reconparams)
 {
     double sum = 4.0*reconparams->b_nearest + 4.0*reconparams->b_diag + 2.0*reconparams->b_interslice;
     reconparams->b_nearest /= sum;
