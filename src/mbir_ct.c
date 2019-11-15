@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 	printImageParams3D(&Image.imgparams);
 	if(cmdline.reconFlag)
 	{
-		ReadReconParamsQGGMRF3D(cmdline.ReconParamsFile,&reconparams);
+		ReadReconParams(cmdline.ReconParamsFile,&reconparams);
 		printReconParamsQGGMRF3D(&reconparams);
 		NormalizePriorWeights3D(&reconparams);
 	}

@@ -19,16 +19,17 @@ int ReadImageParams3D(
 	char *basename,			/* Source base filename, i.e. <basename>.imgparams */
 	struct ImageParams3D *imgparams);  /* Image params data structure */
 
-/* Utility for reading QGGMRF3D reconstruction parameters */
+/* Utility for reading reconstruction parameters */
 /* Returns 0 if no error occurs */
-int ReadReconParamsQGGMRF3D(
+int ReadReconParams(
 	char *basename,			/* Source base filename, i.e. <basename>.reconparams */
 	struct ReconParams *reconparams);  /* Reconstruction parameters data structure */
 
 /* Parameter printing utilities */
-void printReconParamsQGGMRF3D(struct ReconParams *reconparams);
 void printImageParams3D(struct ImageParams3D *imgparams);
 void printSinoParams3DParallel(struct SinoParams3DParallel *sinoparams);
+void printReconParamsQGGMRF3D(struct ReconParams *reconparams);
+void printReconParamsPandP(struct ReconParams *reconparams);
 
 
 /*******************************/

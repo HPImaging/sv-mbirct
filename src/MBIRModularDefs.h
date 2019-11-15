@@ -3,22 +3,22 @@
 
 
 /* Define constants that will be used in modular MBIR framework */
-#define MBIR_MODULAR_UTIL_VERSION "2.2";
+#define MBIR_MODULAR_UTIL_VERSION "2.2"
 
-#define MBIR_MODULAR_SINOTYPE_2DPARALLEL 0;
-#define MBIR_MODULAR_SINOTYPE_2DFAN 1; /* for future implementation */
-#define MBIR_MODULAR_SINOTYPE_3DPARALLEL 2;
+#define MBIR_MODULAR_SINOTYPE_2DPARALLEL 0
+#define MBIR_MODULAR_SINOTYPE_2DFAN 1	/* for future implementation */
+#define MBIR_MODULAR_SINOTYPE_3DPARALLEL 2
 
-#define MBIR_MODULAR_IMAGETYPE_2D 0;
-#define MBIR_MODULAR_IMAGETYPE_3D 1;
-#define MBIR_MODULAR_IMAGETYPE_4D 2; /* for future implementation */
+#define MBIR_MODULAR_IMAGETYPE_2D 0
+#define MBIR_MODULAR_IMAGETYPE_3D 1
+#define MBIR_MODULAR_IMAGETYPE_4D 2	/* for future implementation */
 
-#define MBIR_MODULAR_RECONTYPE_QGGMRF_2D 0;
-#define MBIR_MODULAR_RECONTYPE_QGGMRF_3D 1;
-#define MBIR_MODULAR_RECONTYPE_PandP 2 /* for future implementation */
+#define MBIR_MODULAR_RECONTYPE_QGGMRF_2D 0
+#define MBIR_MODULAR_RECONTYPE_QGGMRF_3D 1
+#define MBIR_MODULAR_RECONTYPE_PandP 2
 
-#define MBIR_MODULAR_YES 1;
-#define MBIR_MODULAR_NO 0;
+#define MBIR_MODULAR_YES 1
+#define MBIR_MODULAR_NO 0
 #define MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS 4 /* allows up to 10,000 slices */
 
 #define PI 3.1415926535897932384
@@ -82,6 +82,7 @@ struct Image3D
 /* Reconstruction Parameters Data Structure */
 struct ReconParams
 {
+  char ReconType;         /* 1:QGGMRF_3D, 2:PandP */
   /* General parameters */
   double InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
   double StopThreshold;   /* Stopping threshold in percent */
@@ -101,6 +102,10 @@ struct ReconParams
   double pow_sigmaX_p;    /* pow(sigmaX,p) */
   double pow_sigmaX_q;    /* pow(sigmaX,q) */
   double pow_T_qmp;       /* pow(T,q-p) */
+  /* Proximal map prior for Plug & Play */
+  //double SigmaX;        /* sigma_x parameter (mm-1) (same field name already included for QGGMRF above) */
+  double SigmaXsq;        /* derived parameter: SigmaX^2 */
+  float **proximalmap;    /* ptr to 3D proximal map image; here to carry it to the ICD update */
 };
 
 

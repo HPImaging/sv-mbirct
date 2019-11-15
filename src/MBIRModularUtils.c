@@ -310,6 +310,7 @@ int ReadImageParams3D(
 void printReconParamsQGGMRF3D(struct ReconParams *reconparams)
 {
     fprintf(stdout, "RECONSTRUCTION/PRIOR PARAMETERS:\n");
+    fprintf(stdout, " - Prior Type                                            = QGGMRF\n");
     fprintf(stdout, " - Q-GGMRF Prior Parameter, q                            = %f\n", reconparams->p);
     fprintf(stdout, " - Q-GGMRF Prior Parameter, p                            = %f\n", reconparams->q);
     fprintf(stdout, " - Q-GGMRF Prior Parameter, T                            = %f\n", reconparams->T);
@@ -323,10 +324,21 @@ void printReconParamsQGGMRF3D(struct ReconParams *reconparams)
     fprintf(stdout, " - Maximum number of ICD iterations                      = %d\n", reconparams->MaxIterations);
     fprintf(stdout, " - Positivity constraint flag                            = %d\n", reconparams->Positivity);
 }
+/* Print PandP reconstruction parameters */
+void printReconParamsPandP(struct ReconParams *reconparams)
+{
+    fprintf(stdout, "RECONSTRUCTION/PRIOR PARAMETERS:\n");
+    fprintf(stdout, " - Prior Type                                            = Plug & Play\n");
+    fprintf(stdout, " - Regularization parameter for Proximal Map, SigmaX     = %.7f (mm^-1)\n", reconparams->SigmaX);
+    fprintf(stdout, " - Scaling for weight matrix, SigmaY (W <- W/SigmaY^2)   = %.7f (mm^-1)\n", reconparams->SigmaY);
+    fprintf(stdout, " - Stop threshold for convergence                        = %.7f %%\n", reconparams->StopThreshold);
+    fprintf(stdout, " - Maximum number of ICD iterations                      = %d\n", reconparams->MaxIterations);
+    fprintf(stdout, " - Positivity constraint flag                            = %d\n", reconparams->Positivity);
+}
 
-/* Utility for reading QGGMRF reconstruction parameters */
+/* Utility for reading reconstruction parameter files */
 /* Returns 0 if no error occurs */
-int ReadReconParamsQGGMRF3D(
+int ReadReconParams(
 	char *basename,				/* Source base filename, i.e. <basename>.reconparams */
 	struct ReconParams *reconparams)  /* Reconstruction parameters data structure */
 {
@@ -340,22 +352,24 @@ int ReadReconParamsQGGMRF3D(
 
 	/* set defaults, also used for error checking below */
 	reconparams->InitImageValue=MUWATER;
+	reconparams->StopThreshold=1.0;
+	reconparams->MaxIterations=20;
+	reconparams->Positivity=1;
+
+	reconparams->b_nearest=1.0;
+	reconparams->b_diag=0.707;
+	reconparams->b_interslice=1.0;
+
 	reconparams->p=1.2;
 	reconparams->q=2.0;
 	reconparams->T=0.1;
 	reconparams->SigmaX=0.02;
 	reconparams->SigmaY=1.0;
-	reconparams->b_nearest=1.0;
-	reconparams->b_diag=0.707;
-	reconparams->b_interslice=1.0;
-	reconparams->StopThreshold=1.0;
-	reconparams->MaxIterations=20;
-	reconparams->Positivity=1;
 
 	strcpy(fname,basename);
 	strcat(fname,".reconparams");
 	if((fp=fopen(fname,"r")) == NULL) {
-		fprintf(stderr,"ERROR in ReadReconParamsQGGMRF3D: can't open file %s\n",fname);
+		fprintf(stderr,"ERROR in ReadReconParams: can't open file %s\n",fname);
 		exit(-1);
 	}
 
@@ -383,7 +397,12 @@ int ReadReconParamsQGGMRF3D(
 		if(strcmp(fieldname,"PriorModel")==0)
 		{
 			Prior_flag=1;
-			if(strcmp(fieldval_s,"QGGMRF")!=0) {
+			if(strcmp(fieldval_s,"QGGMRF")==0)
+				reconparams->ReconType = MBIR_MODULAR_RECONTYPE_QGGMRF_3D;
+			else if(strcmp(fieldval_s,"PandP")==0)
+				reconparams->ReconType = MBIR_MODULAR_RECONTYPE_PandP;
+			else
+			{
 				fprintf(stderr,"Error in %s: PriorModel value \"%s\" unrecognized\n",fname,fieldval_s);
 				exit(-1);
 			}
@@ -493,8 +512,6 @@ int ReadReconParamsQGGMRF3D(
 
 	fclose(fp);
 
-	//printReconParamsQGGMRF3D(reconparams);
-
 	/* do some error checking */
 	if(Prior_flag==0) {
 		fprintf(stderr,"Error in %s: \"PriorModel\" field unspecified\n",fname);
@@ -510,6 +527,7 @@ int ReadReconParamsQGGMRF3D(
 	reconparams->pow_sigmaX_p = pow(reconparams->SigmaX,reconparams->p);
 	reconparams->pow_sigmaX_q = pow(reconparams->SigmaX,reconparams->q);
 	reconparams->pow_T_qmp    = pow(reconparams->T,reconparams->q - reconparams->p);
+	reconparams->SigmaXsq = reconparams->SigmaX * reconparams->SigmaX;
 
 	return(0);
 }
