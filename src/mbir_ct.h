@@ -34,6 +34,7 @@ struct SysMatrixSV
 
 struct CmdLine
 {
+    char ReconType;            /* 1:QGGMRF, 2:PandP */
     char SinoParamsFile[256], SinoParamsFileFlag;
     char ImageParamsFile[256], ImageParamsFileFlag;
     char ReconParamsFile[256], ReconParamsFileFlag;
@@ -42,6 +43,7 @@ struct CmdLine
     char ReconImageDataFile[256], ReconImageDataFileFlag;
     char SysMatrixFile[256], SysMatrixFileFlag;
     char InitImageDataFile[256], InitImageDataFileFlag;
+    char ProxMapImageDataFile[256], ProxMapImageDataFileFlag;
     char InitProjFile[256], InitProjFileFlag;
     char precompAmatrixFlag;
     char precompInitProjFlag;

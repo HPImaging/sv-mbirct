@@ -16,6 +16,13 @@ float QGGMRF3D_Update(
 	float THETA1,
 	float THETA2);
 
+float PandP_Update(
+	struct ReconParams reconparams,
+	float tempV,
+	float tempProxMap,
+	float THETA1,
+	float THETA2);
+
 float QGGMRF_SurrogateCoeff(
 	float delta,
 	struct ReconParams reconparams);

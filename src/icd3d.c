@@ -16,6 +16,12 @@ float ICDStep3D(struct ReconParams reconparams,float THETA1,float THETA2,float t
     return UpdatedVoxelValue;
 }
 
+/* Plug & Play update w/ proximal map prior */
+float PandP_Update(struct ReconParams reconparams,float tempV,float tempProxMap,float THETA1,float THETA2)
+{
+    float SigmaXsq = reconparams.SigmaXsq;
+    return(-(SigmaXsq*THETA1 + tempV - tempProxMap) / (SigmaXsq*THETA2 + 1.0));
+}
 
 /* ICD update with the QGGMRF prior model */
 /* Prior and neighborhood specific */

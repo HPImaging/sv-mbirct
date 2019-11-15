@@ -433,6 +433,7 @@ void super_voxel_recon(
 	float totalValue_loc=0,totalChange_loc=0;
 
 	float ** image = Image->image;
+	float ** proximalmap = reconparams.proximalmap;
 	struct ImageParams3D imgparams = Image->imgparams;
 	int Nx = imgparams.Nx;
 	int Ny = imgparams.Ny;
@@ -639,6 +640,7 @@ void super_voxel_recon(
 		const short j_new=j_newCoordinate[i];   /*XW: get the voxel's x,y location*/
 		const short k_new=k_newCoordinate[i];
 		float tempV[SV_depth_modified];
+		float tempProxMap[SV_depth_modified];
 		float neighbors[SV_depth_modified][10];
 		char zero_skip_FLAG[SV_depth_modified];
 		float max=max_num_pointer[j_new*Nx+k_new];
@@ -655,32 +657,37 @@ void super_voxel_recon(
 		{
 			tempV[currentSlice] = (float)(image[startSlice+currentSlice][j_new*Nx+k_new]); /*XW: current voxel's value*/
 
-			ExtractNeighbors3D(&neighbors[currentSlice][0],k_new,j_new,&image[startSlice+currentSlice][0],imgparams);
-
-			if((startSlice+currentSlice)==0)
-				neighbors[currentSlice][8]=voxelsBuffer1[j_new*Nx+k_new];
-			else
-				neighbors[currentSlice][8]=image[startSlice+currentSlice-1][j_new*Nx+k_new];
-
-			if((startSlice+currentSlice)<(Nz-1))
-				neighbors[currentSlice][9]=image[startSlice+currentSlice+1][j_new*Nx+k_new];
-			else
-				neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
-
 			zero_skip_FLAG[currentSlice] = 0;
 
-			if (tempV[currentSlice] == 0.0)
+			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
 			{
-				zero_skip_FLAG[currentSlice] = 1;
-				for (j = 0; j < 10; j++)
+				ExtractNeighbors3D(&neighbors[currentSlice][0],k_new,j_new,&image[startSlice+currentSlice][0],imgparams);
+
+				if((startSlice+currentSlice)==0)
+					neighbors[currentSlice][8]=voxelsBuffer1[j_new*Nx+k_new];
+				else
+					neighbors[currentSlice][8]=image[startSlice+currentSlice-1][j_new*Nx+k_new];
+
+				if((startSlice+currentSlice)<(Nz-1))
+					neighbors[currentSlice][9]=image[startSlice+currentSlice+1][j_new*Nx+k_new];
+				else
+					neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
+
+				if (tempV[currentSlice] == 0.0)
 				{
-					if (neighbors[currentSlice][j] != 0.0)
+					zero_skip_FLAG[currentSlice] = 1;
+					for (j = 0; j < 10; j++)
 					{
-						zero_skip_FLAG[currentSlice] = 0;
-						break; 
+						if (neighbors[currentSlice][j] != 0.0)
+						{
+							zero_skip_FLAG[currentSlice] = 0;
+							break; 
+						}
 					}
 				}
 			}
+			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+				tempProxMap[currentSlice] = proximalmap[startSlice+currentSlice][j_new*Nx+k_new];
 		}
 
 		A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];
@@ -723,8 +730,22 @@ void super_voxel_recon(
 		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 		if(zero_skip_FLAG[currentSlice] == 0)
 		{
-			float step = QGGMRF3D_Update(reconparams,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice]);
-			float pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
+			float pixel,step;
+			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
+			{
+				step = QGGMRF3D_Update(reconparams,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice]);
+			}
+			else if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+			{
+				step = PandP_Update(reconparams,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
+			}
+			else
+			{
+				fprintf(stderr,"Error** Unrecognized ReconType in ICD update\n");
+				exit(-1);
+			}
+
+			pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
 
 			image[startSlice+currentSlice][j_new*Nx+k_new]= ((pixel < 0.0) ? 0.0 : pixel);  
 
