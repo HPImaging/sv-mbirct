@@ -39,10 +39,11 @@ void MBIRReconstruct3D(
 	struct SVParams svpar,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
-	int NumMaskVoxels,
+	char *ImageReconMask,
 	struct CmdLine *cmdline)
 {
 	int it,i,j,jj,p,t;
+	int NumMaskVoxels=0;
 	float **x;  /* image data */
 	float **y;  /* sinogram projections data */
 	float **w;  /* projections weights data */
@@ -80,13 +81,9 @@ void MBIRReconstruct3D(
 
 	int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
 
-	if(NViews%pieceLength !=0)
-	{
-		fprintf(stderr, "ERROR in MBIRReconstruct3D: pieceLength should divide evenly into NViews\n");
-		exit(-1);
-	}
-
-	const int NViewsdivided=NViews/pieceLength;
+        for(j=0;j<Nxy;j++)
+        if(ImageReconMask[j])
+                NumMaskVoxels++;
 
 	#if 0
 	//#ifdef find_RMSE

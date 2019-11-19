@@ -34,22 +34,24 @@ struct SysMatrixSV
 
 struct CmdLine
 {
-    char ReconType;            /* 1:QGGMRF, 2:PandP */
     char SinoParamsFile[256], SinoParamsFileFlag;
     char ImageParamsFile[256], ImageParamsFileFlag;
     char ReconParamsFile[256], ReconParamsFileFlag;
     char SinoDataFile[256], SinoDataFileFlag;
     char SinoWeightsFile[256], SinoWeightsFileFlag;
-    char ReconImageDataFile[256], ReconImageDataFileFlag;
+    char ReconImageFile[256], ReconImageFileFlag;
     char SysMatrixFile[256], SysMatrixFileFlag;
-    char InitImageDataFile[256], InitImageDataFileFlag;
-    char ProxMapImageDataFile[256], ProxMapImageDataFileFlag;
-    char InitProjFile[256], InitProjFileFlag;
-    char precompAmatrixFlag;
-    char precompInitProjFlag;
-    char reconFlag;
-    char readAmatrixFlag;
-    char readInitProjFlag;
+    char InitImageFile[256];
+    char inputProjectionFile[256];
+    char outputProjectionFile[256];
+    char ProxMapImageFile[256];
+    /* operation flags */
+    char reconFlag;              /* 0=pre-compute mode; 1=reconstruct (QGGMRF), 2=reconstruct (PandP) */
+    char readInitImageFlag;
+    char readInitProjectionFlag;
+    char writeProjectionFlag;    /* 0=don't; 1=write Projection default IC (single slice); 2=write multi-slice */
+    char readAmatrixFlag;        /* 0=compute A; 1=read A */
+    char writeAmatrixFlag;
 };
 
 

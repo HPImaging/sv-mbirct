@@ -48,9 +48,9 @@ void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct S
 	else
 		svpar->SVsPerLine = imgparams.Nx/(2*svpar->SVLength - svpar->overlap) + 1;
 
-	#if 1
+	#if 0
 	fprintf(stdout,"SUPER-VOXEL PARAMETERS:\n");
-	fprintf(stdout," - SVlength        = %d\n",svpar->SVLength);
+	fprintf(stdout," - SVLength        = %d\n",svpar->SVLength);
 	fprintf(stdout," - overlap         = %d\n",svpar->overlap);
 	fprintf(stdout," - SVDepth         = %d\n",svpar->SVDepth);
 	fprintf(stdout," - Nsv             = %d\n",svpar->Nsv);
@@ -121,10 +121,9 @@ char *GenImageReconMask(struct ImageParams3D *imgparams)
     return(ImageReconMask);
 }
 
-/* Initialize image state */
-void initImage(
+/* Initialize image to a constant */
+void initConstImage(
 	struct Image3D *Image,
-	struct CmdLine *cmdline,
 	char *ImageReconMask,
 	float InitValue,
 	float OutsideROIValue)
@@ -133,85 +132,15 @@ void initImage(
     int Nxy = Image->imgparams.Nx * Image->imgparams.Ny;
     int Nz = Image->imgparams.Nz;
 
-    if(cmdline->InitImageDataFileFlag)
-        ReadImage3D(cmdline->InitImageDataFile, Image);
+    for(jz=0; jz<Nz; jz++)
+    for(j=0; j<Nxy; j++)
+    if(ImageReconMask[j])
+        Image->image[jz][j] = InitValue;
     else
-    {
-        /* Generate constant image */
-        for(jz=0; jz<Nz; jz++)
-        for(j=0; j<Nxy; j++)
-        if(ImageReconMask[j]==0)
-            Image->image[jz][j] = OutsideROIValue;
-        else
-            Image->image[jz][j] = InitValue;
-    }
-}
-
-
-/*******************************************/
-/*  Read projection of initial condition,  */
-/*  and compute initial projection error   */
-/*******************************************/
-void readProjectionError(
-	float **e,
-	struct Image3D *Image,
-	struct Sino3DParallel *sinogram,
-	struct AValues_char **A_Padded_Map,
-	float *max_num_pointer,
-	struct CmdLine cmdline)
-{
-	int i,jz;
-	char fname[200];
-	float **y = sinogram->sino;
-	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
-	int Nz = Image->imgparams.Nz;
-
-	/* Compute the initial error e=y-Ax */
-	sprintf(fname,"%s.initProj",cmdline.InitProjFile);
-	float *initProj = (float *) get_spc(NvNc,sizeof(float));
-
-	if(ReadFloatArray(fname,initProj,NvNc)) {
-		fprintf(stderr,"Error: read of %s failed\n",fname);
-		exit(-1);
-	}
-
-	//#pragma omp parallel for private(i) schedule(dynamic)
-	for(jz=0; jz<Nz; jz++)
-	for(i = 0; i < NvNc; i++)
-		e[jz][i] = y[jz][i] - initProj[i];
-
-	free((void *)initProj);
-}
-
-
-/********************************************/
-/*  Project initial condition, and compute  */
-/*  initial projection error                */
-/********************************************/
-void compProjectionError(
-	float **e,
-	struct Image3D *Image,
-	struct Sino3DParallel *sinogram,
-	struct AValues_char **A_Padded_Map,
-	float *max_num_pointer,
-	struct SVParams svpar)
-{
-	int i,jz;
-	float **x = Image->image;
-	float **y = sinogram->sino;
-	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
-	int Nz = Image->imgparams.Nz;
-
-	/* Compute the initial error e=y-Ax */
-	#pragma omp parallel for private(i) schedule(dynamic)
-	for(jz=0;jz<Nz;jz++)
-	{
-		forwardProject2D(e[jz], x[jz], A_Padded_Map, max_num_pointer, &sinogram->sinoparams, &Image->imgparams, svpar);
-		for (i = 0; i < NvNc; i++)
-			e[jz][i] = y[jz][i]-e[jz][i];
-	}
+        Image->image[jz][j] = OutsideROIValue;
 
 }
+
 
 
 

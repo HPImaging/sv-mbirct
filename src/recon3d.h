@@ -14,7 +14,7 @@ void MBIRReconstruct3D(
 	struct SVParams svpar,
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
-	int NumMaskVoxels,
+	char *ImageReconMask,
 	struct CmdLine *cmdLine);
 
 void forwardProject2D(
