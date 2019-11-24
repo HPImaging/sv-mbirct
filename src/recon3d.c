@@ -42,7 +42,7 @@ void MBIRReconstruct3D(
 	char *ImageReconMask,
 	struct CmdLine *cmdline)
 {
-	int it,i,j,jj,p,t;
+	int i,j,jj,p,t,it,it_print=1;
 	int NumMaskVoxels=0;
 	float **x;  /* image data */
 	float **y;  /* sinogram projections data */
@@ -279,7 +279,11 @@ void MBIRReconstruct3D(
 
 			it++;
 			equits += (float)NumUpdates/(NumMaskVoxels*Nz);
-			//fprintf(stdout,"iteration %d, equits %f\n",it,equits);
+			if(equits > it_print)
+			{
+				fprintf(stdout,"\titeration %d, average change %.4f %%\n",it_print,avg_update_rel);
+				it_print++;
+			}
 
 			NumUpdates=0;
 			totalValue=0;

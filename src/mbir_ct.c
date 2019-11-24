@@ -143,8 +143,9 @@ int main(int argc, char *argv[])
 			{
 				sprintf(fname,"%s.2Dprojection",cmdline.inputProjectionFile);
 				if(ReadFloatArray(fname,e[0],NvNc)) {
-					fprintf(stderr,"Error: can't read %s\n",fname);
-					exit(-1);
+					fprintf(stdout,"Warning: can't read %s\n",fname);
+					fprintf(stdout,"Projecting initial image...\n");
+					forwardProject2D(e[0],Image.image[0],A_Padded_Map,max_num_pointer,&sinogram.sinoparams,&Image.imgparams,svpar);
 				}
 				for(jz=1;jz<Nz;jz++)
 					memcpy(e[jz],e[0],NvNc*sizeof(float));

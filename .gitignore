@@ -1,3 +1,5 @@
 *.o
 *.DS_Store
 bin/*
+*.2Dsysmatrix
+*.2Dprojection
