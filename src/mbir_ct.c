@@ -493,6 +493,29 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
 
     fprintf(stdout,"\n");
 
+    fprintf(stdout,"Filenames provided:\n");
+
+    if(cmdline->SinoParamsFileFlag)
+        fprintf(stdout,"   Sino params   = %s.sinoparams\n",cmdline->SinoParamsFile);
+    if(cmdline->ImageParamsFileFlag)
+        fprintf(stdout,"   Image params  = %s.imgparams\n",cmdline->ImageParamsFile);
+    if(cmdline->ReconParamsFileFlag)
+        fprintf(stdout,"   Recon params  = %s.reconparams\n",cmdline->ReconParamsFile);
+    if(cmdline->SinoDataFileFlag)
+        fprintf(stdout,"   Sinogram data = %s_sliceNNN.2Dsinodata\n",cmdline->SinoDataFile);
+    if(cmdline->SinoWeightsFileFlag)
+        fprintf(stdout,"   Weight data   = %s_sliceNNN.2Dweightdata\n",cmdline->SinoWeightsFile);
+    if(cmdline->ReconImageFileFlag)
+        fprintf(stdout,"   Output images = %s_sliceNNN.2Dimgdata\n",cmdline->ReconImageFile);
+    if(cmdline->readInitImageFlag)
+        fprintf(stdout,"   Initial image = %s_sliceNNN.2Dimgdata\n",cmdline->InitImageFile);
+    if(cmdline->SysMatrixFileFlag)
+        fprintf(stdout,"   System matrix = %s.2Dsysmatrix\n",cmdline->SysMatrixFile);
+    if(cmdline->readInitProjectionFlag)
+        fprintf(stdout,"   Initial projection = %s.2Dprojection\n",cmdline->inputProjectionFile);
+    if(cmdline->writeProjectionFlag)
+        fprintf(stdout,"   Output projection = %s_sliceNNN.2Dprojection\n",cmdline->outputProjectionFile);
+
 }
 
 
