@@ -17,10 +17,13 @@ cd "$(dirname $0)"
 execdir="../bin"
 
 dataDir="../../mbir-demos"
-
 dataName="shepp"
 #dataName="xradia"
-[[ "$#" -gt 0 ]] && dataName="$1"
+
+if [[ "$#" -gt 0 ]]; then
+  dataDir="$(dirname $1)"
+  dataName="$(basename $1)"
+fi
 
 parName="$dataDir/$dataName/par/$dataName"
 sinoName="$dataDir/$dataName/sino/$dataName"
@@ -77,6 +80,8 @@ if [[ ! -f "$matName.2Dsysmatrix" ]]; then
 else
    echo "System matrix file found: $matName.2Dsysmatrix"
 fi
+
+touch $matName.lastused
 
 ### RECONSTRUCTION STAGE
 

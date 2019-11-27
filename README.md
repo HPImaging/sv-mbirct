@@ -1,24 +1,26 @@
 # sv-mbirct
 
-### HIGH PERFORMANCE MODEL BASED IMAGE RECONSTRUCTION FOR PARALLEL-BEAM COMPUTED TOMOGRAPHY
-*Optimized for Intel multi-core processors
+### HIGH PERFORMANCE MODEL BASED IMAGE RECONSTRUCTION (MBIR) </br> FOR PARALLEL-BEAM COMPUTED TOMOGRAPHY
+*Optimized for Intel multi-core processors*
 
-Source code available at:
-
-     https://github.com/sjkisner/sv-mbirct
+Source code available at:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+https://github.com/sjkisner/sv-mbirct
 
 Demo scripts and data files for running this program are available
-for download under a separate repository:
+for download under a separate repository:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+https://github.com/sjkisner/mbir-demos
 
-     https://github.com/sjkisner/mbir-demos
-
-Further references on MBIR and the technology for the high-performance implementation used in this
+Further references on MBIR and the technology in the high-performance implementation of this
 code can be found at the bottom of this page, in the documentation accompanying the OpenMBIR
-project and on Charles Bouman's website:
-
-     https://github.com/cabouman/OpenMBIR
-     http://engineering.purdue.edu/~bouman/publications/pub_tomography.html
-     http://engineering.purdue.edu/~bouman/publications/pub_security.html
+project and on Charles Bouman's website:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+https://github.com/cabouman/OpenMBIR  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+http://engineering.purdue.edu/~bouman/publications/pub_tomography.html  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+http://engineering.purdue.edu/~bouman/publications/pub_security.html
 
 ## SYSTEM REQUIREMENTS
 
@@ -27,18 +29,22 @@ project and on Charles Bouman's website:
 
 ## COMPILING
 
-1. From a terminal prompt, cd into the "src/" folder and type "make". If
-compiling is successful the binary "mbir_ct" will be created and moved into
-the "bin/" folder.
+1. From a terminal prompt, enter the *src* folder and type *make*. If
+compiling is successful the binary *mbir_ct* will be created and moved into
+the *bin* folder. 
+```
+cd src  
+make
+```
 
 Note: Initially after installing Parallel Studio XE, there may be complaints
 of missing libraries when linking and running the code.
 This is usually resolved by executing the following line, which should be
 included in your .profile (or .bashrc, or whatever relevant resource file
-is executed when a shell is launched).
-
-     source /opt/intel/bin/compilervars.sh intel64
-
+is executed each time a shell is launched).
+```
+source /opt/intel/bin/compilervars.sh intel64
+```
 The path above assumes the install point for Parallel Studio XE was "/opt",
 which is the default for Linux and macOS. If not, you may need to poke around
 to find the location of "compilervars.sh".
@@ -52,15 +58,15 @@ To print a usage statement:
 The program is able to run completely with a single command call, but it's 
 usually preferrable to run the reconstruction in two stages. In the 
 first stage, the sytem matrix is precomputed and stored, and the second
-stage is the reconstruction itself. Both stages use the executable "mbir_ct".
-The system matrix can take significant time to compute,
+stage is the reconstruction itself. Both stages use the executable *mbir_ct*.
+The system matrix can take a significant time to compute,
 however the matrix is fixed for a given geometry and data/image 
-dimensions so the matrix file can be reused for any scan that uses the 
+dimensions, so the matrix file can be reused for any scan that uses the 
 same sinogram and image parameters.
 
 (Note the accompanying demo scripts include a utility that detects whether
 the necessary sytem matrix file has already been computed and is available, 
-given the input img/sino parameters, and the script automatically reads
+given the input image/sino parameters, and the script automatically reads
 the file if available, or computes/stores it if not.)
 
 ### Stage 1: Compute and store the System Matrix (and initial projection)
@@ -78,23 +84,23 @@ of the file names but should be omitted from the command line.
 In the last line that includes both -f and -t arguments, the initial 
 projection of the initial condition provided by -t is computed and 
 saved to a file(s). Further description of data/image filenames is provided
-below.
+further down.
 
 Examples: (written as if file names have been assigned 
            to variables in a shell script)
 
-To compute/write the system matrix, and the projection of default initial condition:  
-  
-     ./mbir_ct -i $parName -j $parName -m $matName -f $matName
+To compute/write the system matrix and the projection of default initial condition:  
+
+    ./mbir_ct -i $parName -j $parName -m $matName -f $matName
 
 To compute/write only the system matrix:  
  
-     ./mbir_ct -i $parName -j $parName -m $matName
+    ./mbir_ct -i $parName -j $parName -m $matName
 
-Similar to above but initial projection is for supplied input image (-t):  
-     
-     ./mbir_ct -i $parName -j $parName -m $matName \
-         -f proj/$imgName -t init/$imgName
+
+Similar to the above but initial projection is computed for the supplied input image (-t):  
+
+    ./mbir_ct -i $parName -j $parName -m $matName -f proj/$imgName -t init/$imgName
 
 The -m option can be omitted if you only want to compute/store the
 projection, however the system matrix will need to be computed in any case.
@@ -121,8 +127,8 @@ projection, however the system matrix will need to be computed in any case.
 
 Examples:
 
-     ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-         -w $wgtNname -r $recName -m $matName -e $projName
+    ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
+       -w $wgtNname -r $recName -m $matName -e $projName
 
 If either -m or -e are omitted, the corresponding entity (matrix or
 projection) will be computed prior to starting the reconstruction.
@@ -132,21 +138,23 @@ the -p argument is included (Plug & Play).
 ### Useful forms for Plug & Play mode
 
 The program can perform the Proximal Map reconstruction step for
-Plug & Play MBIR. The argument -t specifies initial image state.
+Plug & Play MBIR. The argument -t specifies the initial image state,
+and the -r argument specifies the output.
 
-The following example writes out to the same files (-r) as the initial
-condition (-t) but these file names can be different.
+The following example uses the same file names for the input 
+(initial state) and the output. These file names can be different
+if you want to save the intermediate image state in each PnP cycle.
 
-      ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-         -w $wgtName -m $matName -p $proxmapName -t $imgName -r $imgName
+    ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
+       -w $wgtName -m $matName -p $proxmapName -t $imgName -r $imgName
 
 The following form also reads in the projection (-e) of the input image state,
 and writes out the projection of the final image state (-f) so that the
-projection doesn't have to be re-computed in each mbir_ct call.
+projection doesn't have to be re-computed in each *mbir_ct* call.
 
-      ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-         -w $wgtName -m $matName -p $proxmapName -t $imgName -r $imgName \
-         -e $projName -f $projName
+    ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
+       -w $wgtName -m $matName -p $proxmapName -t $imgName -r $imgName \
+       -e $projName -f $projName
 
 ## DESCRIPTION OF DATA FILES
 
