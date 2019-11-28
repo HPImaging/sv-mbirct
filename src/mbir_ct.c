@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 	if(cmdline.readAmatrixFlag)
 	{
 		fprintf(stdout,"Reading system matrix...\n");
-		sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);
+		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
 		readAmatrix(fname, A_Padded_Map, max_num_pointer, &Image.imgparams, &sinogram.sinoparams, svpar);
 	}
 	else
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 	if(cmdline.writeAmatrixFlag)
 	{
 		fprintf(stdout,"Writing system matrix...\n");
-		sprintf(fname,"%s.2Dsysmatrix",cmdline.SysMatrixFile);
+		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
 		writeAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,svpar);
 	}
 
@@ -510,7 +510,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     if(cmdline->readInitImageFlag)
         fprintf(stdout,"   Initial image = %s_sliceNNN.2Dimgdata\n",cmdline->InitImageFile);
     if(cmdline->SysMatrixFileFlag)
-        fprintf(stdout,"   System matrix = %s.2Dsysmatrix\n",cmdline->SysMatrixFile);
+        fprintf(stdout,"   System matrix = %s.2Dsvmatrix\n",cmdline->SysMatrixFile);
     if(cmdline->readInitProjectionFlag)
         fprintf(stdout,"   Initial projection = %s.2Dprojection\n",cmdline->inputProjectionFile);
     if(cmdline->writeProjectionFlag)
@@ -586,7 +586,7 @@ void printCmdLineUsage(char *ExecFileName)
     fprintf(stdout,"  %s\n",ExecFileName);
     fprintf(stdout,"\t-i <filename>[.imgparams]    : Input image parameters\n");
     fprintf(stdout,"\t-j <filename>[.sinoparams]   : Input sinogram parameters\n");
-    fprintf(stdout,"\t-m <filename>[.2Dsysmatrix]  : Output matrix file\n");
+    fprintf(stdout,"\t-m <filename>[.2Dsvmatrix]  : Output matrix file\n");
     fprintf(stdout,"    (following are optional)\n");
 //  fprintf(stdout,"***80 columns*******************************************************************\n\n");
     fprintf(stdout,"\t-f <baseFilename>            : Output projection of default or input IC\n");
@@ -608,7 +608,7 @@ void printCmdLineUsage(char *ExecFileName)
     fprintf(stdout,"\t-p <baseFilename>            : Proximal map image(s) for Plug & Play\n");
     fprintf(stdout,"\t                             : ** -p specifies to use proximal prior\n");
     fprintf(stdout,"\t                             : ** generally use with -t -e -f\n");
-    fprintf(stdout,"\t-m <filename>[.2Dsysmatrix]  : INPUT matrix file (params must match!)\n");
+    fprintf(stdout,"\t-m <filename>[.2Dsvmatrix]  : INPUT matrix file (params must match!)\n");
     fprintf(stdout,"\t-t <baseFilename>            : Input initial condition image(s)\n");
     fprintf(stdout,"\t-e <baseFilename>            : Input projection of initial condition\n");
     fprintf(stdout,"\t                             : ** default IC if -t not specified\n");

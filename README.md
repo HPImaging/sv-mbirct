@@ -20,7 +20,9 @@ https://github.com/cabouman/OpenMBIR
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 http://engineering.purdue.edu/~bouman/publications/pub_tomography.html  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-http://engineering.purdue.edu/~bouman/publications/pub_security.html
+http://engineering.purdue.edu/~bouman/publications/pub_security.html  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+http://engineering.purdue.edu/~bouman/publications/pdf/MBIP-book.pdf
 
 ## SYSTEM REQUIREMENTS
 
@@ -39,7 +41,7 @@ make
 
 Note: Initially after installing Parallel Studio XE, there may be complaints
 of missing libraries when linking and running the code.
-This is usually resolved by executing the following line, which should be
+Most issues can be resolved by executing the following line, which should be
 included in your .profile (or .bashrc, or whatever relevant resource file
 is executed each time a shell is launched).
 ```
@@ -89,7 +91,7 @@ further down.
 Examples: (written as if file names have been assigned 
            to variables in a shell script)
 
-To compute/write the system matrix and the projection of default initial condition:  
+To compute/write the system matrix and the projection of the default initial condition:  
 
     ./mbir_ct -i $parName -j $parName -m $matName -f $matName
 
@@ -98,7 +100,7 @@ To compute/write only the system matrix:
     ./mbir_ct -i $parName -j $parName -m $matName
 
 
-Similar to the above but initial projection is computed for the supplied input image (-t):  
+Similar to the above but the initial projection is computed for the supplied input image (-t):  
 
     ./mbir_ct -i $parName -j $parName -m $matName -f proj/$imgName -t init/$imgName
 
@@ -132,18 +134,18 @@ Examples:
 
 If either -m or -e are omitted, the corresponding entity (matrix or
 projection) will be computed prior to starting the reconstruction.
-The default prior model is a QGGMRF with a 10-pt 3D neighborhood, unless
+The default prior model is a q-QGGMRF with a 10-pt 3D neighborhood, unless
 the -p argument is included (Plug & Play).
 
 ### Useful forms for Plug & Play mode
 
-The program can perform the Proximal Map reconstruction step for
-Plug & Play MBIR. The argument -t specifies the initial image state,
+The program can perform the inversion step for Plug & Play MBIR. 
+The argument -t specifies the initial image state,
 and the -r argument specifies the output.
 
 The following example uses the same file names for the input 
 (initial state) and the output. These file names can be different
-if you want to save the intermediate image state in each PnP cycle.
+if you want to save the intermediate image state in each ADMM iteration.
 
     ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
        -w $wgtName -m $matName -p $proxmapName -t $imgName -r $imgName
@@ -159,10 +161,12 @@ projection doesn't have to be re-computed in each *mbir_ct* call.
 ## DESCRIPTION OF DATA FILES
 
 For a description of the file contents for all the data and parameter
-files used in this program, see the OpenMBIR documentation referenced
-at the top of this readme.
-In all the arguments specifying a basename for sinogram or image data,
-the relevant 3D data is split across files, one file per slice.
+files used in this program, see the documentation in the OpenMBIR project
+referenced at the top of this readme, directly linked to 
+[here](https://github.com/cabouman/OpenMBIR/raw/master/Documentation/MBIR-Modular-specification.docx).
+
+In all the *mbir_ct* command arguments specifying a basename for sinogram or image data,
+the associated 3D data is split across files, one file per slice.
 The file naming convention is as follows, depending on the file type:
 
      <basename>_sliceNNN.2Dimgdata
@@ -175,13 +179,37 @@ that include leading zeros and no spaces (e.g. 0000 to 1023). The number of
 digits used for the slice index is flexible (up to 4) but must be consistent
 across all the files used in a given reconstruction call.
 
+For example, one of the 
+[demos](https://github.com/sjkisner/mbir-demos)
+contains a subvolume of a microCT scan in following data files:
+
+     xradia_slice0700.2Dsinodata
+     xradia_slice0701.2Dsinodata
+     xradia_slice0702.2Dsinodata
+     xradia_slice0703.2Dsinodata
+
+The reconstruction produces the following output files:
+
+     xradia_slice0700.2Dimgdata
+     xradia_slice0701.2Dimgdata
+     xradia_slice0702.2Dimgdata
+     xradia_slice0703.2Dimgdata
+
+The names *xradia_slice700.2Dsinodata*, *xradia_slice701.2Dsinodata*, etc., would 
+also have worked if that were used consistently with all the associated data and image
+files.  
+
 
 ## References
 
-Xiao Wang, Amit Sabne, Putt Sakdhnagool, Sherman J. Kisner, Charles A. Bouman, and Samuel P. Midkiff, "Massively Parallel 3D Image Reconstruction," Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC'17), November 13-16, 2017. (One of three finalists for 2017 ACM Gordon Bell Prize.)
+##### Xiao Wang, Amit Sabne, Putt Sakdhnagool, Sherman J. Kisner, Charles A. Bouman, and Samuel P. Midkiff, "Massively Parallel 3D Image Reconstruction," *Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC'17)*, November 13-16, 2017. (One of three finalists for 2017 ACM Gordon Bell Prize.)
 
-Amit Sabne, Xiao Wang, Sherman J. Kisner, Charles A. Bouman, Anand Raghunathan, and Samuel P. Midkiff, "Model-based Iterative CT Imaging Reconstruction on GPUs," 22nd ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP '17), February 4-8, 2017.
+##### Amit Sabne, Xiao Wang, Sherman J. Kisner, Charles A. Bouman, Anand Raghunathan, and Samuel P. Midkiff, "Model-based Iterative CT Imaging Reconstruction on GPUs," *22nd ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP '17)*, February 4-8, 2017.
 
-Xiao Wang, K. Aditya Mohan, Sherman J. Kisner, Charles Bouman, and Samuel Midkiff, "Fast voxel line update for time-space image reconstruction," Proceedings of the IEEE International Conference on Acoustics Speech and Signal Processing (ICASSP), pp. 1209-1213, March 20-25, 2016.
+##### Xiao Wang, K. Aditya Mohan, Sherman J. Kisner, Charles Bouman, and Samuel Midkiff, "Fast voxel line update for time-space image reconstruction," *Proceedings of the IEEE International Conference on Acoustics Speech and Signal Processing (ICASSP)*, pp. 1209-1213, March 20-25, 2016.
 
-Xiao Wang, Amit Sabne, Sherman Kisner, Anand Raghunathan, Charles Bouman, and Samuel Midkiff, "High Performance Model Based Image Reconstruction," 21st ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP '16), March 12-16, 2016. 
+##### Xiao Wang, Amit Sabne, Sherman Kisner, Anand Raghunathan, Charles Bouman, and Samuel Midkiff, "High Performance Model Based Image Reconstruction," *21st ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP '16)*, March 12-16, 2016. 
+
+##### Suhas Sreehari, S. Venkat Venkatakrishnan, Brendt Wohlberg, Gregery T. Buzzard, Lawrence F. Drummy, Jeffrey P. Simmons, and Charles A. Bouman, "Plug-and-Play Priors for Bright Field Electron Tomography and Sparse Interpolation," *IEEE Transactions on Computational Imaging*, vol. 2, no. 4, Dec. 2016. 
+
+##### Jean-Baptiste Thibault, Ken Sauer, Charles Bouman, and Jiang Hsieh, "A Three-Dimensional Statistical Approach to Improved Image Quality for Multi-Slice Helical CT," *Medical Physics*, pp. 4526-4544, vol. 34, no. 11, November 2007.
