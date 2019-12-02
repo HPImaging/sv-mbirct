@@ -77,7 +77,7 @@ the file if available, or computes/stores it if not.)
        -i <basename>[.imgparams]     : Input image parameters
        -j <basename>[.sinoparams]    : Input sinogram parameters
     (plus one or more of the following)
-       -m <basename>[.2Dsysmatrix]   : Output matrix file
+       -m <basename>[.2Dsvmatrix]   : Output matrix file
        -f <basename>[.2Dprojection]  : Output projection of default or input IC
        -f <basename>[_sliceNNN.2Dprojection] -t <basename>[_sliceNNN.2Dimgdata]
 
@@ -118,7 +118,7 @@ projection, however the system matrix will need to be computed in any case.
        -w <basename>[_sliceNNN.2Dweightdata] : Input sinogram weight file(s)
        -r <basename>[_sliceNNN.2Dimgdata]  : Output reconstructed image file(s)
     (following are optional)
-       -m <basename>[.2Dsysmatrix]         : INPUT matrix (params must match!)
+       -m <basename>[.2Dsvmatrix]          : INPUT matrix (params must match!)
        -t <basename>[_sliceNNN.2Dimgdata]  : Input initial condition image(s)
        -e <basename>[_sliceNNN.2Dprojection] : Input projection of init. cond.
                                            : ** default IC if -t not specified
@@ -158,46 +158,41 @@ projection doesn't have to be re-computed in each *mbir_ct* call.
        -w $wgtName -m $matName -p $proxmapName -t $imgName -r $imgName \
        -e $projName -f $projName
 
-## DESCRIPTION OF DATA FILES
+## DESCRIPTION OF PARAMETER AND DATA FILES
 
-For a description of the file contents for all the data and parameter
+For a detailed description of the contents and format for all the data and parameter
 files used in this program, see the documentation in the OpenMBIR project
 referenced at the top of this readme, directly linked to 
 [here](https://github.com/cabouman/OpenMBIR/raw/master/Documentation/MBIR-Modular-specification.docx).
+Also see the [demos](https://github.com/sjkisner/mbir-demos)
+for specific examples.
 
-In all the *mbir_ct* command arguments specifying a basename for sinogram or image data,
+The following parameter files are required, all in simple text:
+
+     <basename>.sinoparams  
+     <basename>.imgparams  
+     <basename>.reconparams  
+     <view_angles_file.txt>
+
+Note these show the same generic *basename* but the names of all
+the input files are independent as they're specified in different
+arguments in the command line.
+
+For the files containing sinogram or image data,
 the associated 3D data is split across files, one file per slice.
-The file naming convention is as follows, depending on the file type:
+The naming convention for the different files is as follows:
 
      <basename>_sliceNNN.2Dimgdata
      <basename>_sliceNNN.2Dsinodata
      <basename>_sliceNNN.2Dweightdata
      <basename>_sliceNNN.2Dprojection
 
-where "NNN" is a slice index. The slice indices must be non-negative integers
-that include leading zeros and no spaces (e.g. 0000 to 1023). The number of
-digits used for the slice index is flexible (up to 4) but must be consistent
-across all the files used in a given reconstruction call.
+where "NNN" is a slice index. The slice indices must be a non-negative 
+integer sequence, where the indices include leading zeros and no 
+spaces (e.g. 0000 to 0513). 
+The number of digits used for the slice indices is flexible (up to 4) 
+but must be consistent across all the files used in a given reconstruction call.
 
-For example, one of the 
-[demos](https://github.com/sjkisner/mbir-demos)
-contains a subvolume of a microCT scan in following data files:
-
-     xradia_slice0700.2Dsinodata
-     xradia_slice0701.2Dsinodata
-     xradia_slice0702.2Dsinodata
-     xradia_slice0703.2Dsinodata
-
-The reconstruction produces the following output files:
-
-     xradia_slice0700.2Dimgdata
-     xradia_slice0701.2Dimgdata
-     xradia_slice0702.2Dimgdata
-     xradia_slice0703.2Dimgdata
-
-The names *xradia_slice700.2Dsinodata*, *xradia_slice701.2Dsinodata*, etc., would 
-also have worked if that were used consistently with all the associated data and image
-files.  
 
 
 ## References
