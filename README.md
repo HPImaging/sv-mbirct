@@ -60,11 +60,15 @@ To print a usage statement:
 The program is able to run completely with a single command call, but it's 
 usually preferrable to run the reconstruction in two stages. In the 
 first stage, the sytem matrix is precomputed and stored, and the second
-stage is the reconstruction itself. Both stages use the executable *mbir_ct*.
+stage performs the actual reconstruction. 
+Both stages use the executable *mbir_ct*.
 The system matrix can take a significant time to compute,
 however the matrix is fixed for a given geometry and data/image 
 dimensions, so the matrix file can be reused for any scan that uses the 
 same sinogram and image parameters.
+The initial stage can also pre-compute 
+the forward projection of the default initial condition (constant image)
+to save additional time in the reconstruction stage.
 
 (Note the accompanying demo scripts include a utility that detects whether
 the necessary sytem matrix file has already been computed and is available, 

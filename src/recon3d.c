@@ -439,6 +439,7 @@ void super_voxel_recon(
 	int Nx = imgparams.Nx;
 	int Ny = imgparams.Ny;
 	int Nz = imgparams.Nz;
+	char PositivityFlag = reconparams.Positivity;
 
 	int SVLength = svpar.SVLength;
 	int overlappingDistance = svpar.overlap;
@@ -748,7 +749,10 @@ void super_voxel_recon(
 
 			pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
 
-			image[startSlice+currentSlice][j_new*Nx+k_new]= ((pixel < 0.0) ? 0.0 : pixel);  
+			if(PositivityFlag)
+				image[startSlice+currentSlice][j_new*Nx+k_new] = ((pixel < 0.0) ? 0.0 : pixel);
+			else
+				image[startSlice+currentSlice][j_new*Nx+k_new] = pixel;
 
 			diff[currentSlice] = image[startSlice+currentSlice][j_new*Nx+k_new] - tempV[currentSlice];
 
