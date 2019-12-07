@@ -168,6 +168,8 @@ int FreeImageData2D(
 /* Returns number of digits, or 0 if no readable files found */
 int NumSinoSliceDigits(char *basename, int slice);
 
+/* Compute sinogram weights */
+void ComputeSinoWeights(struct Sino3DParallel sinogram, struct ReconParams reconparams);
 
 
 #endif /* MBIR_MODULAR_UTILS_H */

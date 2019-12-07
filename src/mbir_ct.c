@@ -183,7 +183,10 @@ int main(int argc, char *argv[])
 		/* Allocate and Read sinogram data */
 		AllocateSinoData3DParallel(&sinogram);
 		ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
-		ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
+		if(cmdline.SinoWeightsFileFlag)
+			ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
+		else
+			ComputeSinoWeights(sinogram,reconparams);
 
 		/* Read Proximal map if necessary */
 		if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
@@ -453,6 +456,8 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             fprintf(stdout," *** See help (-m option)\n");
         //  fprintf(stdout,"***80 columns*******************************************************************\n\n");
         }
+        if(!cmdline->SinoWeightsFileFlag)
+            fprintf(stdout,"-> will compute sinogram weights internally (no file provided)\n");
         if(cmdline->readInitImageFlag)
             fprintf(stdout,"-> will read initial condition from file(s)\n");
         if(cmdline->readInitProjectionFlag)
@@ -463,10 +468,11 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             fprintf(stdout," *** NOTE you may save run time by pre-computing the initial projection\n");
             fprintf(stdout," *** See help (-e option)\n");
         }
+
         if(cmdline->writeProjectionFlag)
             fprintf(stdout,"-> will save projection of output image state to file(s)\n");
 
-        if(!cmdline->ReconParamsFileFlag || !cmdline->SinoDataFileFlag || !cmdline->SinoWeightsFileFlag)
+        if(!cmdline->ReconParamsFileFlag || !cmdline->SinoDataFileFlag)
         {
             fprintf(stderr,"Error: Either input data or reconstruction parameters weren't specified\n");
             fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
@@ -514,7 +520,10 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     if(cmdline->readInitProjectionFlag)
         fprintf(stdout,"   Initial projection = %s.2Dprojection\n",cmdline->inputProjectionFile);
     if(cmdline->writeProjectionFlag)
-        fprintf(stdout,"   Output projection = %s_sliceNNN.2Dprojection\n",cmdline->outputProjectionFile);
+        if(cmdline->readInitImageFlag)
+            fprintf(stdout,"   Output projection = %s_sliceNNN.2Dprojection\n",cmdline->outputProjectionFile);
+        else
+            fprintf(stdout,"   Output projection = %s.2Dprojection\n",cmdline->outputProjectionFile);
 
 }
 

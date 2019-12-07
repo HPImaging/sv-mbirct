@@ -315,7 +315,7 @@ void printReconParamsQGGMRF3D(struct ReconParams *reconparams)
     fprintf(stdout, " - Q-GGMRF Prior Parameter, p                            = %f\n", reconparams->q);
     fprintf(stdout, " - Q-GGMRF Prior Parameter, T                            = %f\n", reconparams->T);
     fprintf(stdout, " - Prior Regularization parameter, SigmaX                = %.7f (mm^-1)\n", reconparams->SigmaX);
-    fprintf(stdout, " - Scaling for weight matrix, SigmaY (W <- W/SigmaY^2)   = %.7f (mm^-1)\n", reconparams->SigmaY);
+    fprintf(stdout, " - Scaling for sino weights, SigmaY (W=exp(-y)/SigmaY^2) = %.7f (mm^-1)\n", reconparams->SigmaY);
     fprintf(stdout, " - Prior weight for nearest neighbors within slice       = %.7f\n", reconparams->b_nearest);
     fprintf(stdout, " - Prior weight for diagonal neighbors within slice      = %.7f\n", reconparams->b_diag);
     fprintf(stdout, " - Prior weight for nearest neighbors in adjacent slices = %.7f\n", reconparams->b_interslice);
@@ -330,7 +330,7 @@ void printReconParamsPandP(struct ReconParams *reconparams)
     fprintf(stdout, "RECONSTRUCTION/PRIOR PARAMETERS:\n");
     fprintf(stdout, " - Prior Type                                            = Plug & Play\n");
     fprintf(stdout, " - Regularization parameter for Proximal Map, SigmaX     = %.7f (mm^-1)\n", reconparams->SigmaX);
-    fprintf(stdout, " - Scaling for weight matrix, SigmaY (W <- W/SigmaY^2)   = %.7f (mm^-1)\n", reconparams->SigmaY);
+    fprintf(stdout, " - Scaling for sino weights, SigmaY (W=exp(-y)/SigmaY^2) = %.7f (mm^-1)\n", reconparams->SigmaY);
     fprintf(stdout, " - Stop threshold for convergence                        = %.7f %%\n", reconparams->StopThreshold);
     fprintf(stdout, " - Maximum number of ICD iterations                      = %d\n", reconparams->MaxIterations);
     fprintf(stdout, " - Positivity constraint flag                            = %d\n", reconparams->Positivity);
@@ -365,6 +365,7 @@ int ReadReconParams(
 	reconparams->T=0.1;
 	reconparams->SigmaX=0.02;
 	reconparams->SigmaY=1.0;
+	reconparams->weightType=1;
 
 	strcpy(fname,basename);
 	strcat(fname,".reconparams");
@@ -456,6 +457,14 @@ int ReadReconParams(
 				fprintf(stderr,"Warning in %s: SigmaY parameter should be positive. Reverting to default.\n",fname);
 			else
 				reconparams->SigmaY = fieldval_f;
+		}
+		else if(strcmp(fieldname,"weightType")==0)
+		{
+			sscanf(fieldval_s,"%d",&(fieldval_d));
+			if((fieldval_d < 0) || (fieldval_d > 2))
+				fprintf(stderr,"Warning in %s: Valid weightType is 0, 1, or 2. Reverting to default.\n",fname);
+			else
+				reconparams->weightType = fieldval_d;
 		}
 		else if(strcmp(fieldname,"b_nearest")==0)
 		{
@@ -983,5 +992,40 @@ int NumSinoSliceDigits(char *basename, int slice)
     }
     return(Ndigits);
 }
+
+
+/* Compute sinogram weights */
+void ComputeSinoWeights(
+	struct Sino3DParallel sinogram,
+	struct ReconParams reconparams)
+{
+    int i,j;
+    int NSlices = sinogram.sinoparams.NSlices;
+    int M = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
+    float ** y = sinogram.sino;
+    float ** w = sinogram.weight;
+    float SigmaYsq = reconparams.SigmaY * reconparams.SigmaY;
+
+    if(reconparams.weightType==2)
+    {
+        for(i=0;i<NSlices;i++)
+        for(j=0;j<M;j++)
+            w[i][j] = expf(-y[i][j]/2.0f)/SigmaYsq;
+    }
+    else if(reconparams.weightType==1)
+    {
+        for(i=0;i<NSlices;i++)
+        for(j=0;j<M;j++)
+            w[i][j] = expf(-y[i][j])/SigmaYsq;
+    }
+    else
+    {
+        for(i=0;i<NSlices;i++)
+        for(j=0;j<M;j++)
+            w[i][j] = 1.0f/SigmaYsq;
+    }
+
+}
+
 
 

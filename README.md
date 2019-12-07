@@ -119,10 +119,10 @@ projection, however the system matrix will need to be computed in any case.
        -j <basename>[.sinoparams]          : Input sinogram parameters
        -k <basename>[.reconparams]         : Input reconstruction parameters
        -s <basename>[_sliceNNN.2Dsinodata] : Input sinogram projection file(s)
-       -w <basename>[_sliceNNN.2Dweightdata] : Input sinogram weight file(s)
        -r <basename>[_sliceNNN.2Dimgdata]  : Output reconstructed image file(s)
     (following are optional)
        -m <basename>[.2Dsvmatrix]          : INPUT matrix (params must match!)
+       -w <basename>[_sliceNNN.2Dweightdata] : Input sinogram weight file(s)
        -t <basename>[_sliceNNN.2Dimgdata]  : Input initial condition image(s)
        -e <basename>[_sliceNNN.2Dprojection] : Input projection of init. cond.
                                            : ** default IC if -t not specified
