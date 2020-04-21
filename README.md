@@ -5,18 +5,18 @@
 
 Source code available at:  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-https://github.com/sjkisner/sv-mbirct
+https://github.com/HPImaging/sv-mbirct
 
 Demo scripts and data files for running this program are available
 for download under a separate repository:  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-https://github.com/sjkisner/mbir-demos
+https://github.com/HPImaging/mbir-demos
 
 Further references on MBIR and the technology in the high-performance implementation of this
 code can be found at the bottom of this page, in the documentation accompanying the OpenMBIR
 project and on Charles Bouman's website:  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-https://github.com/cabouman/OpenMBIR  
+https://github.com/cabouman/OpenMBIR-ParBeam  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 http://engineering.purdue.edu/~bouman/publications/pub_tomography.html  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -168,7 +168,7 @@ For a detailed description of the contents and format for all the data and param
 files used in this program, see the documentation in the OpenMBIR project
 referenced at the top of this readme, directly linked to 
 [here](https://github.com/cabouman/OpenMBIR/raw/master/Documentation/MBIR-Modular-specification.docx).
-Also see the [demos](https://github.com/sjkisner/mbir-demos)
+Also see the [demos](https://github.com/HPImaging/mbir-demos)
 for specific examples.
 
 The following parameter files are required, all in simple text:
