@@ -3,7 +3,7 @@
 # This is a script for running the "sv-mbirct" program for 
 # parallel beam computed tomography. Specifically, it will 
 # reconstruct sample data available for download at 
-# "http://github.com/sjkisner/mbir-demos.git".
+# "http://github.com/HPImaging/mbir-demos.git".
 #
 # More information on the command line usage can be found
 # in the Readme file, and also by running "./mbir_ct -help".
