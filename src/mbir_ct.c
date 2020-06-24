@@ -433,8 +433,15 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
         if(cmdline->SysMatrixFileFlag)
             cmdline->writeAmatrixFlag=1;
 
-        if(cmdline->writeProjectionFlag && cmdline->readInitImageFlag)
+        /* Case where we just want to apply projector to an input image */
+        /* Here, if matrix file is given take it as an input (so it must be pre-computed in this case) */
+        if(cmdline->writeProjectionFlag && cmdline->readInitImageFlag) {
             cmdline->writeProjectionFlag=2;  /* this means write full multi-slice projection */
+            if(cmdline->SysMatrixFileFlag) {
+                cmdline->writeAmatrixFlag=0;
+                cmdline->readAmatrixFlag=1;
+            }
+        }
     }
 
     /* Print output and check errors of above parsing sequence  */
@@ -464,7 +471,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             fprintf(stdout,"-> will read projection of initial condition\n");
         else
         {
-            fprintf(stdout,"-> will compute forward project of initial condition\n");
+            fprintf(stdout,"-> will compute forward projection of initial condition\n");
             fprintf(stdout," *** NOTE you may save run time by pre-computing the initial projection\n");
             fprintf(stdout," *** See help (-e option)\n");
         }
