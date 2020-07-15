@@ -757,7 +757,7 @@ void super_voxel_recon(
 			diff[currentSlice] = image[startSlice+currentSlice][j_new*Nx+k_new] - tempV[currentSlice];
 
 			totalChange_loc += fabs(diff[currentSlice]);
-			totalValue_loc += tempV[currentSlice];
+			totalValue_loc += fabs(tempV[currentSlice]);
 			NumUpdates_loc++;
 
 			diff[currentSlice]=diff[currentSlice]*max*inverseNumber;
