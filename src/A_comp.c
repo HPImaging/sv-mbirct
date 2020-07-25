@@ -288,7 +288,12 @@ void A_piecewise(
 	int sum = svpar.Nsv;
 	int pieceLength = svpar.pieceLength;
 
+	#ifdef USING_ICC
 	int *order = (int *)_mm_malloc(svpar.Nsv*sizeof(int),64);
+	#else
+	int *order = (int *) aligned_alloc(64,svpar.Nsv*sizeof(int));
+	#endif
+
 	t=0;
 	for(i=0;i<Ny;i+=(svpar.SVLength*2-svpar.overlap))
 	for(j=0;j<Nx;j+=(svpar.SVLength*2-svpar.overlap)){
@@ -412,7 +417,7 @@ void A_piecewise(
                 }
             }            
 
-            #ifdef USE_INTEL_MEMCPY
+            #ifdef USING_ICC
             _intel_fast_memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*(sinoparams->NViews));
             _intel_fast_memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*(sinoparams->NViews));
             #else
@@ -525,7 +530,7 @@ void A_piecewise(
                 A_Padded_Map[jj][theVoxelPosition].pieceWiseMin = (int *)get_spc((sinoparams->NViews)/pieceLength,sizeof(int));
                 A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth = (int *)get_spc((sinoparams->NViews)/pieceLength,sizeof(int));
                 A_Padded_Map[jj][theVoxelPosition].length=totalSumArray[i];
-                #ifdef USE_INTEL_MEMCPY
+                #ifdef USING_ICC
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].val[0],&AMatrixPaddedTranspose[i][0],sizeof(unsigned char)*totalSumArray[i]);
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseMin[0],&piecewiseMinArray[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
@@ -545,7 +550,11 @@ void A_piecewise(
             free((void *)AMatrixPaddedTranspose);
         }
     
+	#ifdef USING_ICC
 	_mm_free(order);
+	#else
+	free(order);
+	#endif
 }
 
 

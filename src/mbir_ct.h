@@ -2,7 +2,15 @@
 #define _MBIRCT_H_
 
 
-//#define USE_INTEL_MEMCPY
+//This directive is set with the compiler option -DUSING_ICC
+//#define USING_ICC
+
+#ifdef USING_ICC
+    /* Can't find an Intel header that prototypes this, so adding it here to
+     * get rid of the compiler "implicit declaration" warnings */
+    void *_intel_fast_memcpy(void *dest, const void * src, size_t n);
+#endif
+
 //#define find_RMSE 
 
 #define SVLENGTH 9

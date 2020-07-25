@@ -1,7 +1,7 @@
 CC = icc
 
-#CFLAGS := -Wall -qopenmp -no-ansi-alias -restrict -xCORE-AVX2 -O3 -no-prec-div -ipo -inline-calloc -qopt-calloc
-CFLAGS := -O3
+CFLAGS := -DUSING_ICC
+CFLAGS := $(CFLAGS) -O3
 CFLAGS := $(CFLAGS) -xCORE-AVX2
 CFLAGS := $(CFLAGS) -no-prec-div
 CFLAGS := $(CFLAGS) -qopenmp
