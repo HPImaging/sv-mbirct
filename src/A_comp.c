@@ -106,19 +106,14 @@ void A_comp_ij(
 	static int first_call=1;
 	static int Ntheta, NChannels, N_x, N_y;
 	static float DeltaChannel, DeltaPix, t_0, x_0, y_0, dprof[LEN_DET];
-	int ind, ind_min, ind_max, pr;
-	int prof_ind, pix_prof_ind, pind, i, proj_count;
+	int ind_min, ind_max, pr;
+	int pix_prof_ind, i, proj_count;
 	float Aval, t_min, t_max, ang, x, y;
 	int k;
-	float d1, d2, z, t, const1, const2, const3, const4, sum;
-
-	float d_detector = 1000;
-	float d_source = 1000;
+	float t, const1, const2, const3, const4;
 
 	t = 0;
-	prof_ind = 0;
 	pix_prof_ind = 0;
-	sum = 0;
 
 	if (first_call == 1)
 	{
@@ -150,7 +145,7 @@ void A_comp_ij(
 
 		/* triangular profile */
 		/*
-		   sum=0;
+		   float sum=0;
 		   for(k=0;k<LEN_DET;k++) {
 		   if(k<=(LEN_DET-1)/2)
 		   dprof[k]=2.0*k/(LEN_DET-1);
@@ -174,7 +169,7 @@ void A_comp_ij(
 		int countTemp=proj_count;
 		int write=1;
 	        int minCount=0;
-		pind = pr*NChannels;
+		//pind = pr*NChannels;
 		ang = sinoparams->ViewAngles[pr];
 
 		//z = x*cos(ang) + y*sin(ang);
@@ -210,7 +205,7 @@ void A_comp_ij(
 
 		for (i = ind_min; i <= ind_max; i++)
 		{
-			ind = pind + i;
+			//ind = pind + i;
 
 		#ifdef WIDE_BEAM
 			/* step through values of detector profile, inner product with PIX prof */
@@ -226,7 +221,7 @@ void A_comp_ij(
 			}
 		#else
 			/*** this block computes zero-beam-width projection model ****/
-			prof_ind = LEN_PIX*(t_0+i*DeltaChannel+const3)/(2.0*DeltaPix);
+			int prof_ind = LEN_PIX*(t_0+i*DeltaChannel+const3)/(2.0*DeltaPix);
 
 			if (prof_ind >= LEN_PIX || prof_ind < 0)
 			{
@@ -505,8 +500,6 @@ void A_piecewise(
             }
 
             for(i=0;i<countNumber;i++){
-                int j_new= j_newCoordinate[i];
-                int k_new= k_newCoordinate[i];
                 unsigned char * A_padded_pointer=&AMatrixPadded[i][0];
                 unsigned char * A_padd_Tranpose_pointer =&AMatrixPaddedTranspose[i][0];
                 for (p = 0; p < (sinoparams->NViews)/pieceLength; p++)
@@ -572,7 +565,7 @@ struct pointerAddress A_comp(
 	char *recon_mask,
 	struct ImageParams3D *imgparams)
 {
-	int i, j, r, nr;
+	int i, j, r;
 	int col_length, n_x, n_y;
 
 	struct ACol A_col_sgl;
@@ -665,28 +658,49 @@ void readAmatrix(
 	}
 
 	for (i =0; i < sum ; i ++ ){
-	
-		fread(bandMinMap[i].bandMin,sizeof(int),sinoparams->NViews,fp);
-		fread(bandMaxMap[i].bandMax,sizeof(int),sinoparams->NViews,fp);	
-	
+		if(fread(bandMinMap[i].bandMin,sizeof(int),sinoparams->NViews,fp) < sinoparams->NViews) {
+			fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
+			exit(-1);
+		}
+		if(fread(bandMaxMap[i].bandMax,sizeof(int),sinoparams->NViews,fp) < sinoparams->NViews) {
+			fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
+			exit(-1);
+		}
+
 		for ( j = 0; j< (SVLength*2+1)*(SVLength*2+1) ; j ++)
 		{
-			fread(&M_nonzero, sizeof(int), 1, fp);
+			if(fread(&M_nonzero, sizeof(int), 1, fp) < 1) {
+				fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
+				exit(-1);
+			}
 			A_Padded_Map[i][j].length = M_nonzero;
-			if(M_nonzero > 0){	
-				A_Padded_Map[i][j].val = (unsigned char *)get_spc(M_nonzero, sizeof(unsigned char));					
+			if(M_nonzero > 0){
+				A_Padded_Map[i][j].val = (unsigned char *)get_spc(M_nonzero, sizeof(unsigned char));
 				A_Padded_Map[i][j].pieceWiseWidth=(int *)get_spc(sinoparams->NViews/pieceLength,sizeof(int));
 				A_Padded_Map[i][j].pieceWiseMin=(int *)get_spc(sinoparams->NViews/pieceLength,sizeof(int));
-			}	
+			}
 			if(M_nonzero > 0){
-				fread(A_Padded_Map[i][j].val, sizeof(unsigned char), M_nonzero, fp);			
-				fread(A_Padded_Map[i][j].pieceWiseMin,sizeof(int),(sinoparams->NViews)/pieceLength,fp);			
-				fread(A_Padded_Map[i][j].pieceWiseWidth,sizeof(int),(sinoparams->NViews)/pieceLength,fp);
+				if(fread(A_Padded_Map[i][j].val, sizeof(unsigned char), M_nonzero, fp) < M_nonzero) {
+					fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
+					exit(-1);
+				}
+				int num = (sinoparams->NViews)/pieceLength;
+				if(fread(A_Padded_Map[i][j].pieceWiseMin,sizeof(int),num,fp) < num) {
+					fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
+					exit(-1);
+				}
+				if(fread(A_Padded_Map[i][j].pieceWiseWidth,sizeof(int),num,fp) < num) {
+					fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
+					exit(-1);
+				}
 			}	
 		}
 	}
 	
-	fread(&max_num_pointer[0],sizeof(float),Nx*Ny,fp);	
+	if(fread(&max_num_pointer[0],sizeof(float),Nx*Ny,fp) < Nx*Ny) {
+		fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
+		exit(-1);
+	}
 
 	fclose(fp);
 }

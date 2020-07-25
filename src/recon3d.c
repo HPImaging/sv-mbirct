@@ -44,8 +44,8 @@ void MBIRReconstruct3D(
 {
 	int i,j,jj,p,t,it,it_print=1;
 	int NumMaskVoxels=0;
-	float **x;  /* image data */
-	float **y;  /* sinogram projections data */
+	//float **x;  /* image data */
+	//float **y;  /* sinogram projections data */
 	float **w;  /* projections weights data */
 	float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
 	float *voxelsBuffer2;
@@ -56,17 +56,15 @@ void MBIRReconstruct3D(
 	struct heap priorityheap;
 	initialize_heap(&priorityheap);
 	int *order;
-	struct timeval tm1,tm2;
+	//struct tm1,tm2;
 
-	x = Image->image;   /* x is the image vector */
-	y = sinogram->sino;  /* y is the sinogram vector */
+	//x = Image->image;   /* x is the image vector */
+	//y = sinogram->sino;  /* y is the sinogram vector */
 	w = sinogram->weight; /* vector of weights for each sinogram measurement */
 	int Nx = Image->imgparams.Nx;
 	int Ny = Image->imgparams.Ny;
 	int Nxy = Nx*Ny;
 	int Nz = Image->imgparams.Nz;
-	int NvNc = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels;
-	int NViews = sinogram->sinoparams.NViews;
 	int MaxIterations = reconparams.MaxIterations;
 	float StopThreshold = reconparams.StopThreshold;
 	int SVLength = svpar.SVLength;
@@ -75,9 +73,9 @@ void MBIRReconstruct3D(
 	int SV_per_Z = svpar.SV_per_Z;
 	int SVsPerLine = svpar.SVsPerLine;
 	int sum = svpar.Nsv;
-	int pieceLength = svpar.pieceLength;
-	struct minStruct * bandMinMap = svpar.bandMinMap;
-	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
+	//int pieceLength = svpar.pieceLength;
+	//struct minStruct * bandMinMap = svpar.bandMinMap;
+	//struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 
 	int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
 
@@ -579,8 +577,6 @@ void super_voxel_recon(
 
 	float *newWArrayPointer=&newWArray[0][0];
 	float *newEArrayPointer=&newEArray[0][0];
-
-	const int n_theta=sinoparams.NViews;
 
 	/*XW: copy the interlaced we into the memory buffer*/ 
 	for (p = 0; p < NViewsdivided; p++)

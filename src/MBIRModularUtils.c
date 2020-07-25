@@ -67,7 +67,8 @@ int ReadSinoParams3DParallel(
 	{
 		strcpy(fieldname," ");
 		strcpy(fieldval_s," ");
-		fgets(tag, 200, fp);
+		if(fgets(tag, 200, fp) == NULL)
+			return(-1);
 		ptr=strtok(tag,":\n\r");	// including the newline will keep it out of the last token
 		if(ptr!=NULL) {
 			//strcpy(fieldname,ptr);
@@ -228,7 +229,8 @@ int ReadImageParams3D(
 	{
 		strcpy(fieldname," ");
 		strcpy(fieldval_s," ");
-		fgets(tag, 200, fp);
+		if(fgets(tag, 200, fp) == NULL)
+			return(-1);
 		ptr=strtok(tag,":\n\r");	// including the newline will keep it out of the last token
 		if(ptr!=NULL) {
 			//strcpy(fieldname,ptr);
@@ -385,7 +387,8 @@ int ReadReconParams(
 	{
 		strcpy(fieldname," ");
 		strcpy(fieldval_s," ");
-		fgets(tag, 200, fp);
+		if(fgets(tag, 200, fp) == NULL)
+			return(-1);
 		ptr=strtok(tag,":\n\r");	// including the newline will keep it out of the last token
 		if(ptr!=NULL) {
 			//strcpy(fieldname,ptr);
@@ -851,7 +854,11 @@ int ReadSysMatrix2D(
     
     for (i = 0; i < Ncolumns; i++)
     {
-        fread(&Nnonzero, sizeof(int), 1, fp);
+        if(fread(&Nnonzero, sizeof(int), 1, fp) != 1)
+        {
+            fprintf(stderr, "ERROR in ReadSysMatrix2D: file terminated early %s.\n", fname);
+            exit(-1);
+        }
         A->column[i].Nnonzero = Nnonzero;
         
         if(Nnonzero > 0)

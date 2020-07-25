@@ -527,10 +527,12 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     if(cmdline->readInitProjectionFlag)
         fprintf(stdout,"   Initial projection = %s.2Dprojection\n",cmdline->inputProjectionFile);
     if(cmdline->writeProjectionFlag)
+    {
         if(cmdline->readInitImageFlag)
             fprintf(stdout,"   Output projection = %s_sliceNNN.2Dprojection\n",cmdline->outputProjectionFile);
         else
             fprintf(stdout,"   Output projection = %s.2Dprojection\n",cmdline->outputProjectionFile);
+    }
 
 }
 
@@ -564,7 +566,7 @@ void setNumSliceDigits(
 	struct SinoParams3DParallel *sinoparams,
 	struct ImageParams3D *imgparams)
 {
-	int i,Ndigits;
+	int Ndigits;
 	if( (Ndigits = NumSliceDigits(basename,ext,slice)) > 0 )
 	{
 		sinoparams->NumSliceDigits = Ndigits;
