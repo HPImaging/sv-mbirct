@@ -27,19 +27,31 @@ http://engineering.purdue.edu/~bouman/publications/pdf/MBIP-book.pdf
 ## SYSTEM REQUIREMENTS
 
 1. Intel-based CPU(s)
-2. Intel "icc" compiler (included in "Parallel Studio XE", available from Intel for Linux, macOS)
+2. Intel *icc* compiler (included in "Parallel Studio XE", available from Intel for Linux, macOS)  
+
+--OR--  
+
+1. GNU *gcc* compiler
+2. OpenMP library  
+(Note using *gcc* instead of *icc* will result in a significant performance hit)  
+(For MacOS, OpenMP is not currently included in Xcode, so this needs to be installed separately)
 
 ## COMPILING
 
-1. From a terminal prompt, enter the *src* folder and type *make*. If
+From a terminal prompt, enter the *src* folder and run *make*. If
 compiling is successful the binary *mbir_ct* will be created and moved into
-the *bin* folder. 
+the *bin* folder.
 ```
 cd src  
 make
 ```
 
-Note: Initially after installing Parallel Studio XE, there may be complaints
+If only *gcc* is available, replace *make* above with
+```
+make -f Makefile.gcc
+```
+
+Tip: Initially after installing Intel Parallel Studio XE, there may be complaints
 of missing libraries when linking and running the code.
 Most issues can be resolved by executing the following line, which should be
 included in your .profile (or .bashrc, or whatever relevant resource file
@@ -60,13 +72,13 @@ To print a usage statement:
 The program is able to run completely with a single command call, but it's 
 usually preferrable to run the reconstruction in two stages. In the 
 first stage, the sytem matrix is precomputed and stored, and the second
-stage performs the actual reconstruction. 
+stage performs the actual reconstruction.
 Both stages use the executable *mbir_ct*.
 The system matrix can take a significant time to compute,
 however the matrix is fixed for a given geometry and data/image 
 dimensions, so the matrix file can be reused for any scan that uses the 
 same sinogram and image parameters.
-The initial stage can also pre-compute 
+The initial stage can also pre-compute
 the forward projection of the default initial condition (constant image)
 to save additional time in the reconstruction stage.
 
