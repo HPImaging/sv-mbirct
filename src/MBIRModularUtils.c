@@ -34,9 +34,9 @@ int ReadSinoParams3DParallel(
 	struct SinoParams3DParallel *sinoparams)  /* Sinogram params data structure */
 {
 	FILE *fp;
-	char fname[200];
+	char fname[1024];
 	char tag[200], fieldname[200], fieldval_s[200], *ptr;
-	char AngleListFname[200]=" ";
+	char AngleListFname[1024]=" ";
 	int i, Nlines;
 	char Geometry_flag=0;
 
@@ -198,7 +198,7 @@ int ReadImageParams3D(
 	struct ImageParams3D *imgparams)  /* Image params data structure */
 {
 	FILE *fp;
-	char fname[200];
+	char fname[1024];
 	char tag[200], fieldname[200], fieldval_s[200], *ptr;
 	int i, Nlines;
 
@@ -345,7 +345,7 @@ int ReadReconParams(
 	struct ReconParams *reconparams)  /* Reconstruction parameters data structure */
 {
 	FILE *fp;
-	char fname[200];
+	char fname[1024];
 	char tag[200], fieldname[200], fieldval_s[200], *ptr;
 	double fieldval_f;
 	int fieldval_d;
@@ -603,7 +603,7 @@ int ReadSinoData3DParallel(
     char *basename,	/* Source base filename, i.e. <basename>_slice<Index>.2Dsinodata for given index range */
     struct Sino3DParallel *sinogram)  /* Sinogram data+params data structure */
 {
-    char fname[200];
+    char fname[1024];
     int i,NSlices,FirstSliceNumber,M,exitcode;
     
     NSlices = sinogram->sinoparams.NSlices;
@@ -635,7 +635,7 @@ int ReadWeights3D(
 	char *basename,		/* Source base filename, i.e. <basename>_slice<Index>.2Dweightdata for given index range */
 	struct Sino3DParallel *sinogram)  /* Sinogram data+params data structure */
 {
-    char fname[200];
+    char fname[1024];
     int i,NSlices,FirstSliceNumber,M,exitcode;
 
     NSlices = sinogram->sinoparams.NSlices;
@@ -666,7 +666,7 @@ int WriteSino3DParallel(
     char *basename,	/* Input: Writes sinogram data to <basename>_slice<n>.2Dsinodata for given slice range */
     struct Sino3DParallel *sinogram)  /* Input: Sinogran parameters and data */
 {
-    char fname[200];
+    char fname[1024];
     int i,NSlices,FirstSliceNumber,M,exitcode;
 
     NSlices = sinogram->sinoparams.NSlices;
@@ -697,7 +697,7 @@ int WriteWeights3D(
     char *basename,	/* Destination base filename, i.e. <basename>_slice<Index>.2Dweightdata for given index range */
     struct Sino3DParallel *sinogram)  /* Sinogram data+params data structure */
 {
-    char fname[200];
+    char fname[1024];
     int i,NSlices,FirstSliceNumber,M,exitcode;
 
     NSlices = sinogram->sinoparams.NSlices;
@@ -752,7 +752,7 @@ int ReadImage3D(
     char *basename,	/* Source base filename, i.e. <basename>_slice<Index>.2Dimgdata for given index range */
     struct Image3D *Image)  /* Image data+params data structure */
 {
-    char fname[200];
+    char fname[1024];
     int i,Nz,FirstSliceNumber,M,exitcode;
     
     Nz = Image->imgparams.Nz;
@@ -782,7 +782,7 @@ int WriteImage3D(
     char *basename,	/* Destination base filename, i.e. <basename>_slice<Index>.2Dimgdata for given index range */
     struct Image3D *Image)  /* Image data+params data structure */
 {
-    char fname[200];
+    char fname[1024];
     int i,Nz,FirstSliceNumber,M,exitcode;
     
     Nz = Image->imgparams.Nz;
@@ -983,7 +983,7 @@ int FreeImageData2D(struct Image2D *Image)
 int NumSinoSliceDigits(char *basename, int slice)
 {
     FILE *fp;
-    char fname[200];
+    char fname[1024];
     int Ndigits = MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS;
 
     while(Ndigits > 0)

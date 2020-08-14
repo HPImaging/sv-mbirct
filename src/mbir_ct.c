@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	struct AValues_char **A_Padded_Map; 
 	float *max_num_pointer;	
 	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
-	char fname[200];
+	char fname[1024];
 	struct timeval tm1,tm2;
 	unsigned long long tdiff;
 	int i,j,jz;
@@ -541,7 +541,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
 int NumSliceDigits(char *basename, char *ext, int slice)
 {
     FILE *fp;
-    char fname[200];
+    char fname[1024];
     int Ndigits = MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS;
 
     while(Ndigits > 0)

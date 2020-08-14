@@ -965,7 +965,7 @@ void read_golden(char *fname,float **golden,int Nz,int N, struct Image3D *Image)
 {
 	FILE *fp;
 	int i;
-        char slicefname[200];
+        char slicefname[1024];
         char *sliceindex;
 	sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
 	for(i=0;i<Nz;i++){
