@@ -170,7 +170,10 @@ void MBIRReconstruct3D(
 		}				
 	}
 	srand(time(NULL));
-	struct heap_node headNodeArray[sum*SV_per_Z];
+
+	//struct heap_node headNodeArray[sum*SV_per_Z];  //This allocation crashed silently for a large problem
+	struct heap_node *headNodeArray;
+	headNodeArray = (struct heap_node *) mget_spc(sum*SV_per_Z,sizeof(struct heap_node));
 
 	for(i=0;i<SV_per_Z;i++)
 	for(jj=0;jj<sum;jj++)
@@ -325,6 +328,7 @@ void MBIRReconstruct3D(
 	free((void *)voxelsBuffer2);
 	#endif
 
+	free((void *)headNodeArray);
 	if(priorityheap.size>0)
 		free_heap((void *)&priorityheap); 
 

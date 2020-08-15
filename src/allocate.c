@@ -5,25 +5,25 @@
 
 #include "allocate.h"
 
-void *get_spc(int num, size_t size)
+void *get_spc(size_t num, size_t size)
 {
 	void *pt;
 
-	if ((pt = calloc((size_t)num,size)) == NULL)
+	if ((pt = calloc(num,size)) == NULL)
 	{
-		fprintf(stderr, "==> calloc() error\n");
+		fprintf(stderr, "get_spc: calloc() error\n");
 		exit(-1);
 	}
 	return(pt);
 }
 
-void *mget_spc(int num,size_t size)
+void *mget_spc(size_t num, size_t size)
 {
 	void *pt;
 
-	if ((pt = malloc((size_t)(num*size))) == NULL)
+	if ((pt = malloc(num*size)) == NULL)
 	{
-		fprintf(stderr, "==> malloc() error\n");
+		fprintf(stderr, "mget_spc: malloc() error\n");
 		exit(-1);
 	}
 	return(pt);
@@ -77,8 +77,8 @@ void free_3D(void ***pt)
 void *multialloc(size_t s, int d, ...)
 {
 	va_list ap;             /* varargs list traverser */
-	int max,                /* size of array to be declared */
-	    *q;                     /* pointer to dimension list */
+	size_t max;             /* size of array to be declared */
+	int *q;                 /* pointer to dimension list */
 	char **r,               /* pointer to beginning of the array of the
 				 * pointers for a dimension */
 	     **s1, *t, *tree;        /* base pointer to beginning of first array */
@@ -86,7 +86,7 @@ void *multialloc(size_t s, int d, ...)
 	int *d1;                /* dimension list */
 
 	va_start(ap,d);
-	d1 = (int *) mget_spc(d,sizeof(int));
+	d1 = (int *) mget_spc((size_t)d,sizeof(int));
 
 	for(i=0;i<d;i++)
 		d1[i] = va_arg(ap,int);
