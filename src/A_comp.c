@@ -651,7 +651,7 @@ void readAmatrix(
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
 
-	if ((fp = fopen(fname, "r")) == NULL)
+	if ((fp = fopen(fname, "rb")) == NULL)
 	{
 		fprintf(stderr, "ERROR in readAmatrix: can't open file %s.\n", fname);
 		exit(-1);
@@ -725,7 +725,7 @@ void writeAmatrix(
 	Nx = imgparams->Nx;
 	Ny = imgparams->Ny;
 
-	if ((fp = fopen(fname, "w")) == NULL)
+	if ((fp = fopen(fname, "wb")) == NULL)
 	{
 		fprintf(stderr, "ERROR in writeAmatrix: can't open file %s.\n", fname);
 		exit(-1);

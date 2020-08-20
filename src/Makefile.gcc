@@ -1,6 +1,7 @@
 CC = gcc
 
-CFLAGS := -fopenmp
+CFLAGS := -std=c11
+CFLAGS := $(CFLAGS) -fopenmp
 CFLAGS := $(CFLAGS) -O3
 #CFLAGS := $(CFLAGS) -mavx2
 #CFLAGS := $(CFLAGS) -Wall

@@ -560,7 +560,7 @@ int ReadFloatArray(
 	int N)		/* Number of single precision elements to read */
 {
 	FILE *fp;
-        if( (fp = fopen(fname,"r")) == NULL )
+        if( (fp = fopen(fname,"rb")) == NULL )
            return(1);
         if(fread(array,sizeof(float),N,fp)!=N) {
            fclose(fp);
@@ -581,7 +581,7 @@ int WriteFloatArray(
 	int N)		/* Number of single precision elements to write */
 {
 	FILE *fp;
-        if( (fp = fopen(fname,"w")) == NULL )
+        if( (fp = fopen(fname,"wb")) == NULL )
            return(1);
         if(fwrite(array,sizeof(float),N,fp)!=N) {
            fclose(fp);
