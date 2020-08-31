@@ -1,0 +1,22 @@
+CC = gcc
+
+CFLAGS := -std=c11
+CFLAGS := $(CFLAGS) -DWINDOWS
+CFLAGS := $(CFLAGS) -fopenmp
+CFLAGS := $(CFLAGS) -O3
+#CFLAGS := $(CFLAGS) -mavx2
+#CFLAGS := $(CFLAGS) -Wall
+
+all: mbir_ct clean
+
+clean:
+	rm *.o 
+
+OBJ = initialize.o recon3d.o heap.o icd3d.o A_comp.o allocate.o MBIRModularUtils.o
+
+mbir_ct: mbir_ct.o $(OBJ)
+	$(CC) $(CFLAGS) $^ -o $@ -lm
+	mv $@ ../bin
+
+#%.o: %.c 
+#	$(CC) -c $(CFLAGS) $< -o $@

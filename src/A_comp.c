@@ -283,10 +283,14 @@ void A_piecewise(
 	int sum = svpar.Nsv;
 	int pieceLength = svpar.pieceLength;
 
-	#ifdef USING_ICC
-	int *order = (int *)_mm_malloc(svpar.Nsv*sizeof(int),64);
+	#ifdef ICC_COMPILER
+		int *order = (int *)_mm_malloc(svpar.Nsv*sizeof(int),64);
 	#else
-	int *order = (int *) aligned_alloc(64,svpar.Nsv*sizeof(int));
+		#ifdef WINDOWS
+			int *order = (int *) _aligned_malloc(svpar.Nsv*sizeof(int),64);
+		#else
+			int *order = (int *) aligned_alloc(64,svpar.Nsv*sizeof(int));
+		#endif
 	#endif
 
 	t=0;
@@ -412,7 +416,7 @@ void A_piecewise(
                 }
             }            
 
-            #ifdef USING_ICC
+            #ifdef ICC_COMPILER
             _intel_fast_memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*(sinoparams->NViews));
             _intel_fast_memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*(sinoparams->NViews));
             #else
@@ -523,7 +527,7 @@ void A_piecewise(
                 A_Padded_Map[jj][theVoxelPosition].pieceWiseMin = (int *)get_spc((sinoparams->NViews)/pieceLength,sizeof(int));
                 A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth = (int *)get_spc((sinoparams->NViews)/pieceLength,sizeof(int));
                 A_Padded_Map[jj][theVoxelPosition].length=totalSumArray[i];
-                #ifdef USING_ICC
+                #ifdef ICC_COMPILER
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].val[0],&AMatrixPaddedTranspose[i][0],sizeof(unsigned char)*totalSumArray[i]);
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseMin[0],&piecewiseMinArray[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
                 _intel_fast_memcpy(&A_Padded_Map[jj][theVoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*(sinoparams->NViews)/pieceLength);
@@ -543,10 +547,14 @@ void A_piecewise(
             free((void *)AMatrixPaddedTranspose);
         }
     
-	#ifdef USING_ICC
-	_mm_free(order);
+	#ifdef ICC_COMPILER
+	    _mm_free(order);
 	#else
-	free(order);
+	    #ifdef WINDOWS
+	        _aligned_free(order);
+	    #else
+	        free(order);
+	    #endif
 	#endif
 }
 
