@@ -38,18 +38,15 @@ http://engineering.purdue.edu/~bouman/publications/pdf/MBIP-book.pdf
 
 ## COMPILING
 
-From a terminal prompt, enter the *src* folder and run *make*. If
-compiling is successful the binary *mbir_ct* will be created and moved into
+From a shell prompt, cd into the *src* folder and run *make*. 
+Select the makefile appropriate for your platform as follows:
+```
+make -f Makefile.icc   # Intel compiler (fastest)
+make -f Makefile.gcc   # GNU compiler
+make -f Makefile.win   # GNU compiler w/ Windows-specific flags
+```
+If compiling is successful the binary *mbir_ct* will be created and moved into
 the *bin* folder.
-```
-cd src  
-make
-```
-
-If only *gcc* is available, replace *make* above with
-```
-make -f Makefile.gcc
-```
 
 Tip: Initially after installing Intel Parallel Studio XE, there may be complaints
 of missing libraries when linking and running the code.
