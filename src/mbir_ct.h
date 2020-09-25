@@ -2,10 +2,10 @@
 #define _MBIRCT_H_
 
 
-//This directive is set with the compiler option -DICC_COMPILER
-//#define ICC_COMPILER
+//This directive is set with the compiler option -DICC
+//#define ICC
 
-#ifdef ICC_COMPILER
+#ifdef ICC
     /* Can't find an Intel header that prototypes this, so adding it here to
      * get rid of the compiler "implicit declaration" warnings */
     void *_intel_fast_memcpy(void *dest, const void * src, size_t n);

@@ -102,15 +102,7 @@ void MBIRReconstruct3D(
 	fprintf(stdout,"Rho: %f initial_RMSE: %f \n",convergence_rho,RMSE);
 	#endif
 
-	#ifdef ICC_COMPILER
-		order = (int *)_mm_malloc(sum*SV_per_Z*sizeof(int),64);
-	#else
-		#ifdef WINDOWS
-			order = (int *) _aligned_malloc(sum*SV_per_Z*sizeof(int),64);
-		#else
-			order = (int *) aligned_alloc(64,sum*SV_per_Z*sizeof(int));
-		#endif
-	#endif
+	order = (int *) malloc(sum*SV_per_Z*sizeof(int));
 
 	/* Order of pixel updates need NOT be raster order, just initialize */
 	t=0;
@@ -187,17 +179,16 @@ void MBIRReconstruct3D(
 	int indexList_size=(int) sum*SV_per_Z*4*c_ratio*(1-convergence_rho);	
 	int indexList[indexList_size];   	             	    
     
-	#ifdef ICC_COMPILER
+	#ifdef ICC
 		voxelsBuffer1 = (float *)_mm_malloc(Nxy*sizeof(float),64);
 		voxelsBuffer2 = (float *)_mm_malloc(Nxy*sizeof(float),64);
 	#else
-		#ifdef WINDOWS
-			voxelsBuffer1 = (float *) _aligned_malloc(Nxy*sizeof(float),64);
-			voxelsBuffer2 = (float *) _aligned_malloc(Nxy*sizeof(float),64);
-		#else
-			voxelsBuffer1 = (float *) aligned_alloc(64,Nxy*sizeof(float));
-			voxelsBuffer2 = (float *) aligned_alloc(64,Nxy*sizeof(float));
-		#endif
+		voxelsBuffer1 = (float *) malloc(Nxy*sizeof(float));
+		voxelsBuffer2 = (float *) malloc(Nxy*sizeof(float));
+		//voxelsBuffer1 = (float *) aligned_alloc(64,Nxy*sizeof(float));
+		//voxelsBuffer2 = (float *) aligned_alloc(64,Nxy*sizeof(float));
+		//voxelsBuffer1 = (float *) _aligned_malloc(Nxy*sizeof(float),64);
+		//voxelsBuffer2 = (float *) _aligned_malloc(Nxy*sizeof(float),64);
 	#endif
 
 	for(i=0;i<Nxy;i++) voxelsBuffer1[i]=0;
@@ -326,20 +317,16 @@ void MBIRReconstruct3D(
 	fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
 	fprintf(stdout,"\tAverage update in last iteration (magnitude) = %f mm^-1\n",avg_update);
 	
-	#ifdef ICC_COMPILER
-		_mm_free((void *)order);
+	free((void *)order);
+
+	#ifdef ICC
 		_mm_free((void *)voxelsBuffer1);
 		_mm_free((void *)voxelsBuffer2);
 	#else
-		#ifdef WINDOWS
-			_aligned_free((void *)order);
-			_aligned_free((void *)voxelsBuffer1);
-			_aligned_free((void *)voxelsBuffer2);
-		#else
-			free((void *)order);
-			free((void *)voxelsBuffer1);
-			free((void *)voxelsBuffer2);
-		#endif
+		free((void *)voxelsBuffer1);
+		free((void *)voxelsBuffer2);
+		//_aligned_free((void *)voxelsBuffer1);
+		//_aligned_free((void *)voxelsBuffer2);
 	#endif
 
 	free((void *)headNodeArray);
@@ -553,7 +540,7 @@ void super_voxel_recon(
 	int bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
 	int bandWidth[NViewsdivided]__attribute__((aligned(32)));
 
-	#ifdef ICC_COMPILER
+	#ifdef ICC
 	_intel_fast_memcpy(&bandMin[0],&bandMinMap[theSVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
 	_intel_fast_memcpy(&bandMax[0],&bandMaxMap[theSVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews)); 
 	#else
@@ -604,7 +591,7 @@ void super_voxel_recon(
 		for(i=0;i<SV_depth_modified;i++)
 		for(q=0;q<pieceLength;q++) 
 		{
-			#ifdef ICC_COMPILER
+			#ifdef ICC
 			_intel_fast_memcpy(newWArrayPointer,&w[startSlice+i][p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
 			_intel_fast_memcpy(newEArrayPointer,&e[startSlice+i][p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
 			#else
@@ -618,7 +605,7 @@ void super_voxel_recon(
 
 	for (p = 0; p < NViewsdivided; p++)
 	{
-		#ifdef ICC_COMPILER
+		#ifdef ICC
 		_intel_fast_memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
 		#else
 		memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
