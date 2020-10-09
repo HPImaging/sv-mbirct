@@ -21,13 +21,13 @@
 #define convergence_rho 0.7
 
 /* Internal functions */
-void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int it,int *phaseMap,
-	int *order,int *indexList,float **w,float **e,
+void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int it,
+	char *phaseMap,long *order,int *indexList,float **w,float **e,
 	struct AValues_char ** A_Padded_Map,float *max_num_pointer,struct heap_node *headNodeArray,
 	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct Image3D *Image,
 	float *voxelsBuffer1,float *voxelsBuffer2,int* group_array,int group_id);
 void coordinateShuffle(int *order1, int *order2,int len);
-void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len);
+void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams *reconparams);
 
 
@@ -55,7 +55,8 @@ void MBIRReconstruct3D(
 
 	struct heap priorityheap;
 	initialize_heap(&priorityheap);
-	int *order, *phaseMap;
+	long *order;
+	char *phaseMap;
 	//struct tm1,tm2;
 
 	//x = Image->image;   /* x is the image vector */
@@ -102,7 +103,7 @@ void MBIRReconstruct3D(
 	fprintf(stdout,"Rho: %f initial_RMSE: %f \n",convergence_rho,RMSE);
 	#endif
 
-	order = (int *) mget_spc(sum*SV_per_Z,sizeof(int));
+	order = (long *) mget_spc(sum*SV_per_Z,sizeof(long));
 
 	/* Order of pixel updates need NOT be raster order, just initialize */
 	t=0;
@@ -110,11 +111,11 @@ void MBIRReconstruct3D(
 	for(i=0;i<Ny;i+=(SVLength*2-overlappingDistance))
 	for(j=0;j<Nx;j+=(SVLength*2-overlappingDistance))
 	{
-		order[t]=p*Nxy+i*Nx+j;  /* order is the first voxel coordinate, not the center */
+		order[t]=(long)p*Nxy+i*Nx+j;  /* order is the first voxel coordinate, not the center */
 		t++;
 	}
 
-	phaseMap = (int *) mget_spc(sum*SV_per_Z,sizeof(int));
+	phaseMap = (char *) mget_spc(sum*SV_per_Z,sizeof(char));
 
 	#pragma omp parallel for private(jj) schedule(dynamic)
 	for(i=0;i<SV_per_Z;i++)
@@ -196,8 +197,20 @@ void MBIRReconstruct3D(
 
 	it=0;
 
-	coordinateShuffle(&order[0],&phaseMap[0],sum*SV_per_Z);
-	
+	//coordinateShuffle(&order[0],&phaseMap[0],sum*SV_per_Z);
+	long tmp_long;
+	char tmp_char;
+	for(i=0; i<sum*SV_per_Z-1; i++)
+	{
+		j = i + (rand() % (sum*SV_per_Z-i));
+		tmp_long = order[j];
+		order[j] = order[i];
+		order[i] = tmp_long;
+		tmp_char = phaseMap[j];
+		phaseMap[j] = phaseMap[i];
+		phaseMap[i] = tmp_char;
+	}
+
 	int startIndex=0;
 	int endIndex=0;        		
 
@@ -250,6 +263,7 @@ void MBIRReconstruct3D(
 				#pragma omp for schedule(dynamic)  reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
 				for (jj = startIndex; jj < endIndex; jj+=1)
 					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,it, &phaseMap[0],order,&indexList[0],w,e,A_Padded_Map,&max_num_pointer[0],&headNodeArray[0],sinogram->sinoparams,reconparams,Image,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
+
 			}
 
 			#pragma omp single
@@ -286,7 +300,7 @@ void MBIRReconstruct3D(
 				stop_FLAG = 1;
 
 			it++;
-			equits += (float)NumUpdates/(NumMaskVoxels*Nz);
+			equits += (float)NumUpdates/((float)NumMaskVoxels*Nz);
 			if(equits > it_print)
 			{
 				fprintf(stdout,"\titeration %d, average change %.4f %%\n",it_print,avg_update_rel);
@@ -429,8 +443,8 @@ void super_voxel_recon(
 	float *totalValue,
 	float *totalChange,
 	int it,
-	int *phaseMap,
-	int *order,
+	char *phaseMap,
+	long *order,
 	int *indexList,
 	float **w,
 	float **e,
@@ -662,11 +676,12 @@ void super_voxel_recon(
 		float neighbors[SV_depth_modified][10];
 		char zero_skip_FLAG[SV_depth_modified];
 		float max=max_num_pointer[j_new*Nx+k_new];
+		float diff[SV_depth_modified];
+
 		float THETA1[SV_depth_modified];
 		float THETA2[SV_depth_modified];
 		memset(&THETA1[0],0.0, sizeof(THETA1));
 		memset(&THETA2[0],0.0, sizeof(THETA2));	
-		float diff[SV_depth_modified];
 
 		int theVoxelPosition=(j_new-jy)*(2*SVLength+1)+(k_new-jx); 
 		unsigned char * A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];
@@ -885,23 +900,24 @@ void coordinateShuffle(int *order1, int *order2,int len)
 	}
 }
 
-void three_way_shuffle(int *order1, int *order2,struct heap_node *headNodeArray,int len)
+void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArray, int len)
 {
-	int i, j, tmp1,tmp2;
-
+	int i,j;
+	long tmp_long;
+	char tmp_char;
 	float temp_x;
 
 	for (i = 0; i < len-1; i++)
 	{
 		j = i + (rand() % (len-i));
-		tmp1 = order1[j];
-		tmp2 = order2[j];
-		temp_x=headNodeArray[j].x;
+		tmp_long = order1[j];
 		order1[j] = order1[i];
+		order1[i] = tmp_long;
+		tmp_char = order2[j];
 		order2[j] = order2[i];
+		order2[i] = tmp_char;
+		temp_x=headNodeArray[j].x;
 		headNodeArray[j].x=headNodeArray[i].x;
-		order1[i] = tmp1;
-		order2[i] = tmp2;
 		headNodeArray[i].x=temp_x;
 	}
 }
