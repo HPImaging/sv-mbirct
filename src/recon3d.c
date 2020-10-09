@@ -55,7 +55,7 @@ void MBIRReconstruct3D(
 
 	struct heap priorityheap;
 	initialize_heap(&priorityheap);
-	int *order;
+	int *order, *phaseMap;
 	//struct tm1,tm2;
 
 	//x = Image->image;   /* x is the image vector */
@@ -102,7 +102,7 @@ void MBIRReconstruct3D(
 	fprintf(stdout,"Rho: %f initial_RMSE: %f \n",convergence_rho,RMSE);
 	#endif
 
-	order = (int *) malloc(sum*SV_per_Z*sizeof(int));
+	order = (int *) mget_spc(sum*SV_per_Z,sizeof(int));
 
 	/* Order of pixel updates need NOT be raster order, just initialize */
 	t=0;
@@ -114,7 +114,7 @@ void MBIRReconstruct3D(
 		t++;
 	}
 
-	int phaseMap[sum*SV_per_Z];
+	phaseMap = (int *) mget_spc(sum*SV_per_Z,sizeof(int));
 
 	#pragma omp parallel for private(jj) schedule(dynamic)
 	for(i=0;i<SV_per_Z;i++)
@@ -316,8 +316,6 @@ void MBIRReconstruct3D(
 	fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,it);
 	fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
 	fprintf(stdout,"\tAverage update in last iteration (magnitude) = %f mm^-1\n",avg_update);
-	
-	free((void *)order);
 
 	#ifdef ICC
 		_mm_free((void *)voxelsBuffer1);
@@ -332,6 +330,8 @@ void MBIRReconstruct3D(
 	free((void *)headNodeArray);
 	if(priorityheap.size>0)
 		free_heap((void *)&priorityheap); 
+	free((void *)phaseMap);
+	free((void *)order);
 
 	#ifdef find_RMSE
 	multifree(golden,2);
