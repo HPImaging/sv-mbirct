@@ -184,9 +184,14 @@ int main(int argc, char *argv[])
 		AllocateSinoData3DParallel(&sinogram);
 		ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
 		if(cmdline.SinoWeightsFileFlag)
+		{
 			ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
-		else
-			ComputeSinoWeights(sinogram,reconparams);
+			reconparams.weightType = 0;
+		}
+		else if(reconparams.weightType < 1)	// if weightType is expecting file input, revert to default
+			reconparams.weightType = 1;
+
+		ComputeSinoWeights(sinogram,reconparams);  // either compute internally, or scale input by 1/SigmaY^2
 
 		/* Read Proximal map if necessary */
 		if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)

@@ -367,7 +367,7 @@ int ReadReconParams(
 	reconparams->T=0.1;
 	reconparams->SigmaX=0.02;
 	reconparams->SigmaY=1.0;
-	reconparams->weightType=1;
+	reconparams->weightType=1;	// uniform by default
 
 	strcpy(fname,basename);
 	strcat(fname,".reconparams");
@@ -464,8 +464,8 @@ int ReadReconParams(
 		else if(strcmp(fieldname,"weightType")==0)
 		{
 			sscanf(fieldval_s,"%d",&(fieldval_d));
-			if((fieldval_d < 0) || (fieldval_d > 2))
-				fprintf(stderr,"Warning in %s: Valid weightType is 0, 1, or 2. Reverting to default.\n",fname);
+			if((fieldval_d < 0) || (fieldval_d > 4))
+				fprintf(stderr,"Warning in %s: Valid weightType vals are 0,1,2,3,4. Reverting to default.\n",fname);
 			else
 				reconparams->weightType = fieldval_d;
 		}
@@ -1013,19 +1013,37 @@ void ComputeSinoWeights(
     float ** w = sinogram.weight;
     float SigmaYsq = reconparams.SigmaY * reconparams.SigmaY;
 
-    if(reconparams.weightType==2)
+    if(reconparams.weightType==0)  // file provided
     {
         for(i=0;i<NSlices;i++)
         for(j=0;j<M;j++)
-            w[i][j] = expf(-y[i][j]/2.0f)/SigmaYsq;
+            w[i][j] /= SigmaYsq;
     }
-    else if(reconparams.weightType==1)
+    else if(reconparams.weightType==1)  // unweighted (uniform)
+    {
+        for(i=0;i<NSlices;i++)
+        for(j=0;j<M;j++)
+            w[i][j] = 1.0f/SigmaYsq;
+    }
+    else if(reconparams.weightType==2)  // transmission
     {
         for(i=0;i<NSlices;i++)
         for(j=0;j<M;j++)
             w[i][j] = expf(-y[i][j])/SigmaYsq;
     }
-    else
+    else if(reconparams.weightType==3)  // transmission, square root
+    {
+        for(i=0;i<NSlices;i++)
+        for(j=0;j<M;j++)
+            w[i][j] = expf(-y[i][j]/2.0f)/SigmaYsq;
+    }
+    else if(reconparams.weightType==4)  // emission
+    {
+        for(i=0;i<NSlices;i++)
+        for(j=0;j<M;j++)
+            w[i][j] = 1/(y[i][j]+0.1f)/SigmaYsq;
+    }
+    else    // default is unweighted (uniform)
     {
         for(i=0;i<NSlices;i++)
         for(j=0;j<M;j++)

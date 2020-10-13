@@ -90,7 +90,7 @@ struct ReconParams
   int Positivity;         /* Positivity constraint: 1=yes, 0=no */
   /* sinogram weighting */
   double SigmaY;          /* Scaling constant for sinogram weights (e.g. W=exp(-y)/SigmaY^2 ) */
-  int weightType;         /* How to compute weights if internal, 0: =1 (default); 1: exp(-y); 2: exp(-y/2) */
+  int weightType;         /* How to compute weights if internal, 1: uniform, 2: exp(-y); 3: exp(-y/2), 4: 1/(y+0.1) */
   /* neighbor weights */
   double b_nearest;       /* Relative nearest neighbor weight [default = 1] */
   double b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
