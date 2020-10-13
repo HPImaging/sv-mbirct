@@ -1,0 +1,7 @@
+Nx: 128
+Ny: 128
+Nz: 1
+FirstSliceNumber: 1
+Deltaxy: 4.0
+DeltaZ: 4.0
+ROIRadius: 250

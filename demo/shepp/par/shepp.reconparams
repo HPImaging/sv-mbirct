@@ -1,0 +1,14 @@
+PriorModel: QGGMRF
+InitImageValue: 0.02
+weightType: 1
+p: 1.2
+q: 2.0
+T: 0.000478
+SigmaX: 0.635
+SigmaY: 1.0
+b_nearest: 1.0
+b_diag: 0.707
+b_interslice: 1.0
+StopThreshold: 0.01
+MaxIterations: 20
+Positivity: 1

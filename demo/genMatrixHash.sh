@@ -57,7 +57,7 @@ cat "$imgfile" "$sinofile" \
   | sort \
   | cat "$viewsfile" - \
   | shasum -a 1 \
-  | cut -c 1-8
+  | cut -c 1-20
 
 exit 0
 

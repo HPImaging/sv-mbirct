@@ -1,0 +1,9 @@
+Geometry : 3DPARALLEL
+NChannels: 512
+NViews: 288
+NSlices: 1
+DeltaChannel: 0.9765625
+CenterOffset: -6
+DeltaSlice: 0.9765625
+FirstSliceNumber: 1
+ViewAngleList: ./ViewAngleList.txt
