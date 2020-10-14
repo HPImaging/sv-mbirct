@@ -1041,7 +1041,7 @@ void ComputeSinoWeights(
     {
         for(i=0;i<NSlices;i++)
         for(j=0;j<M;j++)
-            w[i][j] = 1/(y[i][j]+0.1f)/SigmaYsq;
+            w[i][j] = 1.0f/(y[i][j]+0.1f)/SigmaYsq;
     }
     else    // default is unweighted (uniform)
     {
