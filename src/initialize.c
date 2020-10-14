@@ -44,9 +44,9 @@ void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct S
 		svpar->SV_per_Z = imgparams.Nz/svpar->SVDepth+1;
 
 	if((imgparams.Nx%(2*svpar->SVLength - svpar->overlap))==0)
-		svpar->SVsPerLine = imgparams.Nx/(2*svpar->SVLength - svpar->overlap);
+		svpar->SVsPerRow = imgparams.Nx/(2*svpar->SVLength - svpar->overlap);
 	else
-		svpar->SVsPerLine = imgparams.Nx/(2*svpar->SVLength - svpar->overlap) + 1;
+		svpar->SVsPerRow = imgparams.Nx/(2*svpar->SVLength - svpar->overlap) + 1;
 
 	#if 0
 	fprintf(stdout,"SUPER-VOXEL PARAMETERS:\n");

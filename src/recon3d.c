@@ -72,7 +72,7 @@ void MBIRReconstruct3D(
 	int overlappingDistance = svpar.overlap;
 	int SV_depth = svpar.SVDepth;
 	int SV_per_Z = svpar.SV_per_Z;
-	int SVsPerLine = svpar.SVsPerLine;
+	int SVsPerRow = svpar.SVsPerRow;
 	int sum = svpar.Nsv;
 	//int pieceLength = svpar.pieceLength;
 	//struct minStruct * bandMinMap = svpar.bandMinMap;
@@ -121,16 +121,16 @@ void MBIRReconstruct3D(
 	for(i=0;i<SV_per_Z;i++)
 	for(jj=0;jj<sum;jj++)
 	{
-		if((jj/SVsPerLine)%2==0)
+		if((jj/SVsPerRow)%2==0)
 		{
-			if((jj%SVsPerLine)%2==0)
+			if((jj%SVsPerRow)%2==0)
 				phaseMap[i*sum+jj]=0;
 			else
 				phaseMap[i*sum+jj]=1;			
 		}
 		else
 		{
-			if((jj%SVsPerLine)%2==0)
+			if((jj%SVsPerRow)%2==0)
 				phaseMap[i*sum+jj]=2;
 			else
 				phaseMap[i*sum+jj]=3;			
@@ -365,12 +365,13 @@ void forwardProject2D(
 	struct ImageParams3D *imgparams,
 	struct SVParams svpar)
 {
-	int jx,jy,Nx,Ny,i,M,r,j,p,SVNumPerRow;
+	int jx,jy,Nx,Ny,i,M,r,j,p;
 	float inverseNumber=1.0/255;
 	int SVLength = svpar.SVLength;
 	int overlappingDistance = svpar.overlap;
 	struct minStruct * bandMinMap = svpar.bandMinMap;
 	int pieceLength = svpar.pieceLength;
+	int SVsPerRow = svpar.SVsPerRow;
 
 	const int NViewsdivided=(sinoparams->NViews)/pieceLength;
 
@@ -381,27 +382,16 @@ void forwardProject2D(
 	for (i = 0; i < M; i++)
 		e[i] = 0.0;
 
-	if((Nx%(2*SVLength-overlappingDistance))==0)
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance);
-	else
-		SVNumPerRow=Nx/(2*SVLength-overlappingDistance)+1;
-
 	for (jy = 0; jy < Ny; jy++)
 	for (jx = 0; jx < Nx; jx++)
 	{
-		int temp1=jy/(2*SVLength-overlappingDistance);
-		if(temp1==SVNumPerRow)  // I don't think this will happen
-			temp1=SVNumPerRow-1;
+		int SV_ind_x = jx/(2*SVLength-overlappingDistance);
+		int SV_ind_y = jy/(2*SVLength-overlappingDistance);
+		int SVPosition = SV_ind_y*SVsPerRow + SV_ind_x;
 
-		int temp2=jx/(2*SVLength-overlappingDistance);
-		if(temp2==SVNumPerRow)  // I don't think this will happen
-			temp2=SVNumPerRow-1;
-
-		int SVPosition=temp1*SVNumPerRow+temp2;
- 
-		int SV_jy=temp1*(2*SVLength-overlappingDistance);
-		int SV_jx=temp2*(2*SVLength-overlappingDistance);
-		int VoxelPosition=(jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
+		int SV_jy = SV_ind_y*(2*SVLength-overlappingDistance);
+		int SV_jx = SV_ind_x*(2*SVLength-overlappingDistance);
+		int VoxelPosition = (jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
 		/*
 		fprintf(stdout,"jy %d jx %d SVPosition %d SV_jy %d SV_jx %d VoxelPosition %d \n",jy,jx,SVPosition,SV_jy,SV_jx,VoxelPosition);
 		*/
@@ -476,7 +466,7 @@ void super_voxel_recon(
 	int SVLength = svpar.SVLength;
 	int overlappingDistance = svpar.overlap;
 	int SV_depth = svpar.SVDepth;
-	int SVsPerLine = svpar.SVsPerLine;
+	int SVsPerRow = svpar.SVsPerRow;
 	struct minStruct * bandMinMap = svpar.bandMinMap;
 	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 	int pieceLength = svpar.pieceLength;
@@ -500,7 +490,7 @@ void super_voxel_recon(
 	else
 		SV_depth_modified=SV_depth;
 
-	int theSVPosition=jy/(2*SVLength-overlappingDistance)*SVsPerLine+jx/(2*SVLength-overlappingDistance);
+	int SVPosition=jy/(2*SVLength-overlappingDistance)*SVsPerRow+jx/(2*SVLength-overlappingDistance);
 	if(it%2==0)
 	{
 		if(phaseMap[jj]!=group_array[startSlice/SV_depth*4+group_id])
@@ -532,7 +522,7 @@ void super_voxel_recon(
 	{
 		if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx)
 		{
-			if(A_Padded_Map[theSVPosition][voxelIncrement].length >0) {
+			if(A_Padded_Map[SVPosition][voxelIncrement].length >0) {
 				j_newCoordinate[countNumber]=j_newAA;
 				k_newCoordinate[countNumber]=k_newAA;
 				countNumber++;
@@ -555,11 +545,11 @@ void super_voxel_recon(
 	int bandWidth[NViewsdivided]__attribute__((aligned(32)));
 
 	#ifdef ICC
-	_intel_fast_memcpy(&bandMin[0],&bandMinMap[theSVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
-	_intel_fast_memcpy(&bandMax[0],&bandMaxMap[theSVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews)); 
+	_intel_fast_memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
+	_intel_fast_memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews)); 
 	#else
-	memcpy(&bandMin[0],&bandMinMap[theSVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
-	memcpy(&bandMax[0],&bandMaxMap[theSVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews));
+	memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
+	memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews));
 	#endif
 
 	#pragma vector aligned 
@@ -684,7 +674,7 @@ void super_voxel_recon(
 		memset(&THETA2[0],0.0, sizeof(THETA2));	
 
 		int theVoxelPosition=(j_new-jy)*(2*SVLength+1)+(k_new-jx); 
-		unsigned char * A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];
+		unsigned char * A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
 
 		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 		{
@@ -723,11 +713,11 @@ void super_voxel_recon(
 				tempProxMap[currentSlice] = proximalmap[startSlice+currentSlice][j_new*Nx+k_new];
 		}
 
-		A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];
+		A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
 		for(p=0;p<NViewsdivided;p++)
 		{
-			const int myCount=A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseWidth[p];
-			const int pieceMin=A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseMin[p];
+			const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
+			const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
 			#pragma vector aligned
 			for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 			if(zero_skip_FLAG[currentSlice] == 0 )
@@ -758,7 +748,7 @@ void super_voxel_recon(
 
 		ETransposeArrayPointer=&newEArrayTransposed[0][0];
 
-		A_padd_Tranpose_pointer = &A_Padded_Map[theSVPosition][theVoxelPosition].val[0];
+		A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
 	
 		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 		if(zero_skip_FLAG[currentSlice] == 0)
@@ -796,8 +786,8 @@ void super_voxel_recon(
 
 		for(p=0;p<NViewsdivided;p++)
 		{
-			const int myCount=A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseWidth[p];
-			const int pieceMin=A_Padded_Map[theSVPosition][theVoxelPosition].pieceWiseMin[p]; 
+			const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
+			const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p]; 
 			#pragma vector aligned
 			for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
 			if(diff[currentSlice]!=0 && zero_skip_FLAG[currentSlice] == 0)
