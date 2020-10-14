@@ -449,7 +449,7 @@ void super_voxel_recon(
 	char *group_array,
 	int group_id)
 {
-
+	char zero_skip_enable=1;  // 1: enable, 0: disable (modified below)
 	int jy,jx,p,i,q,t,j,currentSlice,startSlice;
 	int SV_depth_modified;
 	int NumUpdates_loc=0;
@@ -471,8 +471,8 @@ void super_voxel_recon(
 	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 	int pieceLength = svpar.pieceLength;
 	int NViewsdivided = sinoparams.NViews/pieceLength;
-	int jj_new;
 
+	int jj_new;
 	if(iter%2==0)
 		jj_new=jj;
 	else
@@ -646,6 +646,12 @@ void super_voxel_recon(
 
 	free((void **)newWArray);
 
+	/* Turn off zero-skipping for 1st iteration */
+	if(iter==0)
+		zero_skip_enable=0;
+	else
+		zero_skip_enable=1;
+
 	/*XW: the start of the loop to compute theta1, theta2*/
 	for(i=0;i<countNumber;i++)
 	{
@@ -686,7 +692,8 @@ void super_voxel_recon(
 				else
 					neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
 
-				if (tempV[currentSlice] == 0.0)
+				if(zero_skip_enable)
+				if(tempV[currentSlice] == 0.0)
 				{
 					zero_skip_FLAG[currentSlice] = 1;
 					for (j = 0; j < 10; j++)
