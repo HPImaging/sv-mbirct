@@ -449,7 +449,6 @@ void super_voxel_recon(
 	char *group_array,
 	int group_id)
 {
-	char zero_skip_enable=1;  // 1: enable, 0: disable (modified below)
 	int jy,jx,p,i,q,t,j,currentSlice,startSlice;
 	int SV_depth_modified;
 	int NumUpdates_loc=0;
@@ -647,9 +646,8 @@ void super_voxel_recon(
 	free((void **)newWArray);
 
 	/* Turn off zero-skipping for 1st iteration */
-	if(iter==0)
-		zero_skip_enable=0;
-	else
+	char zero_skip_enable=0;  // 1: enable, 0: disable
+	if(iter>0 && PositivityFlag)
 		zero_skip_enable=1;
 
 	/*XW: the start of the loop to compute theta1, theta2*/
