@@ -84,8 +84,8 @@ float QGGMRF_Potential(float delta, struct ReconParams *reconparams)
     T = reconparams->T;
     SigmaX = reconparams->SigmaX;
     
-    GGMRF_Pot = pow(fabs(delta),p)/(p*reconparams->pow_sigmaX_p);
-    temp = pow(fabs(delta/(T*SigmaX)), q-p);
+    GGMRF_Pot = powf(fabs(delta),p)/(p*reconparams->pow_sigmaX_p);
+    temp = powf(fabs(delta/(T*SigmaX)), q-p);
     
     return ( GGMRF_Pot * temp/(1.0+temp) );
 }

@@ -84,29 +84,29 @@ struct ReconParams
 {
   char ReconType;         /* 1:QGGMRF_3D, 2:PandP */
   /* General parameters */
-  double InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
-  double StopThreshold;   /* Stopping threshold in percent */
+  float InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
+  float StopThreshold;   /* Stopping threshold in percent */
   int MaxIterations;      /* Maximum number of iterations */
-  int Positivity;         /* Positivity constraint: 1=yes, 0=no */
+  char Positivity;         /* Positivity constraint: 1=yes, 0=no */
   /* sinogram weighting */
-  double SigmaY;          /* Scaling constant for sinogram weights (e.g. W=exp(-y)/SigmaY^2 ) */
+  float SigmaY;          /* Scaling constant for sinogram weights (e.g. W=exp(-y)/SigmaY^2 ) */
   int weightType;         /* How to compute weights if internal, 1: uniform, 2: exp(-y); 3: exp(-y/2), 4: 1/(y+0.1) */
   /* neighbor weights */
-  double b_nearest;       /* Relative nearest neighbor weight [default = 1] */
-  double b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
-  double b_interslice;    /* Relative neighbor weight along z direction [default = 1] */
+  float b_nearest;       /* Relative nearest neighbor weight [default = 1] */
+  float b_diag;          /* Relative diagonal neighbor weight in (x,y) plane [default = 1/sqrt(2)] */
+  float b_interslice;    /* Relative neighbor weight along z direction [default = 1] */
   /* QGGMRF */
-  double p;               /* q-GGMRF p parameter */
-  double q;               /* q-GGMRF q parameter (q=2 is typical choice) */
-  double T;               /* q-GGMRF T parameter */
-  double SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
+  float p;               /* q-GGMRF p parameter */
+  float q;               /* q-GGMRF q parameter (q=2 is typical choice) */
+  float T;               /* q-GGMRF T parameter */
+  float SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
   /* QGGMRF derived parameters */
-  double pow_sigmaX_p;    /* pow(sigmaX,p) */
-  double pow_sigmaX_q;    /* pow(sigmaX,q) */
-  double pow_T_qmp;       /* pow(T,q-p) */
+  float pow_sigmaX_p;    /* pow(sigmaX,p) */
+  float pow_sigmaX_q;    /* pow(sigmaX,q) */
+  float pow_T_qmp;       /* pow(T,q-p) */
   /* Proximal map prior for Plug & Play */
-  //double SigmaX;        /* sigma_x parameter (mm-1) (same field name already included for QGGMRF above) */
-  double SigmaXsq;        /* derived parameter: SigmaX^2 */
+  //float SigmaX;        /* sigma_x parameter (mm-1) (same field name already included for QGGMRF above) */
+  float SigmaXsq;        /* derived parameter: SigmaX^2 */
   float **proximalmap;    /* ptr to 3D proximal map image; here to carry it to the ICD update */
 };
 
