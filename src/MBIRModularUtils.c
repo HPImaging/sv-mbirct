@@ -354,6 +354,7 @@ int ReadReconParams(
 
 	/* set defaults, also used for error checking below */
 	reconparams->InitImageValue=MUWATER;
+	//reconparams->InitImageValue=0.0;
 	reconparams->StopThreshold=1.0;
 	reconparams->MaxIterations=20;
 	reconparams->Positivity=1;
@@ -416,8 +417,8 @@ int ReadReconParams(
 			//sscanf(fieldval_s,"%lf",&(reconparams->InitImageValue));
 			//Changed above to the following to retain default value if input doesn't make sense
 			sscanf(fieldval_s,"%lf",&(fieldval_f));
-			if(fieldval_f <= 0)
-				fprintf(stderr,"Warning in %s: InitImageValue should be positive. Reverting to default.\n",fname);
+			if(fieldval_f < 0)
+				fprintf(stderr,"Warning in %s: InitImageValue should be non-negative. Reverting to default.\n",fname);
 			else
 				reconparams->InitImageValue = fieldval_f;
 		}
