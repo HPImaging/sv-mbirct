@@ -151,9 +151,17 @@ int main(int argc, char *argv[])
 			}
 			else	/* if IC not provided, only need to project 1st slice and copy */
 			{
-				forwardProject2D(e[0],Image.image[0],A_Padded_Map,max_num_pointer,&sinogram.sinoparams,&Image.imgparams,svpar);
-				for(jz=1;jz<Nz;jz++)
-					memcpy(e[jz],e[0],NvNc*sizeof(float));
+				if(reconparams.InitImageValue==0.0f)
+				{
+					for(i=0; i<NvNc; i++)
+						e[0][i] = 0.0f;
+				}
+				else
+				{
+					forwardProject2D(e[0],Image.image[0],A_Padded_Map,max_num_pointer,&sinogram.sinoparams,&Image.imgparams,svpar);
+					for(jz=1;jz<Nz;jz++)
+						memcpy(e[jz],e[0],NvNc*sizeof(float));
+				}
 			}
 
 			gettimeofday(&tm2,NULL);
