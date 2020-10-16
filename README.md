@@ -75,47 +75,30 @@ The system matrix can take a significant time to compute,
 however the matrix is fixed for a given geometry and data/image 
 dimensions, so the matrix file can be reused for any scan that uses the 
 same sinogram and image parameters.
-The initial stage can also pre-compute
-the forward projection of the default initial condition (constant image)
-to save additional time in the reconstruction stage.
 
 (Note the accompanying demo scripts include a utility that detects whether
 the necessary sytem matrix file has already been computed and is available, 
 given the input image/sino parameters, and the script automatically reads
 the file if available, or computes/stores it if not.)
 
-### Stage 1: Compute and store the System Matrix (and initial projection)
+### Stage 1: Compute and store the System Matrix
 
     ./mbir_ct
        -i <basename>[.imgparams]     : Input image parameters
        -j <basename>[.sinoparams]    : Input sinogram parameters
-    (plus one or more of the following)
        -m <basename>[.2Dsvmatrix]    : Output matrix file
-       -f <basename>[.2Dprojection]  : Output projection of default or input IC
 
 In the above arguments, the exensions given in the '[]' symbols must be part
 of the file names but should be omitted from the command line.
 Further description of data/image filenames is provided further down.
 
-
-Examples: (written as if file names have been assigned 
+Example: (written as if file names have been assigned 
            to variables in a shell script)
 
-To compute/write the system matrix:
- 
     ./mbir_ct -i $parName -j $parName -m $matName
-
-To compute/write the system matrix and the projection of the default initial condition:
-
-    ./mbir_ct -i $parName -j $parName -m $matName -f $matName
-
-The -m option can be omitted if you only want to compute/store the
-projection, however the system matrix will still need to be computed.
 
 
 ### Stage 2: Compute MBIR Reconstruction
-
-Note the default prior model is a q-QGGMRF with a 10-pt 3D neighborhood.
 
     ./mbir_ct
        -i <basename>[.imgparams]           : Input image parameters
@@ -128,30 +111,25 @@ Note the default prior model is a q-QGGMRF with a 10-pt 3D neighborhood.
        -w <basename>[_sliceNNN.2Dweightdata] : Input sinogram weight file(s)
        -t <basename>[_sliceNNN.2Dimgdata]  : Input initial condition image(s)
        -e <basename>[_sliceNNN.2Dprojection] : Input projection of init. cond.
-                                           : ** default IC if -t not specified
        -f <basename>[_sliceNNN.2Dprojection] : Output projection of final image
        -p <basename>[_sliceNNN.2Dimgdata]  : Proximal map for Plug & Play
-                                           : * -p will apply proximal prior
-                                           : * generally use with -t -e -f
+                                           : -p will apply proximal prior
+                                           : generally use with -t -e -f
+
+Note the default prior model is a q-QGGMRF with a 10-pt 3D neighborhood.
 
 Example: Compute reconstruction
 
     ./mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-       -w $wgtNname -r $recName -m $matName -e $projName
+       -w $wgtNname -r $recName -m $matName
 
-If either -m or -e are omitted, the corresponding entity (matrix or
-projection) will be computed prior to starting the reconstruction.
-
-Example: Compute projection only
+Example: Compute projection of input image only
 
     ./mbir_ct -i $parName -j $parName -m $matName \
        -t <basename>[_sliceNNN.2Dimgdata] -f <basename>[_sliceNNN.2Dprojection]
 
-This only applies the projector to the supplied input file(s). The result could be
-used as the initial projection input to a reconstruction along with the initial
-condition (opts -t and -e).
-
-
+In the above examples, if -m is omitted the system matrix
+will be computed prior to starting the reconstruction (or projection).
 
 
 ### Useful forms for Plug & Play mode

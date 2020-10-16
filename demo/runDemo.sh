@@ -47,15 +47,15 @@ fi
 
 ### Form 1: Reconstruct with a single call (uncomment the next two lines to use)
 # $execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-#    -w $wgtName -r $recName -m $matName -e $matName
+#    -w $wgtName -r $recName -m $matName
 # exit 0
 
-### Form 2: Pre-compute system matrix and initial projection and write to file.
-###   Then reconstruct. First call only has to be done once for a given set of
+### Form 2: Pre-compute system matrix and write to file. Then reconstruct.
+###   First call only has to be done once for a given set of
 ###   image/sinogram dimensions--resolution, physical size, offsets, etc.
-# $execdir/mbir_ct -i $parName -j $parName -m $matName -f $matName
+# $execdir/mbir_ct -i $parName -j $parName -m $matName
 # $execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-#    -w $wgtName -r $recName -m $matName -e $matName
+#    -r $recName -w $wgtName -m $matName
 # exit 0
 
 ### Form 3: The code below checks if the matrix for the input problem 
@@ -76,7 +76,7 @@ fi
 if [[ ! -f "$matName.2Dsvmatrix" ]]; then
    echo "Generating system matrix file: $matName.2Dsvmatrix"
    echo "Generating projection file: $matName.2Dprojection"
-   $execdir/mbir_ct -i $parName -j $parName -m $matName -f $matName
+   $execdir/mbir_ct -i $parName -j $parName -m $matName
 else
    echo "System matrix file found: $matName.2Dsvmatrix"
    touch $matName.2Dsvmatrix  # reset modification time
@@ -84,10 +84,10 @@ fi
 
 ### RECONSTRUCTION STAGE
 
-$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -r $recName -m $matName -e $matName
+$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -r $recName -m $matName
 
 #OR this (weights are optional if you can't compute based on data)
-#$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -w $wgtName -r $recName -m $matName -e $matName
+#$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -w $wgtName -r $recName -m $matName
 
 #Add this to redirect printed output to a file
 #   2>&1 | tee $(dirname $recName)/out
