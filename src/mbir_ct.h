@@ -60,6 +60,7 @@ struct CmdLine
     char writeProjectionFlag;
     char readAmatrixFlag;        /* 0=compute A; 1=read A */
     char writeAmatrixFlag;
+    char verboseLevel; 		/* 0: quiet mode; 1: print status output */
 };
 
 

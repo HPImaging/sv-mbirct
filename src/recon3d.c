@@ -301,6 +301,8 @@ void MBIRReconstruct3D(
 
 			iter++;
 			equits += (float)NumUpdates/((float)NumMaskVoxels*Nz);
+
+			if(cmdline->verboseLevel)
 			if(equits > it_print)
 			{
 				fprintf(stdout,"\titeration %d, average change %.4f %%\n",it_print,avg_update_rel);
@@ -320,16 +322,19 @@ void MBIRReconstruct3D(
         //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
         //printf("\trun time %llu ms (iterations only)\n", tt);
 
-	if(StopThreshold <= 0)
-		fprintf(stdout,"\tNo stopping condition--running fixed iterations\n");
-	else if(stop_FLAG == 1)
-		fprintf(stdout,"\tReached stopping condition\n");
-	else
-		fprintf(stdout,"\tWARNING: Didn't reach stopping condition\n");
+	if(cmdline->verboseLevel)
+	{
+		if(StopThreshold <= 0)
+			fprintf(stdout,"\tNo stopping condition--running fixed iterations\n");
+		else if(stop_FLAG == 1)
+			fprintf(stdout,"\tReached stopping condition\n");
+		else
+			fprintf(stdout,"\tWARNING: Didn't reach stopping condition\n");
 
-	fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,iter);
-	fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
-	fprintf(stdout,"\tAverage update in last iteration (magnitude) = %f mm^-1\n",avg_update);
+		fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,iter);
+		fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
+		fprintf(stdout,"\tAverage update in last iteration (magnitude) = %.4g\n",avg_update);
+	}
 
 	#ifdef ICC
 		_mm_free((void *)voxelsBuffer1);

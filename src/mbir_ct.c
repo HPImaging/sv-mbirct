@@ -16,6 +16,7 @@
 
 /* Internal Functions */
 void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline);
+void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline);
 void printCmdLineUsage(char *ExecFileName);
 int CmdLineHelpOption(char *string);
 void setNumSliceDigits(char *basename, char *ext, int slice, struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams);
@@ -38,27 +39,37 @@ int main(int argc, char *argv[])
 	int i,j,jz;
 	float **e;
 
-	fprintf(stdout,"SUPER-VOXEL MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
-	fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
-
 	readCmdLine(argc, argv, &cmdline);
+	if(cmdline.verboseLevel)
+	{
+		fprintf(stdout,"SUPER-VOXEL MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
+		fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
+	}
+	procCmdLine(argc, argv, &cmdline);
 
 	/* Read image/sino parameter files */
 	ReadSinoParams3DParallel(cmdline.SinoParamsFile,&sinogram.sinoparams);
 	ReadImageParams3D(cmdline.ImageParamsFile,&Image.imgparams);
-	printSinoParams3DParallel(&sinogram.sinoparams);
-	printImageParams3D(&Image.imgparams);
+	if(cmdline.verboseLevel)
+	{
+		printSinoParams3DParallel(&sinogram.sinoparams);
+		printImageParams3D(&Image.imgparams);
+	}
 	if(cmdline.reconFlag)
 	{
 		ReadReconParams(cmdline.ReconParamsFile,&reconparams);
 		NormalizePriorWeights3D(&reconparams);
 
-		if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
-			printReconParamsQGGMRF3D(&reconparams);
-		if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_PandP)
-			printReconParamsPandP(&reconparams);
+		if(cmdline.verboseLevel)
+		{
+			if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
+				printReconParamsQGGMRF3D(&reconparams);
+			if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_PandP)
+				printReconParamsPandP(&reconparams);
+		}
 
-		if(reconparams.ReconType != cmdline.reconFlag) {
+		if(reconparams.ReconType != cmdline.reconFlag) 
+		{
 			fprintf(stdout,"**\nWarning: \"PriorModel\" field in reconparams file doesn't agree with\n");
 			fprintf(stdout,"Warning: what the command line is doing. Proceeding anyway.\n**\n");
 			reconparams.ReconType = cmdline.reconFlag;
@@ -66,7 +77,8 @@ int main(int argc, char *argv[])
 	}
 
 	initSVParams(&svpar, Image.imgparams, sinogram.sinoparams);  /* Initialize/allocate SV parameters */
-	fprintf(stdout,"\n");
+	if(cmdline.verboseLevel) 
+		fprintf(stdout,"\n");
 
 	/* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
 	/* relevant sinogram parameters so it pulls the correct slices and indexes them consistently */
@@ -94,18 +106,21 @@ int main(int argc, char *argv[])
 	max_num_pointer = (float *) get_spc(Nxy,sizeof(float));
 	if(cmdline.readAmatrixFlag)
 	{
-		fprintf(stdout,"Reading system matrix...\n");
+		if(cmdline.verboseLevel)
+			fprintf(stdout,"Reading system matrix...\n");
 		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
 		readAmatrix(fname, A_Padded_Map, max_num_pointer, &Image.imgparams, &sinogram.sinoparams, svpar);
 	}
 	else
 	{
-		fprintf(stdout,"Computing system matrix...\n");
+		if(cmdline.verboseLevel)
+			fprintf(stdout,"Computing system matrix...\n");
 	        A_comp(A_Padded_Map,max_num_pointer,svpar,&sinogram.sinoparams,ImageReconMask,&Image.imgparams);
         }
 	if(cmdline.writeAmatrixFlag)
 	{
-		fprintf(stdout,"Writing system matrix...\n");
+		if(cmdline.verboseLevel)
+			fprintf(stdout,"Writing system matrix...\n");
 		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
 		writeAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,svpar);
 	}
@@ -117,7 +132,8 @@ int main(int argc, char *argv[])
 		AllocateImageData3D(&Image);
 		if(cmdline.readInitImageFlag)
 		{
-			fprintf(stdout,"Reading initial image...\n");
+			if(cmdline.verboseLevel)
+				fprintf(stdout,"Reading initial image...\n");
 			ReadImage3D(cmdline.InitImageFile,&Image);
 		}
 		else
@@ -139,8 +155,11 @@ int main(int argc, char *argv[])
 		}
 		else	/* Compute initial projection */
 		{
-			fprintf(stdout,"Projecting image...\n");
-			gettimeofday(&tm1,NULL);
+			if(cmdline.verboseLevel)
+			{
+				fprintf(stdout,"Projecting image...\n");
+				gettimeofday(&tm1,NULL);
+			}
 
 			if(cmdline.readInitImageFlag)
 			{
@@ -164,9 +183,12 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			gettimeofday(&tm2,NULL);
-			tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-			fprintf(stdout,"\tProjection time = %llu ms\n",tdiff);
+			if(cmdline.verboseLevel)
+			{
+				gettimeofday(&tm2,NULL);
+				tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+				fprintf(stdout,"\tProjection time = %llu ms\n",tdiff);
+			}
 		}
 	}
 
@@ -200,8 +222,11 @@ int main(int argc, char *argv[])
 		}
 
 		/* Start Reconstruction */
-		fprintf(stdout,"Reconstructing...\n");
-		gettimeofday(&tm1,NULL);
+		if(cmdline.verboseLevel)
+		{
+			fprintf(stdout,"Reconstructing...\n");
+			gettimeofday(&tm1,NULL);
+		}
 
 		/* "e" will hold the sinogram error (y-Ax) during reconstruction */
 		for(jz=0; jz<Nz; jz++)
@@ -210,12 +235,16 @@ int main(int argc, char *argv[])
 
 		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,ImageReconMask,&cmdline);
 
-		gettimeofday(&tm2,NULL);
-		tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-		fprintf(stdout,"\tReconstruction time = %llu ms\n",tdiff);
+		if(cmdline.verboseLevel)
+		{
+			gettimeofday(&tm2,NULL);
+			tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+			fprintf(stdout,"\tReconstruction time = %llu ms\n",tdiff);
+		}
 
 		/* Write out reconstructed image(s) */
-		fprintf(stdout,"Writing image files...\n");
+		if(cmdline.verboseLevel)
+			fprintf(stdout,"Writing image files...\n");
 		WriteImage3D(cmdline.ReconImageFile, &Image);
 
 		if(cmdline.writeProjectionFlag)  /* flip it back to get projection Ax */
@@ -234,7 +263,8 @@ int main(int argc, char *argv[])
 	/* Write Projection of image state if requested */
 	if(cmdline.writeProjectionFlag)
 	{
-		fprintf(stdout,"Writing projection to file...\n");
+		if(cmdline.verboseLevel)
+			fprintf(stdout,"Writing projection to file...\n");
 		for(jz=0; jz<Nz; jz++)
 		{
 			sprintf(fname,"%s_slice%.*d.2Dprojection",cmdline.outputProjectionFile,NumSliceDigits,jz+FirstSliceNumber);
@@ -270,7 +300,9 @@ int main(int argc, char *argv[])
 	free((void *)max_num_pointer);
 	free((void *)ImageReconMask);
 
-	fprintf(stdout,"Done.\n\n");
+	if(cmdline.verboseLevel)
+		fprintf(stdout,"Done.\n\n");
+
 	return(0);
 }
 
@@ -294,6 +326,8 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     cmdline->readInitProjectionFlag=0;
     cmdline->writeProjectionFlag=0;
 
+    cmdline->verboseLevel=1;
+
     /* Print usage statement if no arguments, or help argument given */
     if(argc==1 || CmdLineHelpOption(argv[1]))
     {
@@ -303,7 +337,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     }
     
     /* get options */
-    while ((ch = getopt(argc, argv, "i:j:k:s:w:r:m:t:e:f:p:v")) != EOF)
+    while ((ch = getopt(argc, argv, "i:j:k:s:w:r:m:t:e:f:p:v:")) != EOF)
     {
         switch (ch)
         {
@@ -373,9 +407,9 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
                 sprintf(cmdline->ProxMapImageFile, "%s", optarg);
                 break;
             }
-            // Reserve this for verbose-mode flag
             case 'v':
             {
+                sscanf(optarg,"%d",&cmdline->verboseLevel);
                 break;
             }
             default:
@@ -387,8 +421,14 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             }
         }
     }
+}
 
-    fprintf(stdout,"Parsing command line...\n");
+
+/* Process Command-line */
+void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
+{
+    if(cmdline->verboseLevel)
+        fprintf(stdout,"Parsing command line...\n");
 
     /* Check for mandatory arguments */
     if(!cmdline->SinoParamsFileFlag || !cmdline->ImageParamsFileFlag){
@@ -413,6 +453,13 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
 
         if(cmdline->readInitProjectionFlag && !cmdline->readInitImageFlag)
             cmdline->readInitProjectionFlag = 0;
+
+        if(!cmdline->ReconParamsFileFlag || !cmdline->SinoDataFileFlag)
+        {
+            fprintf(stderr,"Error: Either input data or reconstruction parameters weren't specified\n");
+            fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
+            exit(-1);
+        }
     }
     else  /* precompute matrix or project input image */
     {
@@ -431,91 +478,82 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
         {
             if(cmdline->SysMatrixFileFlag)
                 cmdline->writeAmatrixFlag=1;
-            //else there nothing useful to do..will exit in next block
+            else
+            {
+                fprintf(stderr,"Error: From the given command options, not sure what you want to do.\n");
+                fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
+                exit(-1);
+            }
         }
     }
 
     /* Print output and check errors of above parsing sequence  */
-    if(cmdline->reconFlag)
+    if(cmdline->verboseLevel)
     {
-        fprintf(stdout,"-> will perform reconstruction ");
-        if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
-            fprintf(stdout,"(QGGMRF)\n");
-        if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_PandP)
-            fprintf(stdout,"(Plug & Play)\n");
-
-        if(cmdline->readAmatrixFlag)
-            fprintf(stdout,"-> will read system matrix from file\n");
-        else
+        if(cmdline->reconFlag)
         {
-            fprintf(stdout,"-> will compute system matrix\n");
-            fprintf(stdout," *** NOTE if you precompute/store the system matrix, any further reconstruction\n");
-            fprintf(stdout," *** with the same image/sinogram in-slice dimensions will execute MUCH faster.\n");
-            fprintf(stdout," *** See help (-m option)\n");
-        //  fprintf(stdout,"***80 columns*******************************************************************\n\n");
+            fprintf(stdout,"-> will perform reconstruction ");
+            if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
+                fprintf(stdout,"(QGGMRF)\n");
+            if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_PandP)
+                fprintf(stdout,"(Plug & Play)\n");
+
+            if(cmdline->readAmatrixFlag)
+                fprintf(stdout,"-> will read system matrix from file\n");
+            else
+            {
+                fprintf(stdout,"-> will compute system matrix\n");
+                fprintf(stdout," *** NOTE if you precompute/store the system matrix, any further reconstruction\n");
+                fprintf(stdout," *** with the same image/sinogram in-slice dimensions will execute MUCH faster.\n");
+                fprintf(stdout," *** See help (-m option)\n");
+            //  fprintf(stdout,"***80 columns*******************************************************************\n\n");
+            }
+            if(!cmdline->SinoWeightsFileFlag)
+                fprintf(stdout,"-> will compute sinogram weights internally (no file provided)\n");
+            if(cmdline->readInitImageFlag)
+                fprintf(stdout,"-> will read initial condition from file(s)\n");
+            if(cmdline->readInitProjectionFlag)
+                fprintf(stdout,"-> will read projection of initial condition\n");
+            else
+                fprintf(stdout,"-> will compute forward projection of initial condition\n");
+
+            if(cmdline->writeProjectionFlag)
+                fprintf(stdout,"-> will save projection of output image state to file(s)\n");
         }
-        if(!cmdline->SinoWeightsFileFlag)
-            fprintf(stdout,"-> will compute sinogram weights internally (no file provided)\n");
+        else if(cmdline->writeAmatrixFlag || cmdline->writeProjectionFlag)
+        {
+            fprintf(stdout,"-> no reconstruction\n");
+            if(cmdline->writeAmatrixFlag)
+                fprintf(stdout,"-> will compute system matrix and write to file\n");
+            if(cmdline->writeProjectionFlag)
+                fprintf(stdout,"-> will compute projection and write to file(s)\n");
+            if(cmdline->ReconParamsFileFlag || cmdline->SinoDataFileFlag || cmdline->SinoWeightsFileFlag || cmdline->readInitProjectionFlag)
+                fprintf(stdout,"Note some command line options are being ignored.\n");
+        }
+
+        fprintf(stdout,"\n");
+        fprintf(stdout,"Filenames provided:\n");
+        if(cmdline->SinoParamsFileFlag)
+            fprintf(stdout,"   Sino params   = %s.sinoparams\n",cmdline->SinoParamsFile);
+        if(cmdline->ImageParamsFileFlag)
+            fprintf(stdout,"   Image params  = %s.imgparams\n",cmdline->ImageParamsFile);
+        if(cmdline->ReconParamsFileFlag)
+            fprintf(stdout,"   Recon params  = %s.reconparams\n",cmdline->ReconParamsFile);
+        if(cmdline->SinoDataFileFlag)
+            fprintf(stdout,"   Sinogram data = %s_sliceNNN.2Dsinodata\n",cmdline->SinoDataFile);
+        if(cmdline->SinoWeightsFileFlag)
+            fprintf(stdout,"   Weight data   = %s_sliceNNN.2Dweightdata\n",cmdline->SinoWeightsFile);
+        if(cmdline->ReconImageFileFlag)
+            fprintf(stdout,"   Output images = %s_sliceNNN.2Dimgdata\n",cmdline->ReconImageFile);
         if(cmdline->readInitImageFlag)
-            fprintf(stdout,"-> will read initial condition from file(s)\n");
+            fprintf(stdout,"   Initial image = %s_sliceNNN.2Dimgdata\n",cmdline->InitImageFile);
+        if(cmdline->SysMatrixFileFlag)
+            fprintf(stdout,"   System matrix = %s.2Dsvmatrix\n",cmdline->SysMatrixFile);
         if(cmdline->readInitProjectionFlag)
-            fprintf(stdout,"-> will read projection of initial condition\n");
-        else
-            fprintf(stdout,"-> will compute forward projection of initial condition\n");
-
+            fprintf(stdout,"   Initial projection = %s.2Dprojection\n",cmdline->inputProjectionFile);
         if(cmdline->writeProjectionFlag)
-            fprintf(stdout,"-> will save projection of output image state to file(s)\n");
-
-        if(!cmdline->ReconParamsFileFlag || !cmdline->SinoDataFileFlag)
-        {
-            fprintf(stderr,"Error: Either input data or reconstruction parameters weren't specified\n");
-            fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
-            exit(-1);
-        }
-
+            fprintf(stdout,"   Output projection = %s_sliceNNN.2Dprojection\n",cmdline->outputProjectionFile);
     }
-    else if(cmdline->writeAmatrixFlag || cmdline->writeProjectionFlag)
-    {
-        fprintf(stdout,"-> no reconstruction\n");
-        if(cmdline->writeAmatrixFlag)
-            fprintf(stdout,"-> will compute system matrix and write to file\n");
-        if(cmdline->writeProjectionFlag)
-            fprintf(stdout,"-> will compute projection and write to file(s)\n");
-        if(cmdline->ReconParamsFileFlag || cmdline->SinoDataFileFlag || cmdline->SinoWeightsFileFlag || cmdline->readInitProjectionFlag)
-            fprintf(stdout,"Note some command line options are being ignored.\n");
-    }
-    else
-    {
-        fprintf(stderr,"Error: From the given command options, not sure what you want to do.\n");
-        fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
-        exit(-1);
-    }
-
-    fprintf(stdout,"\n");
-
-    fprintf(stdout,"Filenames provided:\n");
-
-    if(cmdline->SinoParamsFileFlag)
-        fprintf(stdout,"   Sino params   = %s.sinoparams\n",cmdline->SinoParamsFile);
-    if(cmdline->ImageParamsFileFlag)
-        fprintf(stdout,"   Image params  = %s.imgparams\n",cmdline->ImageParamsFile);
-    if(cmdline->ReconParamsFileFlag)
-        fprintf(stdout,"   Recon params  = %s.reconparams\n",cmdline->ReconParamsFile);
-    if(cmdline->SinoDataFileFlag)
-        fprintf(stdout,"   Sinogram data = %s_sliceNNN.2Dsinodata\n",cmdline->SinoDataFile);
-    if(cmdline->SinoWeightsFileFlag)
-        fprintf(stdout,"   Weight data   = %s_sliceNNN.2Dweightdata\n",cmdline->SinoWeightsFile);
-    if(cmdline->ReconImageFileFlag)
-        fprintf(stdout,"   Output images = %s_sliceNNN.2Dimgdata\n",cmdline->ReconImageFile);
-    if(cmdline->readInitImageFlag)
-        fprintf(stdout,"   Initial image = %s_sliceNNN.2Dimgdata\n",cmdline->InitImageFile);
-    if(cmdline->SysMatrixFileFlag)
-        fprintf(stdout,"   System matrix = %s.2Dsvmatrix\n",cmdline->SysMatrixFile);
-    if(cmdline->readInitProjectionFlag)
-        fprintf(stdout,"   Initial projection = %s.2Dprojection\n",cmdline->inputProjectionFile);
-    if(cmdline->writeProjectionFlag)
-        fprintf(stdout,"   Output projection = %s_sliceNNN.2Dprojection\n",cmdline->outputProjectionFile);
-
 }
 
 
@@ -605,6 +643,7 @@ void printCmdLineUsage(char *ExecFileName)
     fprintf(stdout,"\t-p <baseFilename>            : Proximal map image(s) for Plug & Play\n");
     fprintf(stdout,"\t                             : ** -p specifies to use proximal prior\n");
     fprintf(stdout,"\t                             : ** generally use with -t -e -f\n");
+    fprintf(stdout,"\t-v <verbose level>           : 0: quiet mode, 1: print parameters/status (default)\n");
     fprintf(stdout,"\n");
     fprintf(stdout,"Compute projection of input only:\n");
     fprintf(stdout,"\n");
