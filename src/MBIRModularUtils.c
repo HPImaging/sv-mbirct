@@ -22,9 +22,9 @@ void printSinoParams3DParallel(struct SinoParams3DParallel *sinoparams)
     fprintf(stdout, " - Number of detector channels per slice = %d\n", sinoparams->NChannels);
     fprintf(stdout, " - Number of slices                      = %d\n", sinoparams->NSlices);
     fprintf(stdout, " - First slice index (wrt file names)    = %d\n", sinoparams->FirstSliceNumber);
-    fprintf(stdout, " - Spacing between detector channels     = %.7f (mm)\n", sinoparams->DeltaChannel);
-    fprintf(stdout, " - Center of rotation offset             = %.7f (channels)\n", sinoparams->CenterOffset);
-    fprintf(stdout, " - Spacing between slices                = %.7f (mm)\n", sinoparams->DeltaSlice);
+    fprintf(stdout, " - Spacing between detector channels     = %.4g\n", sinoparams->DeltaChannel);
+    fprintf(stdout, " - Center of rotation offset             = %.3f (channels)\n", sinoparams->CenterOffset);
+    fprintf(stdout, " - Spacing between slices                = %.4g\n", sinoparams->DeltaSlice);
 }
 
 /* Utility for reading 3D parallel beam sinogram parameters */
@@ -43,10 +43,10 @@ int ReadSinoParams3DParallel(
 	/* set defaults, also used for error checking below */
 	sinoparams->NViews=0;		/* Number of view angles */
 	sinoparams->NChannels=-1;	/* Number of channels in detector */
-	sinoparams->DeltaChannel=0.0;	/* Detector spacing (mm) */
+	sinoparams->DeltaChannel=0.0;	/* Detector spacing (length) */
 	sinoparams->NSlices=0;		/* Number of slices stored in Sino array */
 	sinoparams->FirstSliceNumber=-1;	/* slice index coresponding to first slice in volume */
-	sinoparams->DeltaSlice=0.0;	/* Spacing along slice direction (mm) */
+	sinoparams->DeltaSlice=0.0;	/* Spacing along slice direction */
 	sinoparams->CenterOffset=0.0;	/* Offset of center-of-rotation ... */
 
 	strcpy(fname,basename);
@@ -138,12 +138,12 @@ int ReadSinoParams3DParallel(
 	}
 	if(sinoparams->DeltaChannel<=0 && sinoparams->NChannels>1) {
 		printSinoParams3DParallel(sinoparams);
-		fprintf(stderr,"Error in %s: DeltaChannel needs to be positive (mm)\n",fname);
+		fprintf(stderr,"Error in %s: DeltaChannel needs to be positive\n",fname);
 		exit(-1);
 	}
 	if(sinoparams->DeltaSlice<=0 && sinoparams->NSlices>1) {
 		printSinoParams3DParallel(sinoparams);
-		fprintf(stderr,"Error in %s: DeltaSlice needs to be positive (mm)\n",fname);
+		fprintf(stderr,"Error in %s: DeltaSlice needs to be positive\n",fname);
 		exit(-1);
 	}
 	if(sinoparams->FirstSliceNumber < 0) {
@@ -186,9 +186,9 @@ void printImageParams3D(struct ImageParams3D *imgparams)
     fprintf(stdout, " - Number of pixels per slice in (X,Y)-directions    = (%d,%d)\n",imgparams->Nx,imgparams->Ny);
     fprintf(stdout, " - Number of slices (to reconstruct if output param) = %d\n",imgparams->Nz);
     fprintf(stdout, " - First slice index (wrt sino/img file names)       = %d\n",imgparams->FirstSliceNumber);
-    fprintf(stdout, " - Pixel width in XY plane               = %.7f (mm)\n", imgparams->Deltaxy);
-    fprintf(stdout, " - Spacing between slices                = %.7f (mm)\n", imgparams->DeltaZ);
-    fprintf(stdout, " - ROIRadius                             = %.7f (mm)\n", imgparams->ROIRadius);
+    fprintf(stdout, " - Pixel width in XY plane               = %.4g\n", imgparams->Deltaxy);
+    fprintf(stdout, " - Spacing between slices                = %.4g\n", imgparams->DeltaZ);
+    fprintf(stdout, " - ROIRadius                             = %.4g\n", imgparams->ROIRadius);
 }
 
 /* Utility for reading 2D Image parameters */
@@ -285,12 +285,12 @@ int ReadImageParams3D(
 	}
 	if(imgparams->Deltaxy<=0) {
 		printImageParams3D(imgparams);
-		fprintf(stderr,"Error in %s: Deltaxy needs to be positive (mm)\n",fname);
+		fprintf(stderr,"Error in %s: Deltaxy needs to be positive\n",fname);
 		exit(-1);
 	}
 	if(imgparams->DeltaZ<=0 && imgparams->Nz>1) {
 		printImageParams3D(imgparams);
-		fprintf(stderr,"Error in %s: DeltaZ needs to be positive (mm)\n",fname);
+		fprintf(stderr,"Error in %s: DeltaZ needs to be positive\n",fname);
 		exit(-1);
 	}
 	if(imgparams->FirstSliceNumber < 0) {
@@ -300,7 +300,7 @@ int ReadImageParams3D(
 	}
 	if(imgparams->ROIRadius<=0) {
 		imgparams->ROIRadius = imgparams->Nx * imgparams->Deltaxy;
-		fprintf(stderr,"Warning in %s: ROIRadius needs to be positive. Defaulting to %.4f (mm)\n",fname,imgparams->ROIRadius);
+		fprintf(stderr,"Warning in %s: ROIRadius needs to be positive. Defaulting to %.4g\n",fname,imgparams->ROIRadius);
 		printImageParams3D(imgparams);
 	}
 
@@ -313,16 +313,16 @@ void printReconParamsQGGMRF3D(struct ReconParams *reconparams)
 {
     fprintf(stdout, "RECONSTRUCTION/PRIOR PARAMETERS:\n");
     fprintf(stdout, " - Prior Type                                            = QGGMRF\n");
-    fprintf(stdout, " - Q-GGMRF Prior Parameter, q                            = %f\n", reconparams->p);
-    fprintf(stdout, " - Q-GGMRF Prior Parameter, p                            = %f\n", reconparams->q);
-    fprintf(stdout, " - Q-GGMRF Prior Parameter, T                            = %f\n", reconparams->T);
-    fprintf(stdout, " - Prior Regularization parameter, SigmaX                = %.7f (mm^-1)\n", reconparams->SigmaX);
-    fprintf(stdout, " - Scaling for sino weights, SigmaY (W=exp(-y)/SigmaY^2) = %.7f (mm^-1)\n", reconparams->SigmaY);
-    fprintf(stdout, " - Prior weight for nearest neighbors within slice       = %.7f\n", reconparams->b_nearest);
-    fprintf(stdout, " - Prior weight for diagonal neighbors within slice      = %.7f\n", reconparams->b_diag);
-    fprintf(stdout, " - Prior weight for nearest neighbors in adjacent slices = %.7f\n", reconparams->b_interslice);
-    fprintf(stdout, " - Inital image value                                    = %-10f (mm-1)\n", reconparams->InitImageValue);
-    fprintf(stdout, " - Stop threshold for convergence                        = %.7f %%\n", reconparams->StopThreshold);
+    fprintf(stdout, " - Q-GGMRF Prior Parameter, q                            = %.2f\n", reconparams->p);
+    fprintf(stdout, " - Q-GGMRF Prior Parameter, p                            = %.2f\n", reconparams->q);
+    fprintf(stdout, " - Q-GGMRF Prior Parameter, T                            = %.4g\n", reconparams->T);
+    fprintf(stdout, " - Prior Regularization parameter, SigmaX                = %.4g\n", reconparams->SigmaX);
+    fprintf(stdout, " - Scaling for sino weights, SigmaY (W <- W/SigmaY^2)    = %.4g\n", reconparams->SigmaY);
+    fprintf(stdout, " - Prior weight for nearest neighbors within slice       = %.3f\n", reconparams->b_nearest);
+    fprintf(stdout, " - Prior weight for diagonal neighbors within slice      = %.3f\n", reconparams->b_diag);
+    fprintf(stdout, " - Prior weight for nearest neighbors in adjacent slices = %.3f\n", reconparams->b_interslice);
+    fprintf(stdout, " - Inital image value                                    = %-10f\n", reconparams->InitImageValue);
+    fprintf(stdout, " - Stop threshold for convergence                        = %.6f %%\n", reconparams->StopThreshold);
     fprintf(stdout, " - Maximum number of ICD iterations                      = %d\n", reconparams->MaxIterations);
     fprintf(stdout, " - Positivity constraint flag                            = %d\n", reconparams->Positivity);
 }
@@ -331,8 +331,8 @@ void printReconParamsPandP(struct ReconParams *reconparams)
 {
     fprintf(stdout, "RECONSTRUCTION/PRIOR PARAMETERS:\n");
     fprintf(stdout, " - Prior Type                                            = Plug & Play\n");
-    fprintf(stdout, " - Regularization parameter for Proximal Map, SigmaX     = %.7f (mm^-1)\n", reconparams->SigmaX);
-    fprintf(stdout, " - Scaling for sino weights, SigmaY (W=exp(-y)/SigmaY^2) = %.7f (mm^-1)\n", reconparams->SigmaY);
+    fprintf(stdout, " - Regularization parameter for Proximal Map, SigmaX     = %.4g\n", reconparams->SigmaX);
+    fprintf(stdout, " - Scaling for sino weights, SigmaY (W <- W/SigmaY^2)    = %.4g\n", reconparams->SigmaY);
     fprintf(stdout, " - Stop threshold for convergence                        = %.7f %%\n", reconparams->StopThreshold);
     fprintf(stdout, " - Maximum number of ICD iterations                      = %d\n", reconparams->MaxIterations);
     fprintf(stdout, " - Positivity constraint flag                            = %d\n", reconparams->Positivity);
