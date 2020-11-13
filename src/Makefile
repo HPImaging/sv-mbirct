@@ -5,14 +5,13 @@ CC = icc
 
 # common flags, libraries
 CFLAGS = -std=c11 -O3
-#CFLAGS += -Wall
+CFLAGS += -Wall
 LIBS = -lm
 
 ifeq ($(CC),icc)
   CFLAGS += -DICC -qopenmp
   CFLAGS += -no-prec-div -restrict -ipo -inline-calloc -qopt-calloc -no-ansi-alias
   CFLAGS += -xCORE-AVX2
-  CFLAGS += -wd3948 # suppress warning about "pragma simd" deprecation
   #CFLAGS += -qopenmp-link=static
   #CFLAGS += -static-intel -wd10237
   #CFLAGS += -prof-gen
@@ -28,6 +27,7 @@ else ifeq ($(CC),clang)
 
 else ifeq ($(CC),gcc)
   CFLAGS += -fopenmp
+  CFLAGS += -Wno-unknown-pragmas
 else
   CFLAGS += -fopenmp
 endif

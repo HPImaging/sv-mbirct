@@ -409,7 +409,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             }
             case 'v':
             {
-                sscanf(optarg,"%d",&cmdline->verboseLevel);
+                sscanf(optarg,"%hhi",&cmdline->verboseLevel);
                 break;
             }
             default:

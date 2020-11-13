@@ -560,13 +560,6 @@ void super_voxel_recon(
 		bandWidth[p]=bandWidthMax;
 	}
 
-	int tempCount=0;
-
-	#pragma vector aligned
-	#pragma simd reduction(+:tempCount) 
-	for (p = 0; p < NViewsdivided; p++)
-		tempCount+=bandWidth[p]*pieceLength;
-
 	float ** newWArray = (float **)malloc(sizeof(float *) * NViewsdivided);
 	float ** newEArray = (float **)malloc(sizeof(float *) * NViewsdivided);
 	float ** CopyNewEArray = (float **)malloc(sizeof(float *) * NViewsdivided); 
@@ -728,8 +721,10 @@ void super_voxel_recon(
 				ETransposeArrayPointer+=pieceMin*pieceLength;
 				float tempTHETA1=0.0;
 				float tempTHETA2=0.0;
-				#pragma vector aligned
-				#pragma simd reduction(+:tempTHETA2,tempTHETA1)
+				//Not finding evidence this makes a difference --SJK
+				//Deprecated by Intel anyway
+				//#pragma vector aligned
+				//#pragma simd reduction(+:tempTHETA2,tempTHETA1)
 				for(t=0;t<myCount*pieceLength;t++)
 				{	/* summing over voxels which are not skipped or masked*/     
 					tempTHETA1 += A_padd_Tranpose_pointer[t]*WTransposeArrayPointer[t]*ETransposeArrayPointer[t];
