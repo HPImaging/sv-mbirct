@@ -23,6 +23,7 @@ ifeq ($(CC),icc)
 
 else ifeq ($(CC),clang)
   CFLAGS += -Xclang -fopenmp
+  CFLAGS += -Wno-unknown-pragmas
   LIBS += -lomp
 
 else ifeq ($(CC),gcc)
