@@ -615,8 +615,11 @@ struct pointerAddress A_comp(
 		free((void *)address_arr.addressA[i][j].minIndex);
 		free((void *)address_arr.addressB[i][j].val);
 	}
-    	multifree(address_arr.addressA,2);
-    	multifree(address_arr.addressB,2);	    		
+	multifree(address_arr.addressA,2);
+	multifree(address_arr.addressB,2);
+
+	free_img((void **)pix_prof);
+
 	return address_arr;
 	
 }
