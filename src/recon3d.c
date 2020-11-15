@@ -236,7 +236,9 @@ void MBIRReconstruct3D(
 			
 					if(iter%2==1)
 					{
-						initialize_heap(&priorityheap);						
+						//SJK: This is a memory leak!!
+						//initialize_heap(&priorityheap);
+						priorityheap.size=0;
 						for(jj=0;jj<sum*SV_per_Z;jj++){
 							heap_insert(&priorityheap, &(headNodeArray[jj]));
 						}						
@@ -347,8 +349,7 @@ void MBIRReconstruct3D(
 	#endif
 
 	free((void *)headNodeArray);
-	if(priorityheap.size>0)
-		free_heap((void *)&priorityheap); 
+	free_heap((void *)&priorityheap);
 	free((void *)phaseMap);
 	free((void *)order);
 
