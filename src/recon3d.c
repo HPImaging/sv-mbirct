@@ -331,8 +331,11 @@ void MBIRReconstruct3D(
 		else if(stop_FLAG == 1)
 			fprintf(stdout,"\tReached stopping condition\n");
 		else
-			fprintf(stdout,"\tWARNING: Didn't reach stopping condition\n");
+			fprintf(stdout,"\tWarning: Didn't reach stopping condition\n");
+	}
 
+	if(cmdline->verboseLevel>1)
+	{
 		fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,iter);
 		fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
 		fprintf(stdout,"\tAverage update in last iteration (magnitude) = %.4g\n",avg_update);

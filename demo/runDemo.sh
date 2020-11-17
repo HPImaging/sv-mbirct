@@ -84,7 +84,7 @@ fi
 
 ### RECONSTRUCTION STAGE
 
-$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -r $recName -m $matName
+$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -r $recName -m $matName -v 2
 
 #OR this (weights are optional if you can't compute based on data)
 #$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -w $wgtName -r $recName -m $matName

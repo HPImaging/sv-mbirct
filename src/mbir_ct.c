@@ -43,14 +43,14 @@ int main(int argc, char *argv[])
 	if(cmdline.verboseLevel)
 	{
 		fprintf(stdout,"SUPER-VOXEL MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
-		fprintf(stdout,"build time: %s, %s\n\n", __DATE__,  __TIME__);
+		fprintf(stdout,"---- build time: %s, %s ----\n", __DATE__,  __TIME__);
 	}
 	procCmdLine(argc, argv, &cmdline);
 
 	/* Read image/sino parameter files */
 	ReadSinoParams3DParallel(cmdline.SinoParamsFile,&sinogram.sinoparams);
 	ReadImageParams3D(cmdline.ImageParamsFile,&Image.imgparams);
-	if(cmdline.verboseLevel)
+	if(cmdline.verboseLevel>1)
 	{
 		printSinoParams3DParallel(&sinogram.sinoparams);
 		printImageParams3D(&Image.imgparams);
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 		ReadReconParams(cmdline.ReconParamsFile,&reconparams);
 		NormalizePriorWeights3D(&reconparams);
 
-		if(cmdline.verboseLevel)
+		if(cmdline.verboseLevel>1)
 		{
 			if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
 				printReconParamsQGGMRF3D(&reconparams);
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 	}
 
 	initSVParams(&svpar, Image.imgparams, sinogram.sinoparams);  /* Initialize/allocate SV parameters */
-	if(cmdline.verboseLevel) 
+	if(cmdline.verboseLevel>1)
 		fprintf(stdout,"\n");
 
 	/* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
@@ -106,9 +106,11 @@ int main(int argc, char *argv[])
 	max_num_pointer = (float *) get_spc(Nxy,sizeof(float));
 	if(cmdline.readAmatrixFlag)
 	{
-		if(cmdline.verboseLevel)
-			fprintf(stdout,"Reading system matrix...\n");
 		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+		if(cmdline.verboseLevel>1)
+			fprintf(stdout,"Reading system matrix %s\n",fname);
+		else if(cmdline.verboseLevel)
+			fprintf(stdout,"Reading system matrix...\n");
 		readAmatrix(fname, A_Padded_Map, max_num_pointer, &Image.imgparams, &sinogram.sinoparams, svpar);
 	}
 	else
@@ -119,9 +121,11 @@ int main(int argc, char *argv[])
         }
 	if(cmdline.writeAmatrixFlag)
 	{
-		if(cmdline.verboseLevel)
-			fprintf(stdout,"Writing system matrix...\n");
 		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+		if(cmdline.verboseLevel>1)
+			fprintf(stdout,"Writing system matrix %s\n",fname);
+		else if(cmdline.verboseLevel)
+			fprintf(stdout,"Writing system matrix...\n");
 		writeAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,svpar);
 	}
 
@@ -183,7 +187,7 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			if(cmdline.verboseLevel)
+			if(cmdline.verboseLevel>1)
 			{
 				gettimeofday(&tm2,NULL);
 				tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
@@ -301,7 +305,7 @@ int main(int argc, char *argv[])
 	free((void *)ImageReconMask);
 
 	if(cmdline.verboseLevel)
-		fprintf(stdout,"Done.\n\n");
+		fprintf(stdout,"Done.\n");
 
 	return(0);
 }
@@ -427,7 +431,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
 /* Process Command-line */
 void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
 {
-    if(cmdline->verboseLevel)
+    if(cmdline->verboseLevel>1)
         fprintf(stdout,"Parsing command line...\n");
 
     /* Check for mandatory arguments */
@@ -488,7 +492,7 @@ void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     }
 
     /* Print output and check errors of above parsing sequence  */
-    if(cmdline->verboseLevel)
+    if(cmdline->verboseLevel>1)
     {
         if(cmdline->reconFlag)
         {
@@ -643,7 +647,8 @@ void printCmdLineUsage(char *ExecFileName)
     fprintf(stdout,"\t-p <baseFilename>            : Proximal map image(s) for Plug & Play\n");
     fprintf(stdout,"\t                             : ** -p specifies to use proximal prior\n");
     fprintf(stdout,"\t                             : ** generally use with -t -e -f\n");
-    fprintf(stdout,"\t-v <verbose level>           : 0: quiet mode, 1: print parameters/status (default)\n");
+//  fprintf(stdout,"***80 columns*******************************************************************\n\n");
+    fprintf(stdout,"\t-v <verbose level>           : 0:quiet, 1:status info (default), 2:more info\n");
     fprintf(stdout,"\n");
     fprintf(stdout,"Compute projection of input only:\n");
     fprintf(stdout,"\n");
