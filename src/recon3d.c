@@ -40,7 +40,7 @@ void MBIRReconstruct3D(
 	struct AValues_char ** A_Padded_Map,
 	float *max_num_pointer,
 	char *ImageReconMask,
-	struct CmdLine *cmdline)
+	char verboseLevel)
 {
 	int i,j,jj,p,t,iter,it_print=1;
 	int NumMaskVoxels=0;
@@ -304,7 +304,7 @@ void MBIRReconstruct3D(
 			iter++;
 			equits += (float)NumUpdates/((float)NumMaskVoxels*Nz);
 
-			if(cmdline->verboseLevel)
+			if(verboseLevel)
 			if(equits > it_print)
 			{
 				fprintf(stdout,"\titeration %d, average change %.4f %%\n",it_print,avg_update_rel);
@@ -324,7 +324,7 @@ void MBIRReconstruct3D(
         //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
         //printf("\trun time %llu ms (iterations only)\n", tt);
 
-	if(cmdline->verboseLevel)
+	if(verboseLevel)
 	{
 		if(StopThreshold <= 0)
 			fprintf(stdout,"\tNo stopping condition--running fixed iterations\n");
@@ -334,7 +334,7 @@ void MBIRReconstruct3D(
 			fprintf(stdout,"\tWarning: Didn't reach stopping condition\n");
 	}
 
-	if(cmdline->verboseLevel>1)
+	if(verboseLevel>1)
 	{
 		fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,iter);
 		fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);

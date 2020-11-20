@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 		for(i=0; i<NvNc; i++)
 			e[jz][i] = sinogram.sino[jz][i]-e[jz][i];
 
-		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,ImageReconMask,&cmdline);
+		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,ImageReconMask,cmdline.verboseLevel);
 
 		if(cmdline.verboseLevel)
 		{
