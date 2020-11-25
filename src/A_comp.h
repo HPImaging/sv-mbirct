@@ -3,61 +3,60 @@
 
 #include "MBIRModularDefs.h"
 
-
 struct ACol
 {
-	int n_index;
-	unsigned char *countTheta;
-	int *minIndex;
+    int n_index;
+    unsigned char *countTheta;
+    int *minIndex;
 };
 
 struct AValues_char{
-	unsigned char *val;
-	int *pieceWiseMin;
-	int *pieceWiseWidth;
-	int length;
+    unsigned char *val;
+    int *pieceWiseMin;
+    int *pieceWiseWidth;
+    int length;
 };
 
 struct pointerAddress{
-	struct ACol** addressA;
-	struct AValues_char** addressB;
+    struct ACol** addressA;
+    struct AValues_char** addressB;
 };
 
 
 struct minStruct
 {
-	int *bandMin;
+    int *bandMin;
 };
 struct maxStruct
 {
-	int *bandMax;
+    int *bandMax;
 };
 
 
 /* Functions */
 struct pointerAddress A_comp(
-	struct AValues_char ** A_Padded_Map,
-	float * max_num_pointer,
-	struct SVParams svpar,
-	struct SinoParams3DParallel *sinoparams,
-	char *recon_mask,
-	struct ImageParams3D *imgparams);
+    struct AValues_char ** A_Padded_Map,
+    float * max_num_pointer,
+    struct SVParams svpar,
+    struct SinoParams3DParallel *sinoparams,
+    char *recon_mask,
+    struct ImageParams3D *imgparams);
 
 void readAmatrix(
-	char *fname,
-	struct AValues_char ** A_Padded_Map,
-	float * max_num_pointer,
-	struct ImageParams3D *imgparams,
-	struct SinoParams3DParallel *sinoparams,
-	struct SVParams svpar);
+    char *fname,
+    struct AValues_char ** A_Padded_Map,
+    float * max_num_pointer,
+    struct ImageParams3D *imgparams,
+    struct SinoParams3DParallel *sinoparams,
+    struct SVParams svpar);
 
 void writeAmatrix(
-	char *fname,
-	struct AValues_char ** A_Padded_Map,
-	float * max_num_pointer,
-	struct ImageParams3D *imgparams,
-	struct SinoParams3DParallel *sinoparams,
-	struct SVParams svpar);
+    char *fname,
+    struct AValues_char ** A_Padded_Map,
+    float * max_num_pointer,
+    struct ImageParams3D *imgparams,
+    struct SinoParams3DParallel *sinoparams,
+    struct SVParams svpar);
 
 
 #endif
