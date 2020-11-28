@@ -30,15 +30,6 @@ struct SVParams
 	int pieceLength;
 };
 
-#if 0
-// Experimental
-struct SysMatrixSV
-{
-	struct AValues_char **A_Padded_Map;
-	float *max_num_pointer;
-};
-#endif
-
 
 struct CmdLine
 {

@@ -12,16 +12,16 @@ void MBIRReconstruct3D(
 	float **e,
 	struct ReconParams reconparams,
 	struct SVParams svpar,
-	struct AValues_char ** A_Padded_Map,
-	float *max_num_pointer,
+	struct AValues_char **A_Padded_Map,
+	float *Aval_max_ptr,
 	char *ImageReconMask,
 	char verboseLevel);
 
 void forwardProject2D(
 	float *e,
 	float *x,
-	struct AValues_char ** A_Padded_Map,
-	float *max_num_pointer,
+	struct AValues_char **A_Padded_Map,
+	float *Aval_max_ptr,
 	struct SinoParams3DParallel *sinoparams,
 	struct ImageParams3D *imgparams,
 	struct SVParams svpar);

@@ -17,12 +17,6 @@ struct AValues_char{
     int length;
 };
 
-struct pointerAddress{
-    struct ACol** addressA;
-    struct AValues_char** addressB;
-};
-
-
 struct minStruct
 {
     int *bandMin;
@@ -34,9 +28,9 @@ struct maxStruct
 
 
 /* Functions */
-struct pointerAddress A_comp(
-    struct AValues_char ** A_Padded_Map,
-    float * max_num_pointer,
+void A_comp(
+    struct AValues_char **A_Padded_Map,
+    float *Aval_max_ptr,
     struct SVParams svpar,
     struct SinoParams3DParallel *sinoparams,
     char *recon_mask,
@@ -44,16 +38,16 @@ struct pointerAddress A_comp(
 
 void readAmatrix(
     char *fname,
-    struct AValues_char ** A_Padded_Map,
-    float * max_num_pointer,
+    struct AValues_char **A_Padded_Map,
+    float *Aval_max_ptr,
     struct ImageParams3D *imgparams,
     struct SinoParams3DParallel *sinoparams,
     struct SVParams svpar);
 
 void writeAmatrix(
     char *fname,
-    struct AValues_char ** A_Padded_Map,
-    float * max_num_pointer,
+    struct AValues_char **A_Padded_Map,
+    float *Aval_max_ptr,
     struct ImageParams3D *imgparams,
     struct SinoParams3DParallel *sinoparams,
     struct SVParams svpar);

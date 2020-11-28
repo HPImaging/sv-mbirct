@@ -30,8 +30,8 @@ int main(int argc, char *argv[])
 	struct Sino3DParallel sinogram;
 	struct ReconParams reconparams;
 	struct SVParams svpar;
-	struct AValues_char **A_Padded_Map; 
-	float *max_num_pointer;	
+	struct AValues_char **A_Padded_Map;
+	float *Aval_max_ptr;
 	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
 	char fname[1024];
 	struct timeval tm1,tm2;
@@ -89,6 +89,8 @@ int main(int argc, char *argv[])
 	int Nxy = Image.imgparams.Nx * Image.imgparams.Ny;
 	int Nz = Image.imgparams.Nz;
 	int FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+	int SVLength = svpar.SVLength;
+	int Nsv = svpar.Nsv;
 
 	/* Detect the number of slice number digits in input file names */
 	if(cmdline.reconFlag)
@@ -102,23 +104,28 @@ int main(int argc, char *argv[])
 	ImageReconMask = GenImageReconMask(&Image.imgparams);
 
 	/* Read/compute/write System Matrix */
-	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,svpar.Nsv,(2*svpar.SVLength+1)*(2*svpar.SVLength+1));
-	max_num_pointer = (float *) get_spc(Nxy,sizeof(float));
+	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,Nsv,(2*SVLength+1)*(2*SVLength+1));
+	Aval_max_ptr = (float *) get_spc(Nxy,sizeof(float));
 	if(cmdline.readAmatrixFlag)
 	{
 		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
-		if(cmdline.verboseLevel>1)
-			fprintf(stdout,"Reading system matrix %s\n",fname);
-		else if(cmdline.verboseLevel)
+		if(cmdline.verboseLevel)
 			fprintf(stdout,"Reading system matrix...\n");
-		readAmatrix(fname, A_Padded_Map, max_num_pointer, &Image.imgparams, &sinogram.sinoparams, svpar);
+		readAmatrix(fname, A_Padded_Map, Aval_max_ptr, &Image.imgparams, &sinogram.sinoparams, svpar);
 	}
 	else
 	{
-		if(cmdline.verboseLevel)
+		if(cmdline.verboseLevel) {
 			fprintf(stdout,"Computing system matrix...\n");
-	        A_comp(A_Padded_Map,max_num_pointer,svpar,&sinogram.sinoparams,ImageReconMask,&Image.imgparams);
-        }
+			gettimeofday(&tm1,NULL);
+		}
+		A_comp(A_Padded_Map,Aval_max_ptr,svpar,&sinogram.sinoparams,ImageReconMask,&Image.imgparams);
+		if(cmdline.verboseLevel) {
+			gettimeofday(&tm2,NULL);
+			tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+			fprintf(stdout,"\tmatrix time = %llu ms\n",tdiff);
+		}
+	}
 	if(cmdline.writeAmatrixFlag)
 	{
 		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
@@ -126,7 +133,7 @@ int main(int argc, char *argv[])
 			fprintf(stdout,"Writing system matrix %s\n",fname);
 		else if(cmdline.verboseLevel)
 			fprintf(stdout,"Writing system matrix...\n");
-		writeAmatrix(fname,A_Padded_Map,max_num_pointer,&Image.imgparams,&sinogram.sinoparams,svpar);
+		writeAmatrix(fname,A_Padded_Map,Aval_max_ptr,&Image.imgparams,&sinogram.sinoparams,svpar);
 	}
 
 	/* Initialize image and forward project, if necessary */
@@ -159,8 +166,7 @@ int main(int argc, char *argv[])
 		}
 		else	/* Compute initial projection */
 		{
-			if(cmdline.verboseLevel)
-			{
+			if(cmdline.verboseLevel) {
 				fprintf(stdout,"Projecting image...\n");
 				gettimeofday(&tm1,NULL);
 			}
@@ -170,7 +176,7 @@ int main(int argc, char *argv[])
 				/* here we need to project each slice */
 				#pragma omp parallel for schedule(dynamic)
 				for(jz=0;jz<Nz;jz++)
-					forwardProject2D(e[jz],Image.image[jz],A_Padded_Map,max_num_pointer,&sinogram.sinoparams,&Image.imgparams,svpar);
+					forwardProject2D(e[jz],Image.image[jz],A_Padded_Map,Aval_max_ptr,&sinogram.sinoparams,&Image.imgparams,svpar);
 			}
 			else	/* if IC not provided, only need to project 1st slice and copy */
 			{
@@ -181,17 +187,16 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
-					forwardProject2D(e[0],Image.image[0],A_Padded_Map,max_num_pointer,&sinogram.sinoparams,&Image.imgparams,svpar);
+					forwardProject2D(e[0],Image.image[0],A_Padded_Map,Aval_max_ptr,&sinogram.sinoparams,&Image.imgparams,svpar);
 					for(jz=1;jz<Nz;jz++)
 						memcpy(e[jz],e[0],NvNc*sizeof(float));
 				}
 			}
 
-			if(cmdline.verboseLevel>1)
-			{
+			if(cmdline.verboseLevel>1) {
 				gettimeofday(&tm2,NULL);
 				tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-				fprintf(stdout,"\tProjection time = %llu ms\n",tdiff);
+				fprintf(stdout,"\tprojection time = %llu ms\n",tdiff);
 			}
 		}
 	}
@@ -237,7 +242,7 @@ int main(int argc, char *argv[])
 		for(i=0; i<NvNc; i++)
 			e[jz][i] = sinogram.sino[jz][i]-e[jz][i];
 
-		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,max_num_pointer,ImageReconMask,cmdline.verboseLevel);
+		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,Aval_max_ptr,ImageReconMask,cmdline.verboseLevel);
 
 		if(cmdline.verboseLevel)
 		{
@@ -286,14 +291,14 @@ int main(int argc, char *argv[])
 	}
 
 	/* Free SV memory */
-	for(j=0;j<svpar.Nsv;j++)  free((void *)svpar.bandMinMap[j].bandMin);
-	for(j=0;j<svpar.Nsv;j++)  free((void *)svpar.bandMaxMap[j].bandMax);
+	for(j=0;j<Nsv;j++)  free((void *)svpar.bandMinMap[j].bandMin);
+	for(j=0;j<Nsv;j++)  free((void *)svpar.bandMaxMap[j].bandMax);
 	free((void *)svpar.bandMinMap);
 	free((void *)svpar.bandMaxMap);
 
 	/* Free system matrix */
-	for(i=0;i<svpar.Nsv;i++)
-	for(j=0;j<(2*svpar.SVLength+1)*(2*svpar.SVLength+1);j++)
+	for(i=0;i<Nsv;i++)
+	for(j=0;j<(2*SVLength+1)*(2*SVLength+1);j++)
 	if(A_Padded_Map[i][j].length>0)
 	{
 		free((void *)A_Padded_Map[i][j].val);
@@ -301,7 +306,7 @@ int main(int argc, char *argv[])
 		free((void *)A_Padded_Map[i][j].pieceWiseWidth);
 	}
 	multifree(A_Padded_Map,2);
-	free((void *)max_num_pointer);
+	free((void *)Aval_max_ptr);
 	free((void *)ImageReconMask);
 
 	if(cmdline.verboseLevel)
