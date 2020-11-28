@@ -166,17 +166,17 @@ void A_comp_ij(
         t_min = y*cos(ang) - x*sin(ang) - Deltaxy;
         t_max = t_min + 2.0*Deltaxy;
 
-        /* This also prevents over-reach (with rounding of negative numbers)  */
-        if (t_max < t_0)
+        /* Relevant detector indices */
+        ind_min = ceil((t_min-t_0)/DeltaChannel - 0.5);
+        ind_max= floor((t_max-t_0)/DeltaChannel + 0.5);
+
+        /* move on if voxel clearly out of range of detectors */
+        if(ind_max<0 || ind_min>NChannels-1)
         {
             A_col->countTheta[pr]=0;
             A_col->minIndex[pr]=0;
             continue;
         }
-
-        /* Relevant detector indices */
-        ind_min = ceil((t_min-t_0)/DeltaChannel - 0.5);
-        ind_max = (t_max-t_0)/DeltaChannel + 0.5;
 
         /* Fix this 4/91 to prevent over-reach at ends  */
         ind_min = (ind_min<0) ? 0 : ind_min;
@@ -228,6 +228,11 @@ void A_comp_ij(
                 A_Values[proj_count] = Aval;
                 proj_count++;
             }
+        }
+        /* data type of ACol.countTheta is unsigned char --check for overflow */
+        if(proj_count-countTemp > 255) {
+            fprintf(stderr,"A_comp_ij() Error: overflow detected--check voxel/detector dimensions\n");
+            exit(-1);
         }
         A_col->countTheta[pr] = proj_count-countTemp;
         A_col->minIndex[pr] = minCount;
