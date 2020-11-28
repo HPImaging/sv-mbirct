@@ -383,13 +383,8 @@ void A_piecewise(
                 bandMin[p] = NChannels - bandWidth[p/pieceLen];
         }
 
-        #ifdef ICC
-        _intel_fast_memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*NViews);
-        _intel_fast_memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*NViews);
-        #else
         memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*NViews);
         memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*NViews);
-        #endif
 
         int piecewiseMin[countNumber][NViews/pieceLen]__attribute__((aligned(64)));
         int piecewiseMax[countNumber][NViews/pieceLen]__attribute__((aligned(64)));
@@ -490,15 +485,9 @@ void A_piecewise(
             A_Padded_Map[jj][VoxelPosition].pieceWiseMin = (int *)get_spc(NViews/pieceLen,sizeof(int));
             A_Padded_Map[jj][VoxelPosition].pieceWiseWidth = (int *)get_spc(NViews/pieceLen,sizeof(int));
             A_Padded_Map[jj][VoxelPosition].length = totalSum[i];
-            #ifdef ICC
-            _intel_fast_memcpy(&A_Padded_Map[jj][VoxelPosition].val[0],&AMatrixPaddedTranspose[i][0],sizeof(unsigned char)*totalSum[i]);
-            _intel_fast_memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseMin[0],&piecewiseMin[i][0],sizeof(int)*NViews/pieceLen);
-            _intel_fast_memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*NViews/pieceLen);
-            #else
             memcpy(&A_Padded_Map[jj][VoxelPosition].val[0],&AMatrixPaddedTranspose[i][0],sizeof(unsigned char)*totalSum[i]);
             memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseMin[0],&piecewiseMin[i][0],sizeof(int)*NViews/pieceLen);
             memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*NViews/pieceLen);
-            #endif
         }
 
         for(i=0;i<countNumber;i++) {
