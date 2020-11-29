@@ -246,11 +246,9 @@ void A_piecewise(
     struct ACol **ACol_ptr,
     struct AValues_char **AVal_ptr,
     struct AValues_char **A_Padded_Map,
-    float *Aval_max_ptr,
     struct SVParams svpar,
     struct SinoParams3DParallel *sinoparams,
-    struct ImageParams3D *imgparams,
-    char *recon_mask)
+    struct ImageParams3D *imgparams)
 {
 
     int i,j,k,jj,jx,jy,p,q,t,jx_new,jy_new;
@@ -290,12 +288,10 @@ void A_piecewise(
         for(jy_new=jy; jy_new<=(jy+2*SVLength); jy_new++)
         for(jx_new=jx; jx_new<=(jx+2*SVLength); jx_new++)
         if(jy_new<Ny && jx_new<Nx) {
-            if(recon_mask[jy_new*Nx + jx_new]) {
-                if(ACol_ptr[jy_new][jx_new].n_index >0) {
-                    jy_list[countNumber] = jy_new;
-                    jx_list[countNumber] = jx_new;
-                    countNumber++;
-                }
+            if(ACol_ptr[jy_new][jx_new].n_index >0) {
+                jy_list[countNumber] = jy_new;
+                jx_list[countNumber] = jx_new;
+                countNumber++;
             }
         }
 
@@ -533,6 +529,7 @@ void A_comp(
 
     for (i=0; i<Ny; i++)
     for (j=0; j<Nx; j++)
+    if(recon_mask[i*Nx+j])
     {
         A_comp_ij(i,j,sinoparams,imgparams,pix_prof,&A_col_sgl,A_val_sgl);
         ACol_arr[i][j].n_index = A_col_sgl.n_index;
@@ -555,15 +552,31 @@ void A_comp(
             ACol_arr[i][j].minIndex[r] = A_col_sgl.minIndex[r];
         }
     }
+    else
+    {
+        ACol_arr[i][j].n_index = 0;
+        Aval_max_ptr[i*Nx+j] = 0;
+        // The following block is unnecessary. If uncommented it will produce
+        // an identical matrix file as previous commit due to assignment of
+        // unused Aval_max entries.
+        //A_comp_ij(i,j,sinoparams,imgparams,pix_prof,&A_col_sgl,A_val_sgl);
+        //float maxval = A_val_sgl[0];
+        //for (r = 0; r < A_col_sgl.n_index; r++) {
+        //    if(A_val_sgl[r]>maxval)
+        //        maxval = A_val_sgl[r];
+        //}
+        //Aval_max_ptr[i*Nx+j] = maxval;
+    }
 
-    A_piecewise(ACol_arr,AVal_arr,A_Padded_Map,Aval_max_ptr,svpar,sinoparams,imgparams,recon_mask);
+    A_piecewise(ACol_arr,AVal_arr,A_Padded_Map,svpar,sinoparams,imgparams);
 
     free((void *)A_val_sgl);
     free((void *)A_col_sgl.countTheta);
     free((void *)A_col_sgl.minIndex);
 
     for (i=0; i<Ny; i++)
-    for (j=0; j<Nx; j++) {
+    for (j=0; j<Nx; j++)
+    if(recon_mask[i*Nx+j]) {
         free((void *)ACol_arr[i][j].countTheta);
         free((void *)ACol_arr[i][j].minIndex);
         free((void *)AVal_arr[i][j].val);
