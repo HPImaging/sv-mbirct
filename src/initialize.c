@@ -34,8 +34,8 @@ void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct S
         svpar->bandMinMap = (struct minStruct *)get_spc(svpar->Nsv,sizeof(struct minStruct));
         svpar->bandMaxMap = (struct maxStruct *)get_spc(svpar->Nsv,sizeof(struct maxStruct));
 	for(j=0;j<svpar->Nsv;j++) {
-		svpar->bandMinMap[j].bandMin=(int *)get_spc(sinoparams.NViews,sizeof(int));
-		svpar->bandMaxMap[j].bandMax=(int *)get_spc(sinoparams.NViews,sizeof(int));
+		svpar->bandMinMap[j].bandMin=(channel_t *)get_spc(sinoparams.NViews,sizeof(channel_t));
+		svpar->bandMaxMap[j].bandMax=(channel_t *)get_spc(sinoparams.NViews,sizeof(channel_t));
 	}
 
 	if((imgparams.Nz % svpar->SVDepth)==0)

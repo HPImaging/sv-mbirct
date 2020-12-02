@@ -3,27 +3,31 @@
 
 #include "MBIRModularDefs.h"
 
+//typedef int channel_t;              // General channel index. Need NChannels < 2^(8*sizeof(channel_t))
+typedef unsigned short channel_t;   // General channel index. Need NChannels < 2^(8*sizeof(channel_t))
+typedef unsigned char chanwidth_t;  // Channel bandwidth for single pixel, NOT supervoxel
+
 struct ACol
 {
     int n_index;
-    unsigned char *countTheta;
-    int *minIndex;
+    chanwidth_t *countTheta;
+    channel_t *minIndex;
 };
 
 struct AValues_char{
     unsigned char *val;
-    int *pieceWiseMin;
-    int *pieceWiseWidth;
+    channel_t *pieceWiseMin;
+    channel_t *pieceWiseWidth;
     int length;
 };
 
 struct minStruct
 {
-    int *bandMin;
+    channel_t *bandMin;
 };
 struct maxStruct
 {
-    int *bandMax;
+    channel_t *bandMax;
 };
 
 

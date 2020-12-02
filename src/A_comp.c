@@ -229,8 +229,9 @@ void A_comp_ij(
                 proj_count++;
             }
         }
-        /* data type of ACol.countTheta is unsigned char --check for overflow */
-        if(proj_count-countTemp > 255) {
+        /* data type of ACol.countTheta is typically unsigned char --check for overflow */
+        const int overflow_val = 1 << (8*sizeof(chanwidth_t));
+        if(proj_count-countTemp >= overflow_val) {
             fprintf(stderr,"A_comp_ij() Error: overflow detected--check voxel/detector dimensions\n");
             exit(-1);
         }
@@ -295,8 +296,8 @@ void A_piecewise(
             }
         }
 
-        int bandMin[NViews]__attribute__((aligned(64)));
-        int bandMax[NViews]__attribute__((aligned(64)));
+        channel_t bandMin[NViews]__attribute__((aligned(64)));
+        channel_t bandMax[NViews]__attribute__((aligned(64)));
 
         for(p=0; p< NViews; p++)
             bandMin[p] = NChannels;
@@ -352,8 +353,8 @@ void A_piecewise(
             }
         }
 
-        int bandWidthTemp[NViews]__attribute__((aligned(64)));
-        int bandWidth[NViewSets]__attribute__((aligned(64)));
+        channel_t bandWidthTemp[NViews]__attribute__((aligned(64)));
+        channel_t bandWidth[NViewSets]__attribute__((aligned(64)));
 
         #pragma vector aligned
         for(p=0; p< NViews; p++)
@@ -376,12 +377,12 @@ void A_piecewise(
                 bandMin[p] = NChannels - bandWidth[p/pieceLength];
         }
 
-        memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(int)*NViews);
-        memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(int)*NViews);
+        memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(channel_t)*NViews);
+        memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(channel_t)*NViews);
 
-        int piecewiseMin[countNumber][NViewSets]__attribute__((aligned(64)));
-        int piecewiseMax[countNumber][NViewSets]__attribute__((aligned(64)));
-        int piecewiseWidth[countNumber][NViewSets]__attribute__((aligned(64)));
+        channel_t piecewiseMin[countNumber][NViewSets]__attribute__((aligned(64)));
+        channel_t piecewiseMax[countNumber][NViewSets]__attribute__((aligned(64)));
+        channel_t piecewiseWidth[countNumber][NViewSets]__attribute__((aligned(64)));
         int totalSum[countNumber]__attribute__((aligned(64)));
 
         for(i=0; i<countNumber; i++)
@@ -390,20 +391,20 @@ void A_piecewise(
             jx_new = jx_list[i];
             for (p=0; p < NViewSets; p++)
             {
-                int pwMin = ACol_ptr[jy_new][jx_new].minIndex[p*pieceLength] - bandMin[p*pieceLength];
+                int pwMin = (int)ACol_ptr[jy_new][jx_new].minIndex[p*pieceLength]-(int)bandMin[p*pieceLength];
                 int pwMax = pwMin + ACol_ptr[jy_new][jx_new].countTheta[p*pieceLength];
                 for(t=0; t<pieceLength; t++)
                 {
-                    int idx0 = ACol_ptr[jy_new][jx_new].minIndex[p*pieceLength+t] - bandMin[p*pieceLength+t];
-                    int idx1 = ACol_ptr[jy_new][jx_new].countTheta[p*pieceLength+t];
+                    int idx0 = (int)ACol_ptr[jy_new][jx_new].minIndex[p*pieceLength+t]-(int)bandMin[p*pieceLength+t];
+                    int idx1 = idx0 + ACol_ptr[jy_new][jx_new].countTheta[p*pieceLength+t];
                     if(idx0 < pwMin)
                         pwMin = idx0;
-                    if(pwMax < (idx0 + idx1))
-                        pwMax = idx0 + idx1;
+                    if(pwMax < idx1)
+                        pwMax = idx1;
                 }
                 piecewiseMin[i][p] = pwMin;
                 piecewiseMax[i][p] = pwMax;
-                piecewiseWidth[i][p] = pwMax - pwMin;
+                piecewiseWidth[i][p] = (pwMax - pwMin);
             }
         }
 
@@ -431,8 +432,10 @@ void A_piecewise(
             unsigned char * newProjectionValueArrayPointer = &AVal_ptr[jy_new][jx_new].val[0];
             for (p=0; p < NViews; p++)
             {
+                int n_pad;
+                n_pad=(int)ACol_ptr[jy_new][jx_new].minIndex[p]-(int)piecewiseMin[i][p/pieceLength]-(int)bandMin[p];
                 #pragma vector aligned
-                for(t=0; t<(ACol_ptr[jy_new][jx_new].minIndex[p] - piecewiseMin[i][p/pieceLength] - bandMin[p]); t++) {
+                for(t=0; t<n_pad; t++) {
                     *A_padded_pointer = 0;
                     A_padded_pointer++;
                 }
@@ -442,8 +445,9 @@ void A_piecewise(
                     A_padded_pointer++;
                     newProjectionValueArrayPointer++;
                 }
+                n_pad=(int)piecewiseMax[i][p/pieceLength]-(int)ACol_ptr[jy_new][jx_new].minIndex[p]-(int)ACol_ptr[jy_new][jx_new].countTheta[p]+(int)bandMin[p];
                 #pragma vector aligned
-                for(t=0; t<(piecewiseMax[i][p/pieceLength] - ACol_ptr[jy_new][jx_new].minIndex[p] - ACol_ptr[jy_new][jx_new].countTheta[p] + bandMin[p]); t++) {
+                for(t=0; t<n_pad; t++) {
                     *A_padded_pointer = 0;
                     A_padded_pointer++;
                 }
@@ -473,12 +477,12 @@ void A_piecewise(
             int VoxelPosition = (jy_new-jy)*(2*SVLength+1)+(jx_new-jx);
 
             A_Padded_Map[jj][VoxelPosition].val = (unsigned char *)get_spc(totalSum[i], sizeof(unsigned char));
-            A_Padded_Map[jj][VoxelPosition].pieceWiseMin = (int *)get_spc(NViewSets,sizeof(int));
-            A_Padded_Map[jj][VoxelPosition].pieceWiseWidth = (int *)get_spc(NViewSets,sizeof(int));
+            A_Padded_Map[jj][VoxelPosition].pieceWiseMin = (channel_t *)get_spc(NViewSets,sizeof(channel_t));
+            A_Padded_Map[jj][VoxelPosition].pieceWiseWidth = (channel_t *)get_spc(NViewSets,sizeof(channel_t));
             A_Padded_Map[jj][VoxelPosition].length = totalSum[i];
             memcpy(&A_Padded_Map[jj][VoxelPosition].val[0],&AMatrixPaddedTranspose[i][0],sizeof(unsigned char)*totalSum[i]);
-            memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseMin[0],&piecewiseMin[i][0],sizeof(int)*NViewSets);
-            memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(int)*NViewSets);
+            memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseMin[0],&piecewiseMin[i][0],sizeof(channel_t)*NViewSets);
+            memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(channel_t)*NViewSets);
         }
 
         for(i=0;i<countNumber;i++) {
@@ -518,8 +522,8 @@ void A_comp(
     int Nx = imgparams->Nx;
     int Ny = imgparams->Ny;
 
-    A_col_sgl.countTheta = (unsigned char *)get_spc(NViews,sizeof(unsigned char));
-    A_col_sgl.minIndex = (int *)get_spc(NViews,sizeof(int));
+    A_col_sgl.countTheta = (chanwidth_t *)get_spc(NViews,sizeof(chanwidth_t));
+    A_col_sgl.minIndex = (channel_t *)get_spc(NViews,sizeof(channel_t));
     A_val_sgl = (float *)get_spc(NViews*NChannels, sizeof(float));
 
     ACol_arr = (struct ACol **)multialloc(sizeof(struct ACol), 2, Ny, Nx);
@@ -533,8 +537,8 @@ void A_comp(
     {
         A_comp_ij(i,j,sinoparams,imgparams,pix_prof,&A_col_sgl,A_val_sgl);
         ACol_arr[i][j].n_index = A_col_sgl.n_index;
-        ACol_arr[i][j].countTheta = (unsigned char *) get_spc(NViews,sizeof(unsigned char));
-        ACol_arr[i][j].minIndex = (int *) get_spc(NViews,sizeof(int));
+        ACol_arr[i][j].countTheta = (chanwidth_t *) get_spc(NViews,sizeof(chanwidth_t));
+        ACol_arr[i][j].minIndex = (channel_t *) get_spc(NViews,sizeof(channel_t));
         AVal_arr[i][j].val = (unsigned char *) get_spc(A_col_sgl.n_index, sizeof(unsigned char));
 
         float maxval = A_val_sgl[0];
@@ -612,11 +616,11 @@ void readAmatrix(
 
     for (i=0; i<svpar.Nsv ; i++)
     {
-        if(fread(svpar.bandMinMap[i].bandMin,sizeof(int),NViews,fp) < NViews) {
+        if(fread(svpar.bandMinMap[i].bandMin,sizeof(channel_t),NViews,fp) < NViews) {
             fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
             exit(-1);
         }
-        if(fread(svpar.bandMaxMap[i].bandMax,sizeof(int),NViews,fp) < NViews) {
+        if(fread(svpar.bandMaxMap[i].bandMax,sizeof(channel_t),NViews,fp) < NViews) {
             fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
             exit(-1);
         }
@@ -631,18 +635,18 @@ void readAmatrix(
             if(M_nonzero > 0)
             {
                 A_Padded_Map[i][j].val = (unsigned char *)get_spc(M_nonzero, sizeof(unsigned char));
-                A_Padded_Map[i][j].pieceWiseWidth = (int *)get_spc(NViewSets,sizeof(int));
-                A_Padded_Map[i][j].pieceWiseMin = (int *)get_spc(NViewSets,sizeof(int));
+                A_Padded_Map[i][j].pieceWiseWidth = (channel_t *)get_spc(NViewSets,sizeof(channel_t));
+                A_Padded_Map[i][j].pieceWiseMin = (channel_t *)get_spc(NViewSets,sizeof(channel_t));
 
                 if(fread(A_Padded_Map[i][j].val, sizeof(unsigned char), M_nonzero, fp) < M_nonzero) {
                     fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
                     exit(-1);
                 }
-                if(fread(A_Padded_Map[i][j].pieceWiseMin,sizeof(int),NViewSets,fp) < NViewSets) {
+                if(fread(A_Padded_Map[i][j].pieceWiseMin,sizeof(channel_t),NViewSets,fp) < NViewSets) {
                     fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
                     exit(-1);
                 }
-                if(fread(A_Padded_Map[i][j].pieceWiseWidth,sizeof(int),NViewSets,fp) < NViewSets) {
+                if(fread(A_Padded_Map[i][j].pieceWiseWidth,sizeof(channel_t),NViewSets,fp) < NViewSets) {
                     fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
                     exit(-1);
                 }
@@ -679,16 +683,16 @@ void writeAmatrix(
 
     for (i=0; i<svpar.Nsv; i++)
     {
-        fwrite(svpar.bandMinMap[i].bandMin,sizeof(int),sinoparams->NViews,fp);
-        fwrite(svpar.bandMaxMap[i].bandMax,sizeof(int),sinoparams->NViews,fp);
+        fwrite(svpar.bandMinMap[i].bandMin,sizeof(channel_t),sinoparams->NViews,fp);
+        fwrite(svpar.bandMaxMap[i].bandMax,sizeof(channel_t),sinoparams->NViews,fp);
         for (j=0; j< (svpar.SVLength*2+1)*(svpar.SVLength*2+1); j++)
         {
             M_nonzero = A_Padded_Map[i][j].length;
             fwrite(&M_nonzero, sizeof(int), 1, fp);
             if(M_nonzero > 0) {
                 fwrite(A_Padded_Map[i][j].val, sizeof(unsigned char), M_nonzero, fp);
-                fwrite(A_Padded_Map[i][j].pieceWiseMin,sizeof(int),NViewSets,fp);
-                fwrite(A_Padded_Map[i][j].pieceWiseWidth,sizeof(int),NViewSets,fp);
+                fwrite(A_Padded_Map[i][j].pieceWiseMin,sizeof(channel_t),NViewSets,fp);
+                fwrite(A_Padded_Map[i][j].pieceWiseWidth,sizeof(channel_t),NViewSets,fp);
             }
         }
     }
