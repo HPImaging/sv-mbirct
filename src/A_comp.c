@@ -323,7 +323,7 @@ void A_piecewise(
                     else
                     {
                         k=0;
-                        while(ACol_ptr[jy_new][jx_new].minIndex[k] == 0)
+                        while(ACol_ptr[jy_new][jx_new].minIndex[k] == 0 && k<NViews-1)
                             k++;
                         ACol_ptr[jy_new][jx_new].minIndex[p] = ACol_ptr[jy_new][jx_new].minIndex[k];
                     }
@@ -337,7 +337,7 @@ void A_piecewise(
                     else
                     {
                         k=0;
-                        while(ACol_ptr[jy_new][jx_new].minIndex[k] == (NChannels-1))
+                        while(ACol_ptr[jy_new][jx_new].minIndex[k] == (NChannels-1) && k<NViews-1)
                             k++;
                         ACol_ptr[jy_new][jx_new].minIndex[p] = ACol_ptr[jy_new][jx_new].minIndex[k];
                     }
@@ -419,12 +419,12 @@ void A_piecewise(
                 totalSum[i] += piecewiseWidth[i][p] * pieceLength;
         }
 
-        unsigned char ** AMatrixPadded= (unsigned char **)malloc(countNumber*sizeof(unsigned char *));
-        unsigned char ** AMatrixPaddedTranspose=(unsigned char **)malloc(countNumber*sizeof(unsigned char *));
+        unsigned char **AMatrixPadded= (unsigned char **) mget_spc(countNumber,sizeof(unsigned char *));
+        unsigned char **AMatrixPaddedTranspose=(unsigned char **) mget_spc(countNumber,sizeof(unsigned char *));
 
         for(i=0;i<countNumber;i++) {
-            AMatrixPadded[i] = (unsigned char *)malloc(totalSum[i]*sizeof(unsigned char));
-            AMatrixPaddedTranspose[i] = (unsigned char *)malloc(totalSum[i]*sizeof(unsigned char));
+            AMatrixPadded[i] = (unsigned char *) mget_spc(totalSum[i],sizeof(unsigned char));
+            AMatrixPaddedTranspose[i] = (unsigned char *) mget_spc(totalSum[i],sizeof(unsigned char));
         }
 
         for(i=0; i<countNumber; i++)
