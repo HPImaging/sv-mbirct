@@ -263,7 +263,18 @@ void A_piecewise(
     struct minStruct * bandMinMap = svpar.bandMinMap;
     struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 
-    int *order = (int *) malloc(svpar.Nsv*sizeof(int));
+    channel_t *bandMin = (channel_t *) mget_spc(NViews,sizeof(channel_t));
+    channel_t *bandMax = (channel_t *) mget_spc(NViews,sizeof(channel_t));
+    channel_t *bandWidth=(channel_t *) mget_spc(NViews,sizeof(channel_t));
+    channel_t *bandWidthPW = (channel_t *) mget_spc(NViewSets,sizeof(channel_t));
+    int countNumber = (2*SVLength+1)*(2*SVLength+1);
+    channel_t **piecewiseMin = (channel_t **)multialloc(sizeof(channel_t),2,countNumber,NViewSets);
+    channel_t **piecewiseMax = (channel_t **)multialloc(sizeof(channel_t),2,countNumber,NViewSets);
+    channel_t **piecewiseWidth=(channel_t **)multialloc(sizeof(channel_t),2,countNumber,NViewSets);
+    int *jx_list = (int *) mget_spc(countNumber,sizeof(int));
+    int *jy_list = (int *) mget_spc(countNumber,sizeof(int));
+    int *totalSum = (int *) mget_spc(countNumber,sizeof(int));
+    int *order = (int *) mget_spc(svpar.Nsv,sizeof(int));
 
     t=0;
     for(i=0; i<Ny; i+=(SVLength*2-svpar.overlap))
@@ -282,9 +293,7 @@ void A_piecewise(
     {
         jy = order[jj] / Nx;
         jx = order[jj] % Nx;
-        int jy_list[(2*SVLength+1)*(2*SVLength+1)];
-        int jx_list[(2*SVLength+1)*(2*SVLength+1)];
-        int countNumber = 0;
+        countNumber = 0;
 
         for(jy_new=jy; jy_new<=(jy+2*SVLength); jy_new++)
         for(jx_new=jx; jx_new<=(jx+2*SVLength); jx_new++)
@@ -296,9 +305,8 @@ void A_piecewise(
             }
         }
 
-        channel_t bandMin[NViews]__attribute__((aligned(64)));
-        channel_t bandMax[NViews]__attribute__((aligned(64)));
-
+        //channel_t bandMin[NViews]__attribute__((aligned(64)));
+        //channel_t bandMax[NViews]__attribute__((aligned(64)));
         for(p=0; p< NViews; p++)
             bandMin[p] = NChannels;
 
@@ -353,38 +361,33 @@ void A_piecewise(
             }
         }
 
-        channel_t bandWidthTemp[NViews]__attribute__((aligned(64)));
-        channel_t bandWidth[NViewSets]__attribute__((aligned(64)));
-
-        #pragma vector aligned
+        //channel_t bandWidth[NViews]__attribute__((aligned(64)));
+        //channel_t bandWidthPW[NViewSets]__attribute__((aligned(64)));
+        //#pragma vector aligned
         for(p=0; p< NViews; p++)
-            bandWidthTemp[p] = bandMax[p]-bandMin[p];
+            bandWidth[p] = bandMax[p]-bandMin[p];
 
         for (p=0; p < NViewSets; p++)
         {
-            int bandWidthMax = bandWidthTemp[p*pieceLength];
+            int bandWidthMax = bandWidth[p*pieceLength];
             for(t=0; t<pieceLength; t++) {
-                if(bandWidthTemp[p*pieceLength+t] > bandWidthMax) {
-                    bandWidthMax = bandWidthTemp[p*pieceLength+t];
+                if(bandWidth[p*pieceLength+t] > bandWidthMax) {
+                    bandWidthMax = bandWidth[p*pieceLength+t];
                 }
             }
-            bandWidth[p] = bandWidthMax;
+            bandWidthPW[p] = bandWidthMax;
         }
 
-        #pragma vector aligned
+        //#pragma vector aligned
         for(p=0; p< NViews; p++) {
-            if((bandMin[p]+bandWidth[p/pieceLength]) >= NChannels)
-                bandMin[p] = NChannels - bandWidth[p/pieceLength];
+            if((bandMin[p]+bandWidthPW[p/pieceLength]) >= NChannels)
+                bandMin[p] = NChannels - bandWidthPW[p/pieceLength];
         }
 
         memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(channel_t)*NViews);
         memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(channel_t)*NViews);
 
-        channel_t piecewiseMin[countNumber][NViewSets]__attribute__((aligned(64)));
-        channel_t piecewiseMax[countNumber][NViewSets]__attribute__((aligned(64)));
-        channel_t piecewiseWidth[countNumber][NViewSets]__attribute__((aligned(64)));
-        int totalSum[countNumber]__attribute__((aligned(64)));
-
+        //int totalSum[countNumber]__attribute__((aligned(64)));
         for(i=0; i<countNumber; i++)
         {
             jy_new = jy_list[i];
@@ -411,7 +414,7 @@ void A_piecewise(
         for(i=0; i<countNumber; i++)
         {
             totalSum[i]=0;
-            #pragma vector aligned
+            //#pragma vector aligned
             for (p = 0; p < NViewSets; p++)
                 totalSum[i] += piecewiseWidth[i][p] * pieceLength;
         }
@@ -493,7 +496,18 @@ void A_piecewise(
         free((void *)AMatrixPadded);
         free((void *)AMatrixPaddedTranspose);
     }
-    free(order);
+
+    multifree(piecewiseMin,2);
+    multifree(piecewiseMax,2);
+    multifree(piecewiseWidth,2);
+    free((void *) bandMin);
+    free((void *) bandMax);
+    free((void *) bandWidth);
+    free((void *) bandWidthPW);
+    free((void *) jx_list);
+    free((void *) jy_list);
+    free((void *) totalSum);
+    free((void *) order);
 
 }  /*** END A_piecewise() ***/
 
