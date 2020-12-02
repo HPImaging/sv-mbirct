@@ -538,17 +538,17 @@ void super_voxel_recon(
 
 	/*XW: for a supervoxel, bandMin records the starting position of the sinogram band at each view*/
 	/*XW: for a supervoxel, bandMax records the end position of the sinogram band at each view */
-	int bandMin[sinoparams.NViews]__attribute__((aligned(32)));
-	int bandMax[sinoparams.NViews]__attribute__((aligned(32)));
-	int bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
-	int bandWidth[NViewSets]__attribute__((aligned(32)));
+	channel_t bandMin[sinoparams.NViews]__attribute__((aligned(32)));
+	channel_t bandMax[sinoparams.NViews]__attribute__((aligned(32)));
+	channel_t bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
+	channel_t bandWidth[NViewSets]__attribute__((aligned(32)));
 
 	#ifdef ICC
-	_intel_fast_memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
-	_intel_fast_memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews)); 
+	_intel_fast_memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
+	_intel_fast_memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
 	#else
-	memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(int)*(sinoparams.NViews));
-	memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(int)*(sinoparams.NViews));
+	memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
+	memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
 	#endif
 
 	#pragma vector aligned 

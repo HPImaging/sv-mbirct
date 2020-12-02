@@ -75,7 +75,6 @@ fi
 # check for matrix file, and compute if not present
 if [[ ! -f "$matName.2Dsvmatrix" ]]; then
    echo "Generating system matrix file: $matName.2Dsvmatrix"
-   echo "Generating projection file: $matName.2Dprojection"
    $execdir/mbir_ct -i $parName -j $parName -m $matName
 else
    echo "System matrix file found: $matName.2Dsvmatrix"
