@@ -56,5 +56,10 @@ void writeAmatrix(
     struct SinoParams3DParallel *sinoparams,
     struct SVParams svpar);
 
+void AmatrixComputeToFile(
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
+    char *Amatrix_fname,
+    char verboseLevel);
 
 #endif

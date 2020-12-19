@@ -8,6 +8,7 @@
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
+#include "initialize.h"
 #include "A_comp.h"
 
 /* Pixel profile params */
@@ -714,4 +715,66 @@ void writeAmatrix(
     fclose(fp);
 }
 
+
+void AmatrixComputeToFile(
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
+    char *Amatrix_fname,
+    char verboseLevel)
+{
+    struct SVParams svpar;
+    struct AValues_char **A_Padded_Map;
+    float *Aval_max_ptr;
+    char *ImageReconMask;   /* Image reconstruction mask (determined by ROI) */
+    int i,j;
+    //struct timeval tm1,tm2;
+    //unsigned long long tdiff;
+
+    if(verboseLevel) {
+        fprintf(stdout,"Computing system matrix...\n");
+//        gettimeofday(&tm1,NULL);
+    }
+
+    initSVParams(&svpar,imgparams,sinoparams);  /* Initialize/allocate SV parameters */
+
+    int Nx = imgparams.Nx;
+    int Ny = imgparams.Ny;
+    int SVLength = svpar.SVLength;
+    int Nsv = svpar.Nsv;
+
+    /* Allocate and generate recon mask based on ROIRadius */
+    ImageReconMask = GenImageReconMask(&imgparams);
+
+    A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,Nsv,(2*SVLength+1)*(2*SVLength+1));
+    Aval_max_ptr = (float *) get_spc(Nx*Ny,sizeof(float));
+
+    A_comp(A_Padded_Map,Aval_max_ptr,svpar,&sinoparams,ImageReconMask,&imgparams);
+
+//    if(verboseLevel) {
+//        gettimeofday(&tm2,NULL);
+//        tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+//        fprintf(stdout,"\tmatrix time = %llu ms\n",tdiff);
+//    }
+
+    if(verboseLevel>1)
+        fprintf(stdout,"Writing system matrix %s\n",Amatrix_fname);
+    else if(verboseLevel)
+        fprintf(stdout,"Writing system matrix...\n");
+
+    writeAmatrix(Amatrix_fname,A_Padded_Map,Aval_max_ptr,&imgparams,&sinoparams,svpar);
+
+    /* Free memory */
+    for(i=0;i<Nsv;i++)
+    for(j=0;j<(2*SVLength+1)*(2*SVLength+1);j++)
+    if(A_Padded_Map[i][j].length>0)
+    {
+        free((void *)A_Padded_Map[i][j].val);
+        free((void *)A_Padded_Map[i][j].pieceWiseMin);
+        free((void *)A_Padded_Map[i][j].pieceWiseWidth);
+    }
+    multifree(A_Padded_Map,2);
+    free((void *)Aval_max_ptr);
+    free((void *)ImageReconMask);
+
+}
 
