@@ -26,5 +26,12 @@ void forwardProject2D(
 	struct ImageParams3D *imgparams,
 	struct SVParams svpar);
 
+void forwardProject(
+    float *image,
+    float *proj,
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
+    char *Amatrix_fname,
+    char verboseLevel);
 
 #endif

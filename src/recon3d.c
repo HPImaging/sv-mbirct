@@ -1007,4 +1007,128 @@ static __inline__ unsigned long long rdtsc()
 
 
 
+void forwardProject(
+    float *image,
+    float *proj,
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
+    char *Amatrix_fname,
+    char verboseLevel)
+{
+    struct AValues_char **A_Padded_Map;
+    float *Aval_max_ptr;
+	struct SVParams svpar;
+
+    size_t i;
+    int j,jz;
+    int Nx = imgparams.Nx;
+    int Ny = imgparams.Ny;
+    int Nz = imgparams.Nz;
+    int NChannels = sinoparams.NChannels;
+    int M = sinoparams.NViews * sinoparams.NChannels;
+
+    /* Initialize/allocate SV parameters */
+    initSVParams(&svpar, imgparams, sinoparams);
+    int Nsv = svpar.Nsv;
+    int SVLength = svpar.SVLength;
+    int pieceLength = svpar.pieceLength;
+    int SVsPerRow = svpar.SVsPerRow;
+    int NViewSets = sinoparams.NViews/pieceLength;
+    struct minStruct * bandMinMap = svpar.bandMinMap;
+
+    /* Allocate and generate recon mask based on ROIRadius */
+    char * ImageReconMask = GenImageReconMask(&imgparams);
+
+    /* Read/compute/write System Matrix */
+    A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,Nsv,(2*SVLength+1)*(2*SVLength+1));
+    Aval_max_ptr = (float *) mget_spc(Nx*Ny,sizeof(float));
+    if(Amatrix_fname != NULL)
+    {
+        if(verboseLevel)
+            fprintf(stdout,"Reading system matrix...\n");
+        readAmatrix(Amatrix_fname, A_Padded_Map, Aval_max_ptr, &imgparams, &sinoparams, svpar);
+    }
+    else
+    {
+        if(verboseLevel)
+            fprintf(stdout,"Computing system matrix...\n");
+        A_comp(A_Padded_Map,Aval_max_ptr,svpar,&sinoparams,ImageReconMask,&imgparams);
+    }
+
+    /* initialize projection */
+    for (i = 0; i < M*Nz; i++)
+        proj[i] = 0.0;
+
+    #pragma omp parallel for schedule(dynamic)
+    for(jz=0;jz<Nz;jz++)
+    {
+	    int jx,jy,k,r,p;
+
+        for (jy = 0; jy < Ny; jy++)
+        for (jx = 0; jx < Nx; jx++)
+        {
+            int SV_ind_y = jy/(2*SVLength-svpar.overlap);
+            int SV_ind_x = jx/(2*SVLength-svpar.overlap);
+            int SVPosition = SV_ind_y*SVsPerRow + SV_ind_x;
+
+            int SV_jy = SV_ind_y*(2*SVLength-svpar.overlap);
+            int SV_jx = SV_ind_x*(2*SVLength-svpar.overlap);
+            int VoxelPosition = (jy-SV_jy)*(2*SVLength+1)+(jx-SV_jx);
+
+            // The second condition should always be true
+            if (A_Padded_Map[SVPosition][VoxelPosition].length > 0 && VoxelPosition < ((2*SVLength+1)*(2*SVLength+1)))
+            {
+                unsigned char* A_padd_Tr_ptr = &A_Padded_Map[SVPosition][VoxelPosition].val[0];
+                float rescale = Aval_max_ptr[jy*Nx+jx]*(1.0/255);
+                float xval = image[jz*Nx*Ny + jy*Nx + jx];
+
+                for(p=0;p<NViewSets;p++)
+                {
+                    int myCount = A_Padded_Map[SVPosition][VoxelPosition].pieceWiseWidth[p];
+                    int pieceWiseMin = A_Padded_Map[SVPosition][VoxelPosition].pieceWiseMin[p];
+                    int position = p*pieceLength*NChannels + pieceWiseMin;
+
+                    for(r=0;r<myCount;r++)
+                    for(k=0;k<pieceLength;k++)
+                    {
+                        int bandMin = bandMinMap[SVPosition].bandMin[p*pieceLength+k];
+                        int proj_idx = jz*M + position + k*NChannels + bandMin + r;
+
+                        if((pieceWiseMin + bandMin + r) >= NChannels || (position + k*NChannels + bandMin + r) >= M ) {
+                            fprintf(stderr,"forwardProject() out of bounds: p %d r %d k %d\n",p,r,k);
+                            fprintf(stderr,"forwardProject() out of bounds: total_1 %d total_2 %d\n",pieceWiseMin+bandMin+r,position+k*NChannels+bandMin+r);
+                            exit(-1);
+                        }
+                        else
+                            proj[proj_idx] += A_padd_Tr_ptr[r*pieceLength+k]*rescale * xval;
+                    }
+                    A_padd_Tr_ptr += myCount*pieceLength;
+                }
+            }
+        }
+    }
+
+    /* Free SV memory */
+    for(i=0;i<Nsv;i++) {
+        free((void *)svpar.bandMinMap[i].bandMin);
+        free((void *)svpar.bandMaxMap[i].bandMax);
+    }
+    free((void *)svpar.bandMinMap);
+    free((void *)svpar.bandMaxMap);
+
+    /* Free system matrix */
+    for(i=0;i<Nsv;i++)
+    for(j=0;j<(2*SVLength+1)*(2*SVLength+1);j++)
+    if(A_Padded_Map[i][j].length>0)
+    {
+        free((void *)A_Padded_Map[i][j].val);
+        free((void *)A_Padded_Map[i][j].pieceWiseMin);
+        free((void *)A_Padded_Map[i][j].pieceWiseWidth);
+    }
+    multifree(A_Padded_Map,2);
+    free((void *)Aval_max_ptr);
+    free((void *)ImageReconMask);
+
+}   /* END forwardProject() */
+
 
