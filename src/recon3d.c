@@ -17,9 +17,6 @@
 #include "initialize.h"
 #include "recon3d.h"
 
-#define  c_ratio 0.07
-#define convergence_rho 0.7
-
 /* Internal functions */
 void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int iter,
 	char *phaseMap,long *order,int *indexList,float **w,float **e,
@@ -43,9 +40,6 @@ void MBIRReconstruct3D(
 	char verboseLevel)
 {
 	int i,j,jj,p,t,iter,it_print=1;
-	int NumMaskVoxels=0;
-	//float **x;  /* image data */
-	//float **y;  /* sinogram projections data */
 	float **w;  /* projections weights data */
 	float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
 	float *voxelsBuffer2;
@@ -57,10 +51,8 @@ void MBIRReconstruct3D(
 	initialize_heap(&priorityheap);
 	long *order;
 	char *phaseMap;
-	//struct tm1,tm2;
+	struct timeval tm1,tm2;
 
-	//x = Image->image;   /* x is the image vector */
-	//y = sinogram->sino;  /* y is the sinogram vector */
 	w = sinogram->weight; /* vector of weights for each sinogram measurement */
 	int Nx = Image->imgparams.Nx;
 	int Ny = Image->imgparams.Ny;
@@ -74,15 +66,15 @@ void MBIRReconstruct3D(
 	int SV_per_Z = svpar.SV_per_Z;
 	int SVsPerRow = svpar.SVsPerRow;
 	int sum = svpar.Nsv;
-	//int pieceLength = svpar.pieceLength;
-	//struct minStruct * bandMinMap = svpar.bandMinMap;
-	//struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 
+	float c_ratio=0.07;
+	float convergence_rho=0.7;
 	int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
 
-        for(j=0;j<Nxy;j++)
-        if(ImageReconMask[j])
-                NumMaskVoxels++;
+	int NumMaskVoxels=0;
+	for(j=0;j<Nxy;j++)
+	if(ImageReconMask[j])
+		NumMaskVoxels++;
 
 	#if 0
 	//#ifdef find_RMSE
@@ -167,7 +159,6 @@ void MBIRReconstruct3D(
 	}
 	srand(time(NULL));
 
-	//struct heap_node headNodeArray[sum*SV_per_Z];  //This allocation crashed silently for a large problem
 	struct heap_node *headNodeArray;
 	headNodeArray = (struct heap_node *) mget_spc(sum*SV_per_Z,sizeof(struct heap_node));
 
@@ -192,10 +183,10 @@ void MBIRReconstruct3D(
 		//voxelsBuffer2 = (float *) _aligned_malloc(Nxy*sizeof(float),64);
 	#endif
 
-	for(i=0;i<Nxy;i++) voxelsBuffer1[i]=0;
-	for(i=0;i<Nxy;i++) voxelsBuffer2[i]=0;
-
-	iter=0;
+	for(i=0;i<Nxy;i++) {
+		voxelsBuffer1[i]=0;
+		voxelsBuffer2[i]=0;
+	}
 
 	//coordinateShuffle(&order[0],&phaseMap[0],sum*SV_per_Z);
 	long tmp_long;
@@ -211,12 +202,12 @@ void MBIRReconstruct3D(
 		phaseMap[i] = tmp_char;
 	}
 
-	int startIndex=0;
-	int endIndex=0;        		
-
-	//gettimeofday(&tm1,NULL);
+	gettimeofday(&tm1,NULL);
          
+	iter=0;
 	char stop_FLAG=0;
+	int startIndex=0;
+	int endIndex=0;
 
 	#pragma omp parallel
 	{
@@ -236,8 +227,6 @@ void MBIRReconstruct3D(
 			
 					if(iter%2==1)
 					{
-						//SJK: This is a memory leak!!
-						//initialize_heap(&priorityheap);
 						priorityheap.size=0;
 						for(jj=0;jj<sum*SV_per_Z;jj++){
 							heap_insert(&priorityheap, &(headNodeArray[jj]));
@@ -320,10 +309,6 @@ void MBIRReconstruct3D(
 		}
 	}
 	
-        //gettimeofday(&tm2,NULL);
-        //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-        //printf("\trun time %llu ms (iterations only)\n", tt);
-
 	if(verboseLevel)
 	{
 		if(StopThreshold <= 0)
@@ -339,6 +324,9 @@ void MBIRReconstruct3D(
 		fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,iter);
 		fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
 		fprintf(stdout,"\tAverage update in last iteration (magnitude) = %.4g\n",avg_update);
+		gettimeofday(&tm2,NULL);
+		//unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+		//printf("\tReconstruction time = %llu ms (iterations only)\n", tt);
 	}
 
 	#ifdef ICC
@@ -996,16 +984,6 @@ void read_golden(char *fname,float **golden,int Nz,int N, struct Image3D *Image)
 }
 #endif
 
-#if 0
-static __inline__ unsigned long long rdtsc()
-{
-   unsigned hi,lo;
-   __asm __volatile__ ("rdtsc" : "=a"(lo),"=d"(hi));
-   return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
-}
-#endif
-
-
 
 void forwardProject(
     float *image,
@@ -1017,7 +995,7 @@ void forwardProject(
 {
     struct AValues_char **A_Padded_Map;
     float *Aval_max_ptr;
-	struct SVParams svpar;
+    struct SVParams svpar;
 
     size_t i;
     int j,jz;
