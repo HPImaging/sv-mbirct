@@ -615,13 +615,13 @@ int ReadSinoData3DParallel(
     {
         sprintf(fname,"%s_slice%.*d.2Dsinodata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
         //sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-	//printf("filename: |%s|\n",fname);
+        //printf("filename: |%s|\n",fname);
         
         if( (exitcode=ReadFloatArray(fname,sinogram->sino[i],M)) ) {
             if(exitcode==1)
-		fprintf(stderr, "ERROR in ReadSinoData3DParallel: can't open file %s\n",fname);
+                fprintf(stderr, "ERROR in ReadSinoData3DParallel: can't open file %s\n",fname);
             if(exitcode==2)
-		fprintf(stderr, "ERROR in ReadSinoData3DParallel: read from file %s terminated early\n",fname);
+                fprintf(stderr, "ERROR in ReadSinoData3DParallel: read from file %s terminated early\n",fname);
             exit(-1);
         }
     }
@@ -647,13 +647,13 @@ int ReadWeights3D(
     {
         sprintf(fname,"%s_slice%.*d.2Dweightdata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
         //sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-	//printf("filename: |%s|\n",fname);
+        //printf("filename: |%s|\n",fname);
         
         if( (exitcode=ReadFloatArray(fname,sinogram->weight[i],M)) ) {
             if(exitcode==1)
-		fprintf(stderr, "ERROR in ReadWeights3D: can't open file %s\n",fname);
+                fprintf(stderr, "ERROR in ReadWeights3D: can't open file %s\n",fname);
             if(exitcode==2)
-		fprintf(stderr, "ERROR in ReadWeights3D: read from file %s terminated early\n",fname);
+                fprintf(stderr, "ERROR in ReadWeights3D: read from file %s terminated early\n",fname);
             exit(-1);
         }
     }
@@ -678,13 +678,13 @@ int WriteSino3DParallel(
     {
         sprintf(fname,"%s_slice%.*d.2Dsinodata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
         //sprintf(fname,"%s_slice%.*d.2Dsinodata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-	//printf("filename: |%s|\n",fname);
+        //printf("filename: |%s|\n",fname);
         
         if( (exitcode=WriteFloatArray(fname,sinogram->sino[i],M)) ) {
             if(exitcode==1)
-		fprintf(stderr, "ERROR in WriteSino3DParallel: can't open file %s\n",fname);
+                fprintf(stderr, "ERROR in WriteSino3DParallel: can't open file %s\n",fname);
             if(exitcode==2)
-		fprintf(stderr, "ERROR in WriteSino3DParallel: write to file %s terminated early\n",fname);
+                fprintf(stderr, "ERROR in WriteSino3DParallel: write to file %s terminated early\n",fname);
             exit(-1);
         }
     }
@@ -709,13 +709,13 @@ int WriteWeights3D(
     {
         sprintf(fname,"%s_slice%.*d.2Dweightdata",basename, sinogram->sinoparams.NumSliceDigits, i+FirstSliceNumber);
         //sprintf(fname,"%s_slice%.*d.2Dweightdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-	//printf("filename: |%s|\n",fname);
+        //printf("filename: |%s|\n",fname);
         
         if( (exitcode=WriteFloatArray(fname,sinogram->weight[i],M)) ) {
             if(exitcode==1)
-		fprintf(stderr, "ERROR in WriteWeights3D: can't open file %s\n",fname);
+                fprintf(stderr, "ERROR in WriteWeights3D: can't open file %s\n",fname);
             if(exitcode==2)
-		fprintf(stderr, "ERROR in WriteWeights3D: write to file %s terminated early\n",fname);
+                fprintf(stderr, "ERROR in WriteWeights3D: write to file %s terminated early\n",fname);
             exit(-1);
         }
     }
@@ -764,13 +764,13 @@ int ReadImage3D(
     {
         sprintf(fname,"%s_slice%.*d.2Dimgdata",basename, Image->imgparams.NumSliceDigits, i+FirstSliceNumber);
         //sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-	//printf("filename: |%s|\n",fname);
+        //printf("filename: |%s|\n",fname);
         
         if( (exitcode=ReadFloatArray(fname,Image->image[i],M)) ) {
             if(exitcode==1)
-		fprintf(stderr, "ERROR in ReadImage3D: can't open file %s\n",fname);
+                fprintf(stderr, "ERROR in ReadImage3D: can't open file %s\n",fname);
             if(exitcode==2)
-		fprintf(stderr, "ERROR in ReadImage3D: read from file %s terminated early\n",fname);
+                fprintf(stderr, "ERROR in ReadImage3D: read from file %s terminated early\n",fname);
             exit(-1);
         }
     }
@@ -794,13 +794,13 @@ int WriteImage3D(
     {
         sprintf(fname,"%s_slice%.*d.2Dimgdata",basename, Image->imgparams.NumSliceDigits, i+FirstSliceNumber);
         //sprintf(fname,"%s_slice%.*d.2Dimgdata",basename,MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,i+FirstSliceNumber);
-	//printf("filename: |%s|\n",fname);
+        //printf("filename: |%s|\n",fname);
         
         if( (exitcode=WriteFloatArray(fname,Image->image[i],M)) ) {
             if(exitcode==1)
-		fprintf(stderr, "ERROR in WriteImage3D: can't open file %s\n",fname);
+                fprintf(stderr, "ERROR in WriteImage3D: can't open file %s\n",fname);
             if(exitcode==2)
-		fprintf(stderr, "ERROR in WriteImage3D: write to file %s terminated early\n",fname);
+                fprintf(stderr, "ERROR in WriteImage3D: write to file %s terminated early\n",fname);
             exit(-1);
         }
     }

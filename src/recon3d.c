@@ -17,6 +17,8 @@
 #include "initialize.h"
 #include "recon3d.h"
 
+//#define COMP_RMSE
+
 /* Internal functions */
 void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int iter,
 	char *phaseMap,long *order,int *indexList,float **w,float **e,
@@ -76,23 +78,29 @@ void MBIRReconstruct3D(
 	if(ImageReconMask[j])
 		NumMaskVoxels++;
 
-	#if 0
-	//#ifdef find_RMSE
-	float **golden;
-	golden = (float **)multialloc(sizeof(float), 2, Nz,Nxy);
-	// note this needs to be updated
-	read_golden(cmdline->ReconImageDataFile,golden,Nz,Nxy,Image);
-	float updatedVoxelsList[300];
+	#ifdef COMP_RMSE
+		struct Image3D Image_ref;
+		Image_ref.imgparams.Nx = Image->imgparams.Nx;
+		Image_ref.imgparams.Ny = Image->imgparams.Ny;
+		Image_ref.imgparams.Nz = Image->imgparams.Nz;
+		Image_ref.imgparams.FirstSliceNumber = Image->imgparams.FirstSliceNumber;
+		Image_ref.imgparams.NumSliceDigits = Image->imgparams.NumSliceDigits;
+		AllocateImageData3D(&Image_ref);
+		ReadImage3D("ref/ref",&Image_ref);
 
-	float sumOfSE=0;
-	for(i=0;i<Nz;i++)
-	for(j=0;j<Nxy;j++)
-		sumOfSE+=(Image->image[i][j]-golden[i][j])*(Image->image[i][j]-golden[i][j]);
-
-	float MSE=sumOfSE/Nxy/Nz;
-	float RMSE=sqrt(MSE);
-
-	fprintf(stdout,"Rho: %f initial_RMSE: %f \n",convergence_rho,RMSE);
+		float ** image_ref = Image_ref.image;
+		double rms_err=0,rms_val=0;
+		for(i=0;i<Nz;i++)
+		for(j=0;j<Nxy;j++)
+		if(ImageReconMask[j]) {
+			rms_val += image_ref[i][j]*image_ref[i][j];
+			rms_err += (Image->image[i][j]-image_ref[i][j])*(Image->image[i][j]-image_ref[i][j]);
+		}
+		rms_val = sqrt(rms_val/((float)NumMaskVoxels*Nz));
+		rms_err = sqrt(rms_err/((float)NumMaskVoxels*Nz));
+		FILE *fp_mse=fopen("rmse.txt","a");
+		fprintf(fp_mse,"equits|rms_err|rms_val|rms_err/rms_val\n");
+		fprintf(fp_mse,"%.2f %g %g %g\n",equits,rms_err,rms_val,rms_err/rms_val);
 	#endif
 
 	order = (long *) mget_spc(sum*SV_per_Z,sizeof(long));
@@ -273,20 +281,6 @@ void MBIRReconstruct3D(
 			fprintf(stdout, "it %d cost = %-15f, avg_update %f \n", iter, cost, avg_update);
 			*/
 
-			#if 0
-			//#ifdef find_RMSE
-			float sumOfSE=0;
-			for(i=0;i<Nz;i++)
-			for(j=0;j<Nxy;j++)
-				sumOfSE+=(Image->image[i][j]-golden[i][j])*(Image->image[i][j]-golden[i][j]);
-			float MSE=sumOfSE/Nxy/Nz;
-			float RMSE=sqrt(MSE);
-			if(iter<300) {
-				updatedVoxelsList[iter]=NumUpdates*1.0/Nxy/Nz;
-				fprintf(stdout,"Rho: %f Equits: %f RMSE: %f \n",convergence_rho,updatedVoxelsList[iter],RMSE);
-			}
-			#endif		
-
 			if (avg_update_rel < StopThreshold && (endIndex!=0))
 				stop_FLAG = 1;
 
@@ -299,6 +293,16 @@ void MBIRReconstruct3D(
 				fprintf(stdout,"\titeration %d, average change %.4f %%\n",it_print,avg_update_rel);
 				it_print++;
 			}
+
+			#ifdef COMP_RMSE
+				rms_err=0;
+				for(i=0;i<Nz;i++)
+				for(j=0;j<Nxy;j++)
+				if(ImageReconMask[j])
+					rms_err += (Image->image[i][j]-image_ref[i][j])*(Image->image[i][j]-image_ref[i][j]);
+				rms_err = sqrt(rms_err/((float)NumMaskVoxels*Nz));
+				fprintf(fp_mse,"%.2f %g %g %g\n",equits,rms_err,rms_val,rms_err/rms_val);
+			#endif
 
 			NumUpdates=0;
 			totalValue=0;
@@ -344,8 +348,9 @@ void MBIRReconstruct3D(
 	free((void *)phaseMap);
 	free((void *)order);
 
-	#ifdef find_RMSE
-	multifree(golden,2);
+	#ifdef COMP_RMSE
+		FreeImageData3D(&Image_ref);
+		fclose(fp_mse);
 	#endif
 
 }   /*  END MBIRReconstruct3D()  */
@@ -952,37 +957,6 @@ float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *s
 }
 
 
-
-
-#if 0
-// NOTE this needs to be updated
-void read_golden(char *fname,float **golden,int Nz,int N, struct Image3D *Image)
-{
-	FILE *fp;
-	int i;
-        char slicefname[1024];
-        char *sliceindex;
-	sliceindex= (char *)malloc(MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS);
-	for(i=0;i<Nz;i++){
-		sprintf(sliceindex,"%.*d",MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS,Image->imgparams.FirstSliceNumber+i);
-
-		/* Obtain file name for the given slice */
-		strcpy(slicefname,fname);
-		strcat(slicefname,"_slice"); 
-		strcat(slicefname,sliceindex); /* append slice index */
-		strcat(slicefname,".2Dimgdata");
-		if ((fp = fopen(slicefname, "r")) == NULL)
-		{
-			fprintf(stderr, "ERROR in read golden: can't open file %s.\n", slicefname);
-			exit(-1);
-		}
-
-		fread(&golden[i][0],sizeof(float),N,fp);
-		fclose(fp);
-	}
-
-}
-#endif
 
 
 void forwardProject(
