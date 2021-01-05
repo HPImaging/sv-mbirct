@@ -90,15 +90,16 @@ void MBIRReconstruct3D(
 
 		float ** image_ref = Image_ref.image;
 		double rms_err=0,rms_val=0;
-		for(i=0;i<Nz;i++)
-		for(j=0;j<Nxy;j++)
+		int Nz0=0, Nz1=Nz;
+		for(i=Nz0; i<Nz1; i++)
+		for(j=0; j<Nxy; j++)
 		if(ImageReconMask[j]) {
 			rms_val += image_ref[i][j]*image_ref[i][j];
 			rms_err += (Image->image[i][j]-image_ref[i][j])*(Image->image[i][j]-image_ref[i][j]);
 		}
-		rms_val = sqrt(rms_val/((float)NumMaskVoxels*Nz));
-		rms_err = sqrt(rms_err/((float)NumMaskVoxels*Nz));
-		FILE *fp_mse=fopen("rmse.txt","a");
+		rms_val = sqrt(rms_val/((float)NumMaskVoxels*(Nz1-Nz0)));
+		rms_err = sqrt(rms_err/((float)NumMaskVoxels*(Nz1-Nz0)));
+		FILE *fp_mse=fopen("rmse.txt","w");
 		fprintf(fp_mse,"equits|rms_err|rms_val|rms_err/rms_val\n");
 		fprintf(fp_mse,"%.2f %g %g %g\n",equits,rms_err,rms_val,rms_err/rms_val);
 	#endif
@@ -296,11 +297,11 @@ void MBIRReconstruct3D(
 
 			#ifdef COMP_RMSE
 				rms_err=0;
-				for(i=0;i<Nz;i++)
-				for(j=0;j<Nxy;j++)
+				for(i=Nz0; i<Nz1; i++)
+				for(j=0; j<Nxy; j++)
 				if(ImageReconMask[j])
 					rms_err += (Image->image[i][j]-image_ref[i][j])*(Image->image[i][j]-image_ref[i][j]);
-				rms_err = sqrt(rms_err/((float)NumMaskVoxels*Nz));
+				rms_err = sqrt(rms_err/((float)NumMaskVoxels*(Nz1-Nz0)));
 				fprintf(fp_mse,"%.2f %g %g %g\n",equits,rms_err,rms_val,rms_err/rms_val);
 			#endif
 
