@@ -3,9 +3,10 @@
 
 #include "MBIRModularDefs.h"
 
-//typedef int channel_t;              // General channel index. Need NChannels < 2^(8*sizeof(channel_t))
 typedef unsigned short channel_t;   // General channel index. Need NChannels < 2^(8*sizeof(channel_t))
-typedef unsigned char chanwidth_t;  // Channel bandwidth for single pixel, NOT supervoxel
+typedef unsigned short chanwidth_t; // Channel bandwidth for single pixel, NOT supervoxel
+                                    // Note the size of chanwidth_t only affects the internal memory
+                                    // when computing A, *not* for the encoded or stored matrix
 
 struct ACol
 {
