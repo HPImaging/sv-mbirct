@@ -25,6 +25,8 @@ void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,fl
 	struct AValues_char **A_Padded_Map,float *Aval_max_ptr,struct heap_node *headNodeArray,
 	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,float *image,struct ImageParams3D imgparams,
 	float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
+void SVproject(float *proj,float *image,struct AValues_char **A_Padded_Map,float *Aval_max_ptr,
+	struct SinoParams3DParallel sinoparams,struct ImageParams3D imgparams,struct SVParams svpar);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams *reconparams);
@@ -365,7 +367,7 @@ void MBIRReconstruct(
     float *image,
     float *sino,
     float *weight,
-    float *sinoerr_input,
+    float *sinoerr_opt,
     struct ImageParams3D imgparams,
     struct SinoParams3DParallel sinoparams,
     struct ReconParams reconparams,
@@ -434,16 +436,20 @@ void MBIRReconstruct(
     }
 
     /* Project image for sinogram error */
-    if(sinoerr_input != NULL)
-        sinoerr = sinoerr_input;
-//    else
-//    {
-        /* Initialize Forward Projection of initial image */
-//        sinoerr = (float *)get_spc(Nz*Nvc,sizeof(float));
-//    }
+    if(sinoerr_opt != NULL)
+        sinoerr = sinoerr_opt;
+    else
+    {
+        if(verboseLevel)
+            fprintf(stdout,"Projecting image...\n");
+        sinoerr = (float *) mget_spc(Nz*Nvc,sizeof(float));
+        SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,sinoparams,imgparams,svpar);
+        size_t k;
+        for(k=0; k<Nz*Nvc; k++)
+            sinoerr[k] = sino[k]-sinoerr[k];
+    }
 
     /* TBD: Compute sinogram weights */
-
 
     #ifdef COMP_RMSE
         struct Image3D Image_ref;
@@ -738,6 +744,9 @@ void MBIRReconstruct(
     multifree(A_Padded_Map,2);
     free((void *)Aval_max_ptr);
     free((void *)ImageReconMask);
+
+    if(sinoerr_opt == NULL)
+        free((void *)sinoerr);
 
 }   /*  END MBIRReconstruct()  */
 
@@ -1346,20 +1355,17 @@ float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *s
 }
 
 
+/* Forward projection using input SV system matrix */
 
-
-void forwardProject(
-    float *image,
-    float *proj,
-    struct ImageParams3D imgparams,
-    struct SinoParams3DParallel sinoparams,
-    char *Amatrix_fname,
-    char verboseLevel)
+void SVproject(
+	float *proj,
+	float *image,
+	struct AValues_char **A_Padded_Map,
+	float *Aval_max_ptr,
+	struct SinoParams3DParallel sinoparams,
+	struct ImageParams3D imgparams,
+	struct SVParams svpar)
 {
-    struct AValues_char **A_Padded_Map;
-    float *Aval_max_ptr;
-    struct SVParams svpar;
-
     size_t i;
     int j,jz;
     int Nx = imgparams.Nx;
@@ -1367,34 +1373,11 @@ void forwardProject(
     int Nz = imgparams.Nz;
     int NChannels = sinoparams.NChannels;
     int Nvc = sinoparams.NViews * sinoparams.NChannels;
-
-    /* Initialize/allocate SV parameters */
-    initSVParams(&svpar, imgparams, sinoparams);
-    int Nsv = svpar.Nsv;
     int SVLength = svpar.SVLength;
     int pieceLength = svpar.pieceLength;
     int SVsPerRow = svpar.SVsPerRow;
     int NViewSets = sinoparams.NViews/pieceLength;
     struct minStruct * bandMinMap = svpar.bandMinMap;
-
-    /* Allocate and generate recon mask based on ROIRadius */
-    char * ImageReconMask = GenImageReconMask(&imgparams);
-
-    /* Read/compute/write System Matrix */
-    A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,Nsv,(2*SVLength+1)*(2*SVLength+1));
-    Aval_max_ptr = (float *) mget_spc(Nx*Ny,sizeof(float));
-    if(Amatrix_fname != NULL)
-    {
-        if(verboseLevel)
-            fprintf(stdout,"Reading system matrix...\n");
-        readAmatrix(Amatrix_fname, A_Padded_Map, Aval_max_ptr, &imgparams, &sinoparams, svpar);
-    }
-    else
-    {
-        if(verboseLevel)
-            fprintf(stdout,"Computing system matrix...\n");
-        A_comp(A_Padded_Map,Aval_max_ptr,svpar,&sinoparams,ImageReconMask,&imgparams);
-    }
 
     /* initialize projection */
     for (i = 0; i < Nvc*Nz; i++)
@@ -1448,6 +1431,51 @@ void forwardProject(
             }
         }
     }
+}
+
+
+/* Forward projection wrapper that first reads or computes SV matrix */
+
+void forwardProject(
+    float *proj,
+    float *image,
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
+    char *Amatrix_fname,
+    char verboseLevel)
+{
+    int i,j;
+    struct AValues_char **A_Padded_Map;
+    float *Aval_max_ptr;
+    struct SVParams svpar;
+
+    /* Initialize/allocate SV parameters */
+    initSVParams(&svpar, imgparams, sinoparams);
+    int Nsv = svpar.Nsv;
+    int SVLength = svpar.SVLength;
+
+    /* Read/compute/write System Matrix */
+    A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,Nsv,(2*SVLength+1)*(2*SVLength+1));
+    Aval_max_ptr = (float *) mget_spc(imgparams.Nx*imgparams.Ny,sizeof(float));
+    if(Amatrix_fname != NULL)
+    {
+        if(verboseLevel)
+            fprintf(stdout,"Reading system matrix...\n");
+        readAmatrix(Amatrix_fname, A_Padded_Map, Aval_max_ptr, &imgparams, &sinoparams, svpar);
+    }
+    else
+    {
+        if(verboseLevel)
+            fprintf(stdout,"Computing system matrix...\n");
+        char * ImageReconMask = GenImageReconMask(&imgparams);
+        A_comp(A_Padded_Map,Aval_max_ptr,svpar,&sinoparams,ImageReconMask,&imgparams);
+        free((void *)ImageReconMask);
+    }
+
+    /* Project */
+    if(verboseLevel)
+        fprintf(stdout,"Projecting image...\n");
+    SVproject(proj,image,A_Padded_Map,Aval_max_ptr,sinoparams,imgparams,svpar);
 
     /* Free SV memory */
     for(i=0;i<Nsv;i++) {
@@ -1468,7 +1496,6 @@ void forwardProject(
     }
     multifree(A_Padded_Map,2);
     free((void *)Aval_max_ptr);
-    free((void *)ImageReconMask);
 
 }   /* END forwardProject() */
 
