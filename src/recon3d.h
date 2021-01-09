@@ -17,6 +17,17 @@ void MBIRReconstruct3D(
 	char *ImageReconMask,
 	char verboseLevel);
 
+void MBIRReconstruct(
+    float *image,
+    float *sino,
+    float *weight,
+    float *sinoerr,
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
+    struct ReconParams reconparams,
+    char *Amatrix_fname,
+    char verboseLevel);
+
 void forwardProject2D(
 	float *e,
 	float *x,

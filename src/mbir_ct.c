@@ -244,6 +244,18 @@ int main(int argc, char *argv[])
 
 		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,Aval_max_ptr,ImageReconMask,cmdline.verboseLevel);
 
+		//sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+		//MBIRReconstruct(
+		//	&(Image.image[0][0]),
+		//	&(sinogram.sino[0][0]),
+		//	&(sinogram.weight[0][0]),
+		//	&(e[0][0]),
+		//	Image.imgparams,
+		//	sinogram.sinoparams,
+		//	reconparams,
+		//	fname,
+		//	cmdline.verboseLevel);
+
 		if(cmdline.verboseLevel)
 		{
 			gettimeofday(&tm2,NULL);
