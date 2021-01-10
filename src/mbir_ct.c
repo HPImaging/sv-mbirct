@@ -237,6 +237,8 @@ int main(int argc, char *argv[])
 			gettimeofday(&tm1,NULL);
 		}
 
+		#if 1
+
 		/* "e" will hold the sinogram error (y-Ax) during reconstruction */
 		for(jz=0; jz<Nz; jz++)
 		for(i=0; i<NvNc; i++)
@@ -244,17 +246,21 @@ int main(int argc, char *argv[])
 
 		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,Aval_max_ptr,ImageReconMask,cmdline.verboseLevel);
 
-		//sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
-		//MBIRReconstruct(
-		//	&(Image.image[0][0]),
-		//	&(sinogram.sino[0][0]),
-		//	&(sinogram.weight[0][0]),
-		//	&(e[0][0]),
-		//	Image.imgparams,
-		//	sinogram.sinoparams,
-		//	reconparams,
-		//	fname,
-		//	cmdline.verboseLevel);
+		#else   /* run w/ new MBIRReconstruct() */
+
+		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+		MBIRReconstruct(
+			&(Image.image[0][0]),
+			&(sinogram.sino[0][0]),
+			&(sinogram.weight[0][0]),
+			0,
+			//&(e[0][0]),
+			Image.imgparams,
+			sinogram.sinoparams,
+			reconparams,
+			fname,
+			cmdline.verboseLevel);
+		#endif
 
 		if(cmdline.verboseLevel)
 		{

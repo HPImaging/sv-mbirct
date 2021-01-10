@@ -367,7 +367,7 @@ void MBIRReconstruct(
     float *image,
     float *sino,
     float *weight,
-    float *sinoerr_opt,
+    float *proj_init,
     struct ImageParams3D imgparams,
     struct SinoParams3DParallel sinoparams,
     struct ReconParams reconparams,
@@ -385,9 +385,9 @@ void MBIRReconstruct(
     int SVLength = svpar.SVLength;
     int SV_per_Z = svpar.SV_per_Z;
     int SVsPerRow = svpar.SVsPerRow;
-    struct minStruct * bandMinMap = svpar.bandMinMap;
 
-    int i,j,jz,jj,p,t,iter,it_print=1;
+    int i,j,jj,p,t,iter,it_print=1;
+    size_t k;
     int Nx = imgparams.Nx;
     int Ny = imgparams.Ny;
     int Nz = imgparams.Nz;
@@ -436,18 +436,17 @@ void MBIRReconstruct(
     }
 
     /* Project image for sinogram error */
-    if(sinoerr_opt != NULL)
-        sinoerr = sinoerr_opt;
+    if(proj_init != NULL)
+        sinoerr = proj_init;
     else
     {
         if(verboseLevel)
             fprintf(stdout,"Projecting image...\n");
         sinoerr = (float *) mget_spc(Nz*Nvc,sizeof(float));
         SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,sinoparams,imgparams,svpar);
-        size_t k;
-        for(k=0; k<Nz*Nvc; k++)
-            sinoerr[k] = sino[k]-sinoerr[k];
     }
+    for(k=0; k<Nz*Nvc; k++)
+        sinoerr[k] = sino[k]-sinoerr[k];
 
     /* TBD: Compute sinogram weights */
 
@@ -463,7 +462,7 @@ void MBIRReconstruct(
 
         float ** image_ref = Image_ref.image;
         double rms_err=0,rms_val=0;
-        int Nz0=0, Nz1=Nz;
+        int jz, Nz0=0, Nz1=Nz;
         for(jz=Nz0; jz<Nz1; jz++)
         for(j=0; j<Nxy; j++)
         if(ImageReconMask[j]) {
@@ -704,6 +703,15 @@ void MBIRReconstruct(
         //printf("\tReconstruction time = %llu ms (iterations only)\n", tt);
     }
 
+    /* If initial projection was supplied, update to return final projection */
+    if(proj_init != NULL)
+    {
+        for(k=0; k<Nz*Nvc; k++)
+            proj_init[k] = sino[k]-sinoerr[k];
+    }
+    else
+        free((void *)sinoerr);
+
     #ifdef ICC
         _mm_free((void *)voxelsBuffer1);
         _mm_free((void *)voxelsBuffer2);
@@ -744,9 +752,6 @@ void MBIRReconstruct(
     multifree(A_Padded_Map,2);
     free((void *)Aval_max_ptr);
     free((void *)ImageReconMask);
-
-    if(sinoerr_opt == NULL)
-        free((void *)sinoerr);
 
 }   /*  END MBIRReconstruct()  */
 
@@ -1367,7 +1372,7 @@ void SVproject(
 	struct SVParams svpar)
 {
     size_t i;
-    int j,jz;
+    int jz;
     int Nx = imgparams.Nx;
     int Ny = imgparams.Ny;
     int Nz = imgparams.Nz;
@@ -1386,7 +1391,7 @@ void SVproject(
     #pragma omp parallel for schedule(dynamic)
     for(jz=0;jz<Nz;jz++)
     {
-	    int jx,jy,k,r,p;
+        int jx,jy,k,r,p;
 
         for (jy = 0; jy < Ny; jy++)
         for (jx = 0; jx < Nx; jx++)
