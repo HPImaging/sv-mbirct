@@ -584,7 +584,7 @@ int WriteFloatArray(
 	FILE *fp;
         if( (fp = fopen(fname,"wb")) == NULL )
            return(1);
-        if(fwrite(array,sizeof(float),N,fp)!=N) {
+        if(fwrite(array,sizeof(float),N,fp) != (size_t)N) {
            fclose(fp);
            return(2);
 	}
