@@ -39,8 +39,8 @@ void forwardProject2D(
 	struct SVParams svpar);
 
 void forwardProject(
-    float *image,
     float *proj,
+    float *image,
     struct ImageParams3D imgparams,
     struct SinoParams3DParallel sinoparams,
     char *Amatrix_fname,
