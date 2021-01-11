@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
 			ProxMap.imgparams.NumSliceDigits = Image.imgparams.NumSliceDigits;
 			AllocateImageData3D(&ProxMap);
 			ReadImage3D(cmdline.ProxMapImageFile,&ProxMap);
-			reconparams.proximalmap = ProxMap.image;  // **ptr to proximal map image
+			reconparams.proximalmap = &(ProxMap.image[0][0]);  // *ptr to proximal map image
 		}
 
 		/* Start Reconstruction */

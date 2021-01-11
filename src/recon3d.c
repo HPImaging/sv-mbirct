@@ -859,7 +859,7 @@ void super_voxel_recon(
 	float totalValue_loc=0,totalChange_loc=0;
 
 	//float ** image = Image->image;
-	float ** proximalmap = reconparams.proximalmap;
+	float * proximalmap = reconparams.proximalmap;
 	//struct ImageParams3D imgparams = Image->imgparams;
 	int Nx = imgparams.Nx;
 	int Ny = imgparams.Ny;
@@ -1103,7 +1103,7 @@ void super_voxel_recon(
 				}
 			}
 			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
-				tempProxMap[currentSlice] = proximalmap[startSlice+currentSlice][j_new*Nx+k_new];
+				tempProxMap[currentSlice] = proximalmap[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new];
 		}
 
 		A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
