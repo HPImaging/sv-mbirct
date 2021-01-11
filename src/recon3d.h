@@ -22,6 +22,7 @@ void MBIRReconstruct(
     float *sino,
     float *weight,
     float *proj_init,
+    float *proximalmap,
     struct ImageParams3D imgparams,
     struct SinoParams3DParallel sinoparams,
     struct ReconParams reconparams,

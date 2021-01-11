@@ -229,6 +229,8 @@ int main(int argc, char *argv[])
 			ReadImage3D(cmdline.ProxMapImageFile,&ProxMap);
 			reconparams.proximalmap = &(ProxMap.image[0][0]);  // *ptr to proximal map image
 		}
+		else
+			reconparams.proximalmap = NULL;
 
 		/* Start Reconstruction */
 		if(cmdline.verboseLevel)
@@ -253,8 +255,8 @@ int main(int argc, char *argv[])
 			&(Image.image[0][0]),
 			&(sinogram.sino[0][0]),
 			&(sinogram.weight[0][0]),
-			0,
-			//&(e[0][0]),
+			&(e[0][0]),
+			reconparams.proximalmap,
 			Image.imgparams,
 			sinogram.sinoparams,
 			reconparams,

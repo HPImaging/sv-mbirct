@@ -368,6 +368,7 @@ void MBIRReconstruct(
     float *sino,
     float *weight,
     float *proj_init,
+    float *proximalmap,
     struct ImageParams3D imgparams,
     struct SinoParams3DParallel sinoparams,
     struct ReconParams reconparams,
@@ -447,6 +448,13 @@ void MBIRReconstruct(
     }
     for(k=0; k<Nz*Nvc; k++)
         sinoerr[k] = sino[k]-sinoerr[k];
+
+    /* Initialize proximal map if called for */
+    if(proximalmap != NULL)
+    {
+        reconparams.proximalmap = proximalmap;
+        reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
+    }
 
     /* TBD: Compute sinogram weights */
 
