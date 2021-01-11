@@ -15,19 +15,6 @@
 #define OVERLAPPINGDISTANCE 2
 #define SVDEPTH 4
 
-struct SVParams
-{
-	struct minStruct *bandMinMap;
-	struct maxStruct *bandMaxMap;
-	int SVLength;
-	int overlap;
-	int SVDepth;
-	int SV_per_Z;
-	int SVsPerRow;
-	int Nsv;
-	int pieceLength;
-};
-
 
 struct CmdLine
 {

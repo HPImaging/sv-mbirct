@@ -563,7 +563,7 @@ int ReadFloatArray(
 	FILE *fp;
         if( (fp = fopen(fname,"rb")) == NULL )
            return(1);
-        if(fread(array,sizeof(float),N,fp)!=N) {
+        if(fread(array,sizeof(float),N,fp) != (size_t)N) {
            fclose(fp);
            return(2);
 	}
@@ -867,13 +867,13 @@ int ReadSysMatrix2D(
             A->column[i].RowIndex = (int *)get_spc(Nnonzero, sizeof(int));
             A->column[i].Value    = (float *)get_spc(Nnonzero, sizeof(float));
             
-            if(fread(A->column[i].RowIndex, sizeof(int), Nnonzero, fp)!= Nnonzero)
+            if(fread(A->column[i].RowIndex, sizeof(int), Nnonzero, fp) != (size_t)Nnonzero)
             {
                 fprintf(stderr, "ERROR in ReadSysMatrix2D: file terminated early %s.\n", fname);
                 exit(-1);
             }
             
-            if(fread(A->column[i].Value, sizeof(float), Nnonzero, fp) != Nnonzero)
+            if(fread(A->column[i].Value, sizeof(float), Nnonzero, fp) != (size_t)Nnonzero)
             {
                 fprintf(stderr, "ERROR in ReadSysMatrix2D: file terminated early %s.\n", fname);
                 exit(-1);

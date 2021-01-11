@@ -631,11 +631,11 @@ void readAmatrix(
 
     for (i=0; i<svpar.Nsv ; i++)
     {
-        if(fread(svpar.bandMinMap[i].bandMin,sizeof(channel_t),NViews,fp) < NViews) {
+        if(fread(svpar.bandMinMap[i].bandMin,sizeof(channel_t),NViews,fp) < (size_t)NViews) {
             fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
             exit(-1);
         }
-        if(fread(svpar.bandMaxMap[i].bandMax,sizeof(channel_t),NViews,fp) < NViews) {
+        if(fread(svpar.bandMaxMap[i].bandMax,sizeof(channel_t),NViews,fp) < (size_t)NViews) {
             fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
             exit(-1);
         }
@@ -653,15 +653,15 @@ void readAmatrix(
                 A_Padded_Map[i][j].pieceWiseWidth = (channel_t *)get_spc(NViewSets,sizeof(channel_t));
                 A_Padded_Map[i][j].pieceWiseMin = (channel_t *)get_spc(NViewSets,sizeof(channel_t));
 
-                if(fread(A_Padded_Map[i][j].val, sizeof(unsigned char), M_nonzero, fp) < M_nonzero) {
+                if(fread(A_Padded_Map[i][j].val, sizeof(unsigned char), M_nonzero, fp) < (size_t)M_nonzero) {
                     fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
                     exit(-1);
                 }
-                if(fread(A_Padded_Map[i][j].pieceWiseMin,sizeof(channel_t),NViewSets,fp) < NViewSets) {
+                if(fread(A_Padded_Map[i][j].pieceWiseMin,sizeof(channel_t),NViewSets,fp) < (size_t)NViewSets) {
                     fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
                     exit(-1);
                 }
-                if(fread(A_Padded_Map[i][j].pieceWiseWidth,sizeof(channel_t),NViewSets,fp) < NViewSets) {
+                if(fread(A_Padded_Map[i][j].pieceWiseWidth,sizeof(channel_t),NViewSets,fp) < (size_t)NViewSets) {
                     fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
                     exit(-1);
                 }
@@ -669,7 +669,7 @@ void readAmatrix(
         }
     }
 
-    if(fread(&Aval_max_ptr[0],sizeof(float),Nxy,fp) < Nxy) {
+    if(fread(&Aval_max_ptr[0],sizeof(float),Nxy,fp) < (size_t)Nxy) {
         fprintf(stderr, "ERROR in readAmatrix: %s terminated early.\n", fname);
         exit(-1);
     }

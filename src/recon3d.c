@@ -446,7 +446,7 @@ void MBIRReconstruct(
         sinoerr = (float *) mget_spc(Nz*Nvc,sizeof(float));
         SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,sinoparams,imgparams,svpar);
     }
-    for(k=0; k<Nz*Nvc; k++)
+    for(k=0; k<(size_t)Nz*Nvc; k++)
         sinoerr[k] = sino[k]-sinoerr[k];
 
     /* Initialize proximal map if called for */
@@ -714,7 +714,7 @@ void MBIRReconstruct(
     /* If initial projection was supplied, update to return final projection */
     if(proj_init != NULL)
     {
-        for(k=0; k<Nz*Nvc; k++)
+        for(k=0; k<(size_t)Nz*Nvc; k++)
             proj_init[k] = sino[k]-sinoerr[k];
     }
     else
@@ -1393,7 +1393,7 @@ void SVproject(
     struct minStruct * bandMinMap = svpar.bandMinMap;
 
     /* initialize projection */
-    for (i = 0; i < Nvc*Nz; i++)
+    for (i = 0; i < (size_t)Nvc*Nz; i++)
         proj[i] = 0.0;
 
     #pragma omp parallel for schedule(dynamic)
