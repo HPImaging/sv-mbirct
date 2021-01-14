@@ -17,6 +17,7 @@
 #include "initialize.h"
 #include "recon3d.h"
 
+//#define TEST
 //#define COMP_RMSE
 
 /* Internal functions */
@@ -376,19 +377,10 @@ void MBIRReconstruct(
     char verboseLevel)
 {
     float *sinoerr;
-    struct AValues_char **A_Padded_Map;
-    float *Aval_max_ptr;
-    struct SVParams svpar;
-
-    /* Initialize/allocate SV parameters */
-    initSVParams(&svpar, imgparams, sinoparams);
-    int Nsv = svpar.Nsv;
-    int SVLength = svpar.SVLength;
-    int SV_per_Z = svpar.SV_per_Z;
-    int SVsPerRow = svpar.SVsPerRow;
-
     int i,j,jj,p,t,iter,it_print=1;
     size_t k;
+
+    /* image/sino/recon parameters */
     int Nx = imgparams.Nx;
     int Ny = imgparams.Ny;
     int Nz = imgparams.Nz;
@@ -396,6 +388,11 @@ void MBIRReconstruct(
 	int Nvc = sinoparams.NViews * sinoparams.NChannels;
     int MaxIterations = reconparams.MaxIterations;
     float StopThreshold = reconparams.StopThreshold;
+    NormalizePriorWeights3D(&reconparams);
+    if(proximalmap != NULL) {
+        reconparams.proximalmap = proximalmap;
+        reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
+    }
 
     float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
     float *voxelsBuffer2;
@@ -406,11 +403,33 @@ void MBIRReconstruct(
     float convergence_rho=0.7;
     int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
 
+    /* Initialize/allocate SV parameters */
+    struct AValues_char **A_Padded_Map;
+    float *Aval_max_ptr;
+    struct SVParams svpar;
+    initSVParams(&svpar, imgparams, sinoparams);
+    int Nsv = svpar.Nsv;
+    int SVLength = svpar.SVLength;
+    int SV_per_Z = svpar.SV_per_Z;
+    int SVsPerRow = svpar.SVsPerRow;
+
     struct heap priorityheap;
     initialize_heap(&priorityheap);
     long *order;
     char *phaseMap;
     struct timeval tm1,tm2;
+
+    /* print summary to stdout */
+    if(verboseLevel>1)
+    {
+        fprintf(stdout,"MBIRReconstruct() -- build time: %s, %s\n", __DATE__, __TIME__);
+        printSinoParams3DParallel(&sinoparams);
+        printImageParams3D(&imgparams);
+        if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
+            printReconParamsQGGMRF3D(&reconparams);
+        if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+            printReconParamsPandP(&reconparams);
+    }
 
     /* Allocate and generate recon mask based on ROIRadius */
     char * ImageReconMask = GenImageReconMask(&imgparams);
@@ -448,13 +467,6 @@ void MBIRReconstruct(
     }
     for(k=0; k<(size_t)Nz*Nvc; k++)
         sinoerr[k] = sino[k]-sinoerr[k];
-
-    /* Initialize proximal map if called for */
-    if(proximalmap != NULL)
-    {
-        reconparams.proximalmap = proximalmap;
-        reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
-    }
 
     /* TBD: Compute sinogram weights */
 

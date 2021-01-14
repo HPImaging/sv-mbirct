@@ -6,7 +6,6 @@ CC = icc
 # common flags, libraries
 CFLAGS = -std=c11 -O3
 CFLAGS += -Wall
-CFLAGS += -DTEST
 LIBS = -lm
 
 ifeq ($(CC),icc)
