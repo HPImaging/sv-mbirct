@@ -17,7 +17,7 @@
 #include "initialize.h"
 #include "recon3d.h"
 
-//#define TEST
+#define TEST
 //#define COMP_RMSE
 
 /* Internal functions */
@@ -393,6 +393,10 @@ void MBIRReconstruct(
         reconparams.proximalmap = proximalmap;
         reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
     }
+    reconparams.pow_sigmaX_p = powf(reconparams.SigmaX,reconparams.p);
+    reconparams.pow_sigmaX_q = powf(reconparams.SigmaX,reconparams.q);
+    reconparams.pow_T_qmp    = powf(reconparams.T,reconparams.q - reconparams.p);
+    reconparams.SigmaXsq = reconparams.SigmaX * reconparams.SigmaX;
 
     float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
     float *voxelsBuffer2;
@@ -467,8 +471,6 @@ void MBIRReconstruct(
     }
     for(k=0; k<(size_t)Nz*Nvc; k++)
         sinoerr[k] = sino[k]-sinoerr[k];
-
-    /* TBD: Compute sinogram weights */
 
     #ifdef COMP_RMSE
         struct Image3D Image_ref;
@@ -607,12 +609,15 @@ void MBIRReconstruct(
         phaseMap[i] = tmp_char;
     }
 
-    gettimeofday(&tm1,NULL);
-
     iter=0;
     char stop_FLAG=0;
     int startIndex=0;
     int endIndex=0;
+
+    if(verboseLevel) {
+        fprintf(stdout,"Reconstructing...\n");
+        gettimeofday(&tm1,NULL);
+    }
 
     #pragma omp parallel
     {
@@ -711,16 +716,15 @@ void MBIRReconstruct(
             fprintf(stdout,"\tReached stopping condition\n");
         else
             fprintf(stdout,"\tWarning: Didn't reach stopping condition\n");
-    }
-
-    if(verboseLevel>1)
-    {
-        fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,iter);
-        fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
-        fprintf(stdout,"\tAverage update in last iteration (magnitude) = %.4g\n",avg_update);
+        if(verboseLevel>1)
+        {
+            fprintf(stdout,"\tEquivalent iterations = %.1f, (non-homogeneous iterations = %d)\n",equits,iter);
+            fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
+            fprintf(stdout,"\tAverage update in last iteration (magnitude) = %.4g\n",avg_update);
+        }
         gettimeofday(&tm2,NULL);
-        //unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-        //printf("\tReconstruction time = %llu ms (iterations only)\n", tt);
+        unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+        printf("\tReconstruction time = %llu ms (iterations only)\n", tt);
     }
 
     /* If initial projection was supplied, update to return final projection */
