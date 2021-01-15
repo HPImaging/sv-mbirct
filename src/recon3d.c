@@ -1,9 +1,8 @@
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <time.h>
 #include <sys/time.h>
+//#include <time.h>
 #include <string.h>
 #include <omp.h>
 
@@ -24,13 +23,13 @@
 void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int iter,
 	char *phaseMap,long *order,int *indexList,float *weight,float *sinoerr,
 	struct AValues_char **A_Padded_Map,float *Aval_max_ptr,struct heap_node *headNodeArray,
-	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,float *image,struct ImageParams3D imgparams,
+	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct ParamExt param_ext,float *image,struct ImageParams3D imgparams,
 	float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
 void SVproject(float *proj,float *image,struct AValues_char **A_Padded_Map,float *Aval_max_ptr,
 	struct SinoParams3DParallel sinoparams,struct ImageParams3D imgparams,struct SVParams svpar);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArray,int len);
-float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams *reconparams);
+float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams reconparams,struct ParamExt param_ext);
 
 
 void MBIRReconstruct3D(
@@ -50,7 +49,7 @@ void MBIRReconstruct3D(
 	float *voxelsBuffer2;
 	unsigned long NumUpdates=0;
 	float totalValue=0,totalChange=0,equits=0;
-	float avg_update,avg_update_rel;
+	float avg_update=0,avg_update_rel=0;
 
 	struct heap priorityheap;
 	initialize_heap(&priorityheap);
@@ -71,6 +70,11 @@ void MBIRReconstruct3D(
 	int SV_per_Z = svpar.SV_per_Z;
 	int SVsPerRow = svpar.SVsPerRow;
 	int sum = svpar.Nsv;
+    struct ParamExt param_ext;
+    param_ext.pow_sigmaX_p = powf(reconparams.SigmaX,reconparams.p);
+    param_ext.pow_sigmaX_q = powf(reconparams.SigmaX,reconparams.q);
+    param_ext.pow_T_qmp    = powf(reconparams.T,reconparams.q - reconparams.p);
+    param_ext.SigmaXsq = reconparams.SigmaX * reconparams.SigmaX;
 
 	float c_ratio=0.07;
 	float convergence_rho=0.7;
@@ -269,13 +273,14 @@ void MBIRReconstruct3D(
 			{
 				#pragma omp for schedule(dynamic)  reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
 				for (jj = startIndex; jj < endIndex; jj+=1)
-					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,&phaseMap[0],order,&indexList[0],&w[0][0],&e[0][0],A_Padded_Map,&Aval_max_ptr[0],&headNodeArray[0],sinogram->sinoparams,reconparams,&(Image->image[0][0]),Image->imgparams,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
+					super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,&phaseMap[0],order,&indexList[0],&w[0][0],&e[0][0],A_Padded_Map,&Aval_max_ptr[0],&headNodeArray[0],sinogram->sinoparams,reconparams,param_ext,&(Image->image[0][0]),Image->imgparams,voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
 
 			}
 
 			#pragma omp single
 			{
  
+			avg_update=avg_update_rel=0.0;
 			if(NumUpdates>0)
 			{
 				avg_update = totalChange/NumUpdates;
@@ -285,7 +290,7 @@ void MBIRReconstruct3D(
 			}
 			
 			/*
-			float cost = MAPCostFunction3D(e, Image, sinogram, &reconparams);
+			float cost = MAPCostFunction3D(e, Image, sinogram, reconparams, param_ext);
 			fprintf(stdout, "it %d cost = %-15f, avg_update %f \n", iter, cost, avg_update);
 			*/
 
@@ -393,16 +398,17 @@ void MBIRReconstruct(
         reconparams.proximalmap = proximalmap;
         reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
     }
-    reconparams.pow_sigmaX_p = powf(reconparams.SigmaX,reconparams.p);
-    reconparams.pow_sigmaX_q = powf(reconparams.SigmaX,reconparams.q);
-    reconparams.pow_T_qmp    = powf(reconparams.T,reconparams.q - reconparams.p);
-    reconparams.SigmaXsq = reconparams.SigmaX * reconparams.SigmaX;
+    struct ParamExt param_ext;
+    param_ext.pow_sigmaX_p = powf(reconparams.SigmaX,reconparams.p);
+    param_ext.pow_sigmaX_q = powf(reconparams.SigmaX,reconparams.q);
+    param_ext.pow_T_qmp    = powf(reconparams.T,reconparams.q - reconparams.p);
+    param_ext.SigmaXsq = reconparams.SigmaX * reconparams.SigmaX;
 
     float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
     float *voxelsBuffer2;
     unsigned long NumUpdates=0;
     float totalValue=0,totalChange=0,equits=0;
-    float avg_update,avg_update_rel;
+    float avg_update=0,avg_update_rel=0;
     float c_ratio=0.07;
     float convergence_rho=0.7;
     int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
@@ -665,19 +671,20 @@ void MBIRReconstruct(
                 for (jj = startIndex; jj < endIndex; jj+=1)
                     super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,
                             &phaseMap[0],order,&indexList[0],weight,sinoerr,A_Padded_Map,&Aval_max_ptr[0],
-                            &headNodeArray[0],sinoparams,reconparams,image,imgparams,
+                            &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,
                             voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
             }
 
             #pragma omp single
             {
+                avg_update=avg_update_rel=0.0;
                 if(NumUpdates>0) {
                     avg_update = totalChange/NumUpdates;
                     float avg_value = totalValue/NumUpdates;
                     avg_update_rel = avg_update/avg_value * 100;
                     //printf("avg_update %f, avg_value %f, avg_update_rel %f\n",avg_update,avg_value,avg_update_rel);
                 }
-                //float cost = MAPCostFunction3D(e, Image, sinogram, &reconparams);
+                //float cost = MAPCostFunction3D(e, Image, sinogram, reconparams, param_ext);
                 //fprintf(stdout, "it %d cost = %-15f, avg_update %f \n", iter, cost, avg_update);
 
                 if (avg_update_rel < StopThreshold && (endIndex!=0))
@@ -869,7 +876,7 @@ void super_voxel_recon(
 	struct heap_node *headNodeArray,
 	struct SinoParams3DParallel sinoparams,
 	struct ReconParams reconparams,
-	//struct Image3D *Image,
+	struct ParamExt param_ext,
 	float *image,
 	struct ImageParams3D imgparams,
 	float *voxelsBuffer1,
@@ -1175,11 +1182,11 @@ void super_voxel_recon(
 			float pixel,step;
 			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
 			{
-				step = QGGMRF3D_Update(reconparams,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice]);
+				step = QGGMRF3D_Update(reconparams,param_ext,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice]);
 			}
 			else if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
 			{
-				step = PandP_Update(reconparams,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
+				step = PandP_Update(reconparams,param_ext,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
 			}
 			else
 			{
@@ -1330,57 +1337,59 @@ void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArr
 
 
 
-float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams *reconparams)
+float MAPCostFunction3D(
+    float **e,
+    struct Image3D *Image,
+    struct Sino3DParallel *sinogram,
+    struct ReconParams reconparams,
+    struct ParamExt param_ext)
 {
-	int i, M, j, jx, jy, jz, Nx, Ny, Nz, plusx, minusx, plusy, plusz ;
-    	float **x ;
-    	float **w ;
-	float nloglike, nlogprior_nearest, nlogprior_diag, nlogprior_interslice ;
-    
-    	x = Image->image;
-    	w = sinogram->weight;
-    
-	M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels ;
-	Nx = Image->imgparams.Nx;
-	Ny = Image->imgparams.Ny;
-    	Nz = Image->imgparams.Nz;
-    
-	nloglike = 0.0;
-	for (i = 0; i <sinogram->sinoparams.NSlices; i++){
-		for (j = 0; j < M; j++)
-    			nloglike += e[i][j]*w[i][j]*e[i][j];
-    	}
+    int i, M, j, jx, jy, jz, Nx, Ny, Nz, plusx, minusx, plusy, plusz;
+    float **x,**w;
+    float nloglike, nlogprior_nearest, nlogprior_diag, nlogprior_interslice ;
 
-	nloglike /= 2.0;
-	nlogprior_nearest = 0.0;
-	nlogprior_diag = 0.0;
-    	nlogprior_interslice = 0.0;
-    
-	for (jz = 0; jz < Nz; jz++)
-	for (jy = 0; jy < Ny; jy++)
-	for (jx = 0; jx < Nx; jx++)
-	{
-		plusx = jx + 1;
-		plusx = ((plusx < Nx) ? plusx : 0);
-		minusx = jx - 1;
-		minusx = ((minusx < 0) ? Nx-1 : minusx);
-		plusy = jy + 1;
-		plusy = ((plusy < Ny) ? plusy : 0);
-		plusz = jz + 1;
-		plusz = ((plusz < Nz) ? plusz : 0);
+    x = Image->image;
+    w = sinogram->weight;
+    M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels ;
+    Nx = Image->imgparams.Nx;
+    Ny = Image->imgparams.Ny;
+    Nz = Image->imgparams.Nz;
 
-		j = jy*Nx + jx; 
+    nloglike = 0.0;
+    for (i = 0; i <sinogram->sinoparams.NSlices; i++)
+    for (j = 0; j < M; j++)
+        nloglike += e[i][j]*w[i][j]*e[i][j];
 
-		nlogprior_nearest += QGGMRF_Potential((x[jz][j] - x[jz][jy*Nx+plusx]), reconparams);
-		nlogprior_nearest += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+jx]),reconparams);
+    nloglike /= 2.0;
+    nlogprior_nearest = 0.0;
+    nlogprior_diag = 0.0;
+    nlogprior_interslice = 0.0;
 
-		nlogprior_diag += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+minusx]),reconparams);
-		nlogprior_diag += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+plusx]),reconparams);
+    for (jz = 0; jz < Nz; jz++)
+    for (jy = 0; jy < Ny; jy++)
+    for (jx = 0; jx < Nx; jx++)
+    {
+        plusx = jx + 1;
+        plusx = ((plusx < Nx) ? plusx : 0);
+        minusx = jx - 1;
+        minusx = ((minusx < 0) ? Nx-1 : minusx);
+        plusy = jy + 1;
+        plusy = ((plusy < Ny) ? plusy : 0);
+        plusz = jz + 1;
+        plusz = ((plusz < Nz) ? plusz : 0);
 
-		nlogprior_interslice += QGGMRF_Potential((x[jz][j] - x[plusz][jy*Nx+jx]),reconparams);
-	}
+        j = jy*Nx + jx;
 
-	return (nloglike + reconparams->b_nearest * nlogprior_nearest + reconparams->b_diag * nlogprior_diag + reconparams->b_interslice * nlogprior_interslice) ;
+        nlogprior_nearest += QGGMRF_Potential((x[jz][j] - x[jz][jy*Nx+plusx]),reconparams,param_ext);
+        nlogprior_nearest += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+jx]),reconparams,param_ext);
+
+        nlogprior_diag += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+minusx]),reconparams,param_ext);
+        nlogprior_diag += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+plusx]),reconparams,param_ext);
+
+        nlogprior_interslice += QGGMRF_Potential((x[jz][j] - x[plusz][jy*Nx+jx]),reconparams,param_ext);
+    }
+
+    return (nloglike + reconparams.b_nearest * nlogprior_nearest + reconparams.b_diag * nlogprior_diag + reconparams.b_interslice * nlogprior_interslice) ;
 }
 
 

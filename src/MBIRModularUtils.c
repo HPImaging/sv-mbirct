@@ -536,12 +536,6 @@ int ReadReconParams(
 		exit(-1);
 	}
 
-	/* calculate derived parameters */
-	reconparams->pow_sigmaX_p = powf(reconparams->SigmaX,reconparams->p);
-	reconparams->pow_sigmaX_q = powf(reconparams->SigmaX,reconparams->q);
-	reconparams->pow_T_qmp    = powf(reconparams->T,reconparams->q - reconparams->p);
-	reconparams->SigmaXsq = reconparams->SigmaX * reconparams->SigmaX;
-
 	return(0);
 }
 

@@ -1,31 +1,16 @@
 #ifndef MBIR_MODULAR_DEFS_H
 #define MBIR_MODULAR_DEFS_H
 
-
 /* Define constants that will be used in modular MBIR framework */
 #define MBIR_MODULAR_UTIL_VERSION "2.2"
 
-#define MBIR_MODULAR_SINOTYPE_2DPARALLEL 0
-#define MBIR_MODULAR_SINOTYPE_2DFAN 1	/* for future implementation */
-#define MBIR_MODULAR_SINOTYPE_3DPARALLEL 2
-
-#define MBIR_MODULAR_IMAGETYPE_2D 0
-#define MBIR_MODULAR_IMAGETYPE_3D 1
-#define MBIR_MODULAR_IMAGETYPE_4D 2	/* for future implementation */
-
-#define MBIR_MODULAR_RECONTYPE_QGGMRF_2D 0
 #define MBIR_MODULAR_RECONTYPE_QGGMRF_3D 1
 #define MBIR_MODULAR_RECONTYPE_PandP 2
 
-#define MBIR_MODULAR_YES 1
-#define MBIR_MODULAR_NO 0
 #define MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS 4 /* allows up to 10,000 slices */
 
 #define PI 3.1415926535897932384
 #define MUWATER 0.0202527   /* mm-1 */
-#define mu2hu(Mu, MuAir, MuWater) (1000.0*(Mu-MuAir)/(MuWater-MuAir)) /* (mm^-1) to HU units conversion */
-#define hu2mu(HU, MuAir, MuWater) (HU*(MuWater-MuAir)/1000.0)+MuAir   /* (mm^-1) to HU units conversion */
-
 
 /* The following utilities are used for managing data structures and files associated */
 /* with the Modular MBIR Framework */
@@ -100,16 +85,9 @@ struct ReconParams
   float q;               /* q-GGMRF q parameter (q=2 is typical choice) */
   float T;               /* q-GGMRF T parameter */
   float SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
-  /* QGGMRF derived parameters */
-  float pow_sigmaX_p;    /* pow(sigmaX,p) */
-  float pow_sigmaX_q;    /* pow(sigmaX,q) */
-  float pow_T_qmp;       /* pow(T,q-p) */
   /* Proximal map prior for Plug & Play */
-  //float SigmaX;        /* sigma_x parameter (mm-1) (same field name already included for QGGMRF above) */
-  float SigmaXsq;        /* derived parameter: SigmaX^2 */
   float *proximalmap;    /* ptr to 3D proximal map image; here to carry it to the ICD update */
 };
-
 
 
 
