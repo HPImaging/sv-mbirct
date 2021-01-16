@@ -1,6 +1,5 @@
 
 #include <stdio.h>
-#include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
@@ -31,8 +30,8 @@ void initSVParams(struct SVParams *svpar,struct ImageParams3D imgparams,struct S
 	for(j=0;j<imgparams.Nx;j+=(svpar->SVLength*2-svpar->overlap))
 		svpar->Nsv++;
 
-        svpar->bandMinMap = (struct minStruct *)get_spc(svpar->Nsv,sizeof(struct minStruct));
-        svpar->bandMaxMap = (struct maxStruct *)get_spc(svpar->Nsv,sizeof(struct maxStruct));
+	svpar->bandMinMap = (struct minStruct *)get_spc(svpar->Nsv,sizeof(struct minStruct));
+	svpar->bandMaxMap = (struct maxStruct *)get_spc(svpar->Nsv,sizeof(struct maxStruct));
 	for(j=0;j<svpar->Nsv;j++) {
 		svpar->bandMinMap[j].bandMin=(channel_t *)get_spc(sinoparams.NViews,sizeof(channel_t));
 		svpar->bandMaxMap[j].bandMax=(channel_t *)get_spc(sinoparams.NViews,sizeof(channel_t));

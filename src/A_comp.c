@@ -4,7 +4,6 @@
 #include <string.h>
 #include <math.h>
 
-#include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"

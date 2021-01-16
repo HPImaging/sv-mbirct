@@ -1,12 +1,10 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <sys/time.h>
-//#include <time.h>
 #include <string.h>
 #include <omp.h>
 
-#include "mbir_ct.h"
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
 #include "allocate.h"
@@ -384,6 +382,7 @@ void MBIRReconstruct(
     float *sinoerr;
     int i,j,jj,p,t,iter,it_print=1;
     size_t k;
+    struct timeval tm1,tm2;
 
     /* image/sino/recon parameters */
     int Nx = imgparams.Nx;
@@ -393,25 +392,6 @@ void MBIRReconstruct(
 	int Nvc = sinoparams.NViews * sinoparams.NChannels;
     int MaxIterations = reconparams.MaxIterations;
     float StopThreshold = reconparams.StopThreshold;
-    NormalizePriorWeights3D(&reconparams);
-    if(proximalmap != NULL) {
-        reconparams.proximalmap = proximalmap;
-        reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
-    }
-    struct ParamExt param_ext;
-    param_ext.pow_sigmaX_p = powf(reconparams.SigmaX,reconparams.p);
-    param_ext.pow_sigmaX_q = powf(reconparams.SigmaX,reconparams.q);
-    param_ext.pow_T_qmp    = powf(reconparams.T,reconparams.q - reconparams.p);
-    param_ext.SigmaXsq = reconparams.SigmaX * reconparams.SigmaX;
-
-    float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
-    float *voxelsBuffer2;
-    unsigned long NumUpdates=0;
-    float totalValue=0,totalChange=0,equits=0;
-    float avg_update=0,avg_update_rel=0;
-    float c_ratio=0.07;
-    float convergence_rho=0.7;
-    int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
 
     /* Initialize/allocate SV parameters */
     struct AValues_char **A_Padded_Map;
@@ -422,12 +402,6 @@ void MBIRReconstruct(
     int SVLength = svpar.SVLength;
     int SV_per_Z = svpar.SV_per_Z;
     int SVsPerRow = svpar.SVsPerRow;
-
-    struct heap priorityheap;
-    initialize_heap(&priorityheap);
-    long *order;
-    char *phaseMap;
-    struct timeval tm1,tm2;
 
     /* print summary to stdout */
     if(verboseLevel>1)
@@ -443,11 +417,6 @@ void MBIRReconstruct(
 
     /* Allocate and generate recon mask based on ROIRadius */
     char * ImageReconMask = GenImageReconMask(&imgparams);
-
-    int NumMaskVoxels=0;
-    for(j=0;j<Nxy;j++)
-    if(ImageReconMask[j])
-        NumMaskVoxels++;
 
     /* Read/compute/write System Matrix */
     A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,Nsv,(2*SVLength+1)*(2*SVLength+1));
@@ -477,6 +446,36 @@ void MBIRReconstruct(
     }
     for(k=0; k<(size_t)Nz*Nvc; k++)
         sinoerr[k] = sino[k]-sinoerr[k];
+
+    /* Recon parameters */
+    NormalizePriorWeights3D(&reconparams);
+    if(proximalmap != NULL) {
+        reconparams.proximalmap = proximalmap;
+        reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
+    }
+    struct ParamExt param_ext;
+    param_ext.pow_sigmaX_p = powf(reconparams.SigmaX,reconparams.p);
+    param_ext.pow_sigmaX_q = powf(reconparams.SigmaX,reconparams.q);
+    param_ext.pow_T_qmp    = powf(reconparams.T,reconparams.q - reconparams.p);
+    param_ext.SigmaXsq = reconparams.SigmaX * reconparams.SigmaX;
+
+    float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
+    float *voxelsBuffer2;
+    unsigned long NumUpdates=0;
+    float totalValue=0,totalChange=0,equits=0;
+    float avg_update=0,avg_update_rel=0;
+    float c_ratio=0.07;
+    float convergence_rho=0.7;
+    int rep_num=(int)ceil(1/(4*c_ratio*convergence_rho));
+    struct heap priorityheap;
+    initialize_heap(&priorityheap);
+    long *order;
+    char *phaseMap;
+
+    int NumMaskVoxels=0;
+    for(j=0;j<Nxy;j++)
+    if(ImageReconMask[j])
+        NumMaskVoxels++;
 
     #ifdef COMP_RMSE
         struct Image3D Image_ref;
