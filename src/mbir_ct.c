@@ -19,300 +19,210 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline);
 void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline);
 void printCmdLineUsage(char *ExecFileName);
 int CmdLineHelpOption(char *string);
-void setNumSliceDigits(char *basename, char *ext, int slice, struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams);
-
+int setNumSliceDigits(char *basename, char *ext, int slice, struct SinoParams3DParallel *sinoparams, struct ImageParams3D *imgparams);
+int NumSliceDigits(char *basename, char *ext, int slice);
 
 int main(int argc, char *argv[])
 {
-	struct CmdLine cmdline;
-	struct Image3D Image;
-	struct Image3D ProxMap;
-	struct Sino3DParallel sinogram;
-	struct ReconParams reconparams;
-	struct SVParams svpar;
-	struct AValues_char **A_Padded_Map;
-	float *Aval_max_ptr;
-	char *ImageReconMask;	/* Image reconstruction mask (determined by ROI) */
-	char fname[1024];
-	struct timeval tm1,tm2;
-	unsigned long long tdiff;
-	int i,j,jz;
-	float **e;
+    struct CmdLine cmdline;
+    struct Image3D Image;
+    struct Image3D ProxMap;
+    struct Sino3DParallel sinogram;
+    struct ReconParams reconparams;
+    char fname[1024], *readmatrix_fname=NULL;
+    struct timeval tm0,tm2;
+    unsigned long long tdiff;
+    float **proj;
+    int jz,FirstSliceNumber,Ndigits;
 
-	readCmdLine(argc, argv, &cmdline);
-	if(cmdline.verboseLevel)
-	{
-		fprintf(stdout,"SUPER-VOXEL MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
-		fprintf(stdout,"---- build time: %s, %s ----\n", __DATE__,  __TIME__);
-	}
-	procCmdLine(argc, argv, &cmdline);
+    gettimeofday(&tm0,NULL);
 
-	/* Read image/sino parameter files */
-	ReadSinoParams3DParallel(cmdline.SinoParamsFile,&sinogram.sinoparams);
-	ReadImageParams3D(cmdline.ImageParamsFile,&Image.imgparams);
-	if(cmdline.verboseLevel>1)
-	{
-		printSinoParams3DParallel(&sinogram.sinoparams);
-		printImageParams3D(&Image.imgparams);
-	}
-	if(cmdline.reconFlag)
-	{
-		ReadReconParams(cmdline.ReconParamsFile,&reconparams);
-		NormalizePriorWeights3D(&reconparams);
+    readCmdLine(argc, argv, &cmdline);
+    if(cmdline.verboseLevel) {
+        fprintf(stdout,"SUPER-VOXEL MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
+        fprintf(stdout,"%s -- build time: %s, %s\n", argv[0], __DATE__,  __TIME__);
+    }
+    procCmdLine(argc, argv, &cmdline);
 
-		if(cmdline.verboseLevel>1)
-		{
-			if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
-				printReconParamsQGGMRF3D(&reconparams);
-			if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_PandP)
-				printReconParamsPandP(&reconparams);
-		}
+    /* Read image/sino parameter files */
+    ReadSinoParams3DParallel(cmdline.SinoParamsFile,&sinogram.sinoparams);
+    ReadImageParams3D(cmdline.ImageParamsFile,&Image.imgparams);
+    int NvNc = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
+    int Nz = Image.imgparams.Nz;
 
-		if(reconparams.ReconType != cmdline.reconFlag) 
-		{
-			fprintf(stdout,"**\nWarning: \"PriorModel\" field in reconparams file doesn't agree with\n");
-			fprintf(stdout,"Warning: what the command line is doing. Proceeding anyway.\n**\n");
-			reconparams.ReconType = cmdline.reconFlag;
-		}
-	}
+    /* Compute/write A matrix only and EXIT */
+    if(cmdline.writeAmatrixFlag)
+    {
+        sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+        AmatrixComputeToFile(Image.imgparams,sinogram.sinoparams,fname,cmdline.verboseLevel);
+        return(0);
+    }
 
-	initSVParams(&svpar, Image.imgparams, sinogram.sinoparams);  /* Initialize/allocate SV parameters */
-	if(cmdline.verboseLevel>1)
-		fprintf(stdout,"\n");
+    /* set input matrix filename pointer--used to determine whether to read or compute */
+    if(cmdline.readAmatrixFlag) {
+        sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+        readmatrix_fname = &fname[0];
+    }
 
-	/* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
-	/* relevant sinogram parameters so it pulls the correct slices and indexes them consistently */
-	sinogram.sinoparams.NSlices = Image.imgparams.Nz;
-	sinogram.sinoparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+    /* Compute/write projection only and EXIT */
+    if(cmdline.writeProjectionFlag && !cmdline.reconFlag)
+    {
+        AllocateImageData3D(&Image);
+        if(cmdline.verboseLevel)
+            fprintf(stdout,"Reading image...\n");
+        FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+        Ndigits = setNumSliceDigits(cmdline.InitImageFile,"2Dimgdata",FirstSliceNumber,&sinogram.sinoparams,&Image.imgparams);
+        ReadImage3D(cmdline.InitImageFile,&Image);
 
-	int NvNc = sinogram.sinoparams.NViews * sinogram.sinoparams.NChannels;
-	int Nxy = Image.imgparams.Nx * Image.imgparams.Ny;
-	int Nz = Image.imgparams.Nz;
-	int FirstSliceNumber = Image.imgparams.FirstSliceNumber;
-	int SVLength = svpar.SVLength;
-	int Nsv = svpar.Nsv;
+        proj = (float **)multialloc(sizeof(float),2,Nz,NvNc);
+        forwardProject(&proj[0][0],&(Image.image[0][0]),Image.imgparams,sinogram.sinoparams,readmatrix_fname,cmdline.verboseLevel);
+        if(cmdline.verboseLevel)
+            fprintf(stdout,"Writing projection to file...\n");
+        for(jz=0; jz<Nz; jz++) {
+            sprintf(fname,"%s_slice%.*d.2Dprojection",cmdline.outputProjectionFile,Ndigits,jz+FirstSliceNumber);
+            if( WriteFloatArray(fname,proj[jz],NvNc) ) {
+                fprintf(stderr,"Error: can't open file %s for writing\n",fname);
+                exit(-1);
+            }
+        }
+        multifree(proj,2);
+        FreeImageData3D(&Image);
+        return(0);
+    }
 
-	/* Detect the number of slice number digits in input file names */
-	if(cmdline.reconFlag)
-		setNumSliceDigits(cmdline.SinoDataFile,"2Dsinodata",FirstSliceNumber,&sinogram.sinoparams,&Image.imgparams);
-	else if(cmdline.readInitImageFlag)
-		setNumSliceDigits(cmdline.InitImageFile,"2Dimgdata",FirstSliceNumber,&sinogram.sinoparams,&Image.imgparams);
+    /*** From this point we're in Reconstruction mode ***/
 
-	int NumSliceDigits = Image.imgparams.NumSliceDigits;
+    ReadReconParams(cmdline.ReconParamsFile,&reconparams);
+    if(reconparams.ReconType != cmdline.reconFlag)
+    {
+        fprintf(stdout,"**\nWarning: \"PriorModel\" field in reconparams file doesn't agree with\n");
+        fprintf(stdout,"Warning: what the command line is doing. Proceeding anyway.\n**\n");
+        reconparams.ReconType = cmdline.reconFlag;
+    }
+    /* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
+    /* relevant sinogram parameters so it pulls the correct slices and indexes them consistently */
+    sinogram.sinoparams.NSlices = Image.imgparams.Nz;
+    sinogram.sinoparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+    FirstSliceNumber = Image.imgparams.FirstSliceNumber;
 
-	/* Allocate and generate recon mask based on ROIRadius */
-	ImageReconMask = GenImageReconMask(&Image.imgparams);
+    /* Detect the number of slice number digits in input file names */
+    Ndigits = setNumSliceDigits(cmdline.SinoDataFile,"2Dsinodata",FirstSliceNumber,&sinogram.sinoparams,&Image.imgparams);
 
-	/* Read/compute/write System Matrix */
-	A_Padded_Map = (struct AValues_char **)multialloc(sizeof(struct AValues_char),2,Nsv,(2*SVLength+1)*(2*SVLength+1));
-	Aval_max_ptr = (float *) get_spc(Nxy,sizeof(float));
-	if(cmdline.readAmatrixFlag)
-	{
-		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
-		if(cmdline.verboseLevel)
-			fprintf(stdout,"Reading system matrix...\n");
-		readAmatrix(fname, A_Padded_Map, Aval_max_ptr, &Image.imgparams, &sinogram.sinoparams, svpar);
-	}
-	else
-	{
-		if(cmdline.verboseLevel) {
-			fprintf(stdout,"Computing system matrix...\n");
-			gettimeofday(&tm1,NULL);
-		}
-		A_comp(A_Padded_Map,Aval_max_ptr,svpar,&sinogram.sinoparams,ImageReconMask,&Image.imgparams);
-		if(cmdline.verboseLevel) {
-			gettimeofday(&tm2,NULL);
-			tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-			fprintf(stdout,"\tmatrix time = %llu ms\n",tdiff);
-		}
-	}
-	if(cmdline.writeAmatrixFlag)
-	{
-		sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
-		if(cmdline.verboseLevel>1)
-			fprintf(stdout,"Writing system matrix %s\n",fname);
-		else if(cmdline.verboseLevel)
-			fprintf(stdout,"Writing system matrix...\n");
-		writeAmatrix(fname,A_Padded_Map,Aval_max_ptr,&Image.imgparams,&sinogram.sinoparams,svpar);
-	}
+    /* Allocate and read sinogram,weight data */
+    AllocateSinoData3DParallel(&sinogram);
+    ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
+    if(cmdline.SinoWeightsFileFlag)
+    {
+        ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
+        reconparams.weightType = 0;
+    }
+    else if(reconparams.weightType < 1)	// if weightType is expecting file input, revert to default
+        reconparams.weightType = 1;
 
-	/* Initialize image and forward project, if necessary */
-	if(cmdline.reconFlag || cmdline.writeProjectionFlag)
-	{
-		/* Initialize image */
-		AllocateImageData3D(&Image);
-		if(cmdline.readInitImageFlag)
-		{
-			if(cmdline.verboseLevel)
-				fprintf(stdout,"Reading initial image...\n");
-			ReadImage3D(cmdline.InitImageFile,&Image);
-		}
-		else
-			initConstImage(&Image, ImageReconMask, reconparams.InitImageValue, 0);
+    ComputeSinoWeights(sinogram,reconparams);  // either compute internally, or scale input by 1/SigmaY^2
 
-		/* Initialize Forward Projection of initial image */
-		e = (float **)multialloc(sizeof(float),2,sinogram.sinoparams.NSlices,NvNc);
+    /* Initialize image state */
+    AllocateImageData3D(&Image);
+    if(cmdline.readInitImageFlag) {
+        if(cmdline.verboseLevel)
+            fprintf(stdout,"Reading initial image...\n");
+        ReadImage3D(cmdline.InitImageFile,&Image);
+    }
+    else
+    {
+        /* Allocate and generate recon mask based on ROIRadius (implicitly coded into A matrix) */
+        char * ImageReconMask = GenImageReconMask(&Image.imgparams);
+        initConstImage(&Image, ImageReconMask, reconparams.InitImageValue, 0);
+        free((void *)ImageReconMask);
+    }
 
-		if(cmdline.readInitProjectionFlag)
-		{
-			for(jz=0;jz<Nz;jz++)
-			{
-				sprintf(fname,"%s_slice%.*d.2Dprojection",cmdline.inputProjectionFile,NumSliceDigits,jz+FirstSliceNumber);
-				if(ReadFloatArray(fname,e[jz],NvNc)) {
-					fprintf(stderr,"Error: can't read %s\n",fname);
-					exit(-1);
-				}
-			}
-		}
-		else	/* Compute initial projection */
-		{
-			if(cmdline.verboseLevel) {
-				fprintf(stdout,"Projecting image...\n");
-				gettimeofday(&tm1,NULL);
-			}
+    /* Read projection of initial image if called for */
+    if(cmdline.readInitProjectionFlag)
+    {
+        proj = (float **)multialloc(sizeof(float),2,sinogram.sinoparams.NSlices,NvNc);
+        for(jz=0;jz<Nz;jz++)
+        {
+            sprintf(fname,"%s_slice%.*d.2Dprojection",cmdline.inputProjectionFile,Ndigits,jz+FirstSliceNumber);
+            if(ReadFloatArray(fname,proj[jz],NvNc)) {
+                fprintf(stderr,"Error: can't read %s\n",fname);
+                exit(-1);
+            }
+        }
+    }
+    else
+    {
+        proj = (float **)multialloc(sizeof(float),2,1,1);
+        proj[0] = NULL;  // defined this way so the recon wrapper will compute projection internally
+    }
 
-			if(cmdline.readInitImageFlag)
-			{
-				/* here we need to project each slice */
-				#pragma omp parallel for schedule(dynamic)
-				for(jz=0;jz<Nz;jz++)
-					forwardProject2D(e[jz],Image.image[jz],A_Padded_Map,Aval_max_ptr,&sinogram.sinoparams,&Image.imgparams,svpar);
-			}
-			else	/* if IC not provided, only need to project 1st slice and copy */
-			{
-				if(reconparams.InitImageValue==0.0f)
-				{
-					for(i=0; i<NvNc; i++)
-						e[0][i] = 0.0f;
-				}
-				else
-				{
-					forwardProject2D(e[0],Image.image[0],A_Padded_Map,Aval_max_ptr,&sinogram.sinoparams,&Image.imgparams,svpar);
-					for(jz=1;jz<Nz;jz++)
-						memcpy(e[jz],e[0],NvNc*sizeof(float));
-				}
-			}
+    /* Read Proximal map if necessary */
+    if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+    {
+        ProxMap.imgparams.Nx = Image.imgparams.Nx;
+        ProxMap.imgparams.Ny = Image.imgparams.Ny;
+        ProxMap.imgparams.Nz = Image.imgparams.Nz;
+        ProxMap.imgparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
+        ProxMap.imgparams.NumSliceDigits = Image.imgparams.NumSliceDigits;
+        AllocateImageData3D(&ProxMap);
+        ReadImage3D(cmdline.ProxMapImageFile,&ProxMap);
+        reconparams.proximalmap = &(ProxMap.image[0][0]);  // *ptr to proximal map image
+    }
+    else
+        reconparams.proximalmap = NULL;
 
-			if(cmdline.verboseLevel>1) {
-				gettimeofday(&tm2,NULL);
-				tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-				fprintf(stdout,"\tprojection time = %llu ms\n",tdiff);
-			}
-		}
-	}
+    /* Start Reconstruction */
+    MBIRReconstruct(
+        Image.image[0],
+        sinogram.sino[0],
+        sinogram.weight[0],
+        proj[0],
+        reconparams.proximalmap,
+        Image.imgparams,
+        sinogram.sinoparams,
+        reconparams,
+        readmatrix_fname,
+        cmdline.verboseLevel);
 
-	/***** Reconstruction mode *****/
-	if(cmdline.reconFlag)
-	{
-		/* Allocate and Read sinogram data */
-		AllocateSinoData3DParallel(&sinogram);
-		ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
-		if(cmdline.SinoWeightsFileFlag)
-		{
-			ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
-			reconparams.weightType = 0;
-		}
-		else if(reconparams.weightType < 1)	// if weightType is expecting file input, revert to default
-			reconparams.weightType = 1;
+    /* Write out reconstructed image(s) */
+    if(cmdline.verboseLevel)
+        fprintf(stdout,"Writing image files...\n");
+    WriteImage3D(cmdline.ReconImageFile, &Image);
 
-		ComputeSinoWeights(sinogram,reconparams);  // either compute internally, or scale input by 1/SigmaY^2
+    /* Write Projection of image state if called for */
+    if(cmdline.writeProjectionFlag)
+    {
+        // If recon() computed initial projection internally, it doesn't have a pointer
+        // to return final projection. For this case, will recompute projection here.
+        if(proj[0]==NULL)
+        {
+            multifree(proj,2);
+            proj = (float **)multialloc(sizeof(float),2,Nz,NvNc);
+            forwardProject(&proj[0][0],&(Image.image[0][0]),Image.imgparams,sinogram.sinoparams,readmatrix_fname,cmdline.verboseLevel);
+        }
+        if(cmdline.verboseLevel)
+            fprintf(stdout,"Writing projection to file...\n");
+        for(jz=0; jz<Nz; jz++)
+        {
+            sprintf(fname,"%s_slice%.*d.2Dprojection",cmdline.outputProjectionFile,Ndigits,jz+FirstSliceNumber);
+            if( WriteFloatArray(fname,proj[jz],NvNc) ) {
+                fprintf(stderr,"Error: can't open file %s for writing\n",fname);
+                exit(-1);
+            }
+        }
+    }
 
-		/* Read Proximal map if necessary */
-		if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
-		{
-			ProxMap.imgparams.Nx = Image.imgparams.Nx;
-			ProxMap.imgparams.Ny = Image.imgparams.Ny;
-			ProxMap.imgparams.Nz = Image.imgparams.Nz;
-			ProxMap.imgparams.FirstSliceNumber = Image.imgparams.FirstSliceNumber;
-			ProxMap.imgparams.NumSliceDigits = Image.imgparams.NumSliceDigits;
-			AllocateImageData3D(&ProxMap);
-			ReadImage3D(cmdline.ProxMapImageFile,&ProxMap);
-			reconparams.proximalmap = ProxMap.image;  // **ptr to proximal map image
-		}
+    FreeImageData3D(&Image);
+    FreeSinoData3DParallel(&sinogram);
+    multifree(proj,2);
+    if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+        FreeImageData3D(&ProxMap);
 
-		/* Start Reconstruction */
-		if(cmdline.verboseLevel)
-		{
-			fprintf(stdout,"Reconstructing...\n");
-			gettimeofday(&tm1,NULL);
-		}
-
-		/* "e" will hold the sinogram error (y-Ax) during reconstruction */
-		for(jz=0; jz<Nz; jz++)
-		for(i=0; i<NvNc; i++)
-			e[jz][i] = sinogram.sino[jz][i]-e[jz][i];
-
-		MBIRReconstruct3D(&Image,&sinogram,e,reconparams,svpar,A_Padded_Map,Aval_max_ptr,ImageReconMask,cmdline.verboseLevel);
-
-		if(cmdline.verboseLevel)
-		{
-			gettimeofday(&tm2,NULL);
-			tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-			fprintf(stdout,"\tReconstruction time = %llu ms\n",tdiff);
-		}
-
-		/* Write out reconstructed image(s) */
-		if(cmdline.verboseLevel)
-			fprintf(stdout,"Writing image files...\n");
-		WriteImage3D(cmdline.ReconImageFile, &Image);
-
-		if(cmdline.writeProjectionFlag)  /* flip it back to get projection Ax */
-		{
-			for(jz=0; jz<Nz; jz++)
-			for(i=0; i<NvNc; i++)
-				e[jz][i] = sinogram.sino[jz][i]-e[jz][i];
-		}
-
-		FreeSinoData3DParallel(&sinogram);
-		if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
-			FreeImageData3D(&ProxMap);
-
-	}
-
-	/* Write Projection of image state if requested */
-	if(cmdline.writeProjectionFlag)
-	{
-		if(cmdline.verboseLevel)
-			fprintf(stdout,"Writing projection to file...\n");
-		for(jz=0; jz<Nz; jz++)
-		{
-			sprintf(fname,"%s_slice%.*d.2Dprojection",cmdline.outputProjectionFile,NumSliceDigits,jz+FirstSliceNumber);
-			if( WriteFloatArray(fname,e[jz],NvNc) ) {
-				fprintf(stderr,"Error: can't open file %s for writing\n",fname);
-				exit(-1);
-			}
-		}
-	}
-
-	if(cmdline.reconFlag || cmdline.writeProjectionFlag)
-	{
-		multifree(e,2);
-		FreeImageData3D(&Image);
-	}
-
-	/* Free SV memory */
-	for(j=0;j<Nsv;j++)  free((void *)svpar.bandMinMap[j].bandMin);
-	for(j=0;j<Nsv;j++)  free((void *)svpar.bandMaxMap[j].bandMax);
-	free((void *)svpar.bandMinMap);
-	free((void *)svpar.bandMaxMap);
-
-	/* Free system matrix */
-	for(i=0;i<Nsv;i++)
-	for(j=0;j<(2*SVLength+1)*(2*SVLength+1);j++)
-	if(A_Padded_Map[i][j].length>0)
-	{
-		free((void *)A_Padded_Map[i][j].val);
-		free((void *)A_Padded_Map[i][j].pieceWiseMin);
-		free((void *)A_Padded_Map[i][j].pieceWiseWidth);
-	}
-	multifree(A_Padded_Map,2);
-	free((void *)Aval_max_ptr);
-	free((void *)ImageReconMask);
-
-	if(cmdline.verboseLevel)
-		fprintf(stdout,"Done.\n");
-
-	return(0);
+    if(cmdline.verboseLevel) {
+        gettimeofday(&tm2,NULL);
+        tdiff = 1000 * (tm2.tv_sec - tm0.tv_sec) + (tm2.tv_usec - tm0.tv_usec) / 1000;
+        fprintf(stdout,"Done. Total run time = %llu ms\n",tdiff);
+    }
+    return(0);
 }
 
 
@@ -540,7 +450,6 @@ void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
                 fprintf(stdout,"Note some command line options are being ignored.\n");
         }
 
-        fprintf(stdout,"\n");
         fprintf(stdout,"Filenames provided:\n");
         if(cmdline->SinoParamsFileFlag)
             fprintf(stdout,"   Sino params   = %s.sinoparams\n",cmdline->SinoParamsFile);
@@ -588,7 +497,7 @@ int NumSliceDigits(char *basename, char *ext, int slice)
 }
 
 
-void setNumSliceDigits(
+int setNumSliceDigits(
 	char *basename,
 	char *ext,
 	int slice,
@@ -608,6 +517,7 @@ void setNumSliceDigits(
 		fprintf(stderr,"* where the slice number can contain leading zeros but no spaces.\n");
 		exit(-1);
 	}
+    return(Ndigits);
 }
 
 

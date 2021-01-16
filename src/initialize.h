@@ -1,7 +1,7 @@
 #ifndef _INITIALIZE_H_
 #define _INITIALIZE_H_
 
-#include "mbir_ct.h"
+#include "A_comp.h"
 #include "MBIRModularDefs.h"
 
 void NormalizePriorWeights3D(struct ReconParams *reconparams);

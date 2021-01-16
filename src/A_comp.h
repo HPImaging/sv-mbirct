@@ -8,6 +8,19 @@ typedef unsigned short chanwidth_t; // Channel bandwidth for single pixel, NOT s
                                     // Note the size of chanwidth_t only affects the internal memory
                                     // when computing A, *not* for the encoded or stored matrix
 
+struct SVParams
+{
+    struct minStruct *bandMinMap;
+    struct maxStruct *bandMaxMap;
+    int SVLength;
+    int overlap;
+    int SVDepth;
+    int SV_per_Z;
+    int SVsPerRow;
+    int Nsv;
+    int pieceLength;
+};
+
 struct ACol
 {
     int n_index;

@@ -536,12 +536,6 @@ int ReadReconParams(
 		exit(-1);
 	}
 
-	/* calculate derived parameters */
-	reconparams->pow_sigmaX_p = powf(reconparams->SigmaX,reconparams->p);
-	reconparams->pow_sigmaX_q = powf(reconparams->SigmaX,reconparams->q);
-	reconparams->pow_T_qmp    = powf(reconparams->T,reconparams->q - reconparams->p);
-	reconparams->SigmaXsq = reconparams->SigmaX * reconparams->SigmaX;
-
 	return(0);
 }
 
@@ -563,7 +557,7 @@ int ReadFloatArray(
 	FILE *fp;
         if( (fp = fopen(fname,"rb")) == NULL )
            return(1);
-        if(fread(array,sizeof(float),N,fp)!=N) {
+        if(fread(array,sizeof(float),N,fp) != (size_t)N) {
            fclose(fp);
            return(2);
 	}
@@ -584,7 +578,7 @@ int WriteFloatArray(
 	FILE *fp;
         if( (fp = fopen(fname,"wb")) == NULL )
            return(1);
-        if(fwrite(array,sizeof(float),N,fp)!=N) {
+        if(fwrite(array,sizeof(float),N,fp) != (size_t)N) {
            fclose(fp);
            return(2);
 	}
@@ -867,13 +861,13 @@ int ReadSysMatrix2D(
             A->column[i].RowIndex = (int *)get_spc(Nnonzero, sizeof(int));
             A->column[i].Value    = (float *)get_spc(Nnonzero, sizeof(float));
             
-            if(fread(A->column[i].RowIndex, sizeof(int), Nnonzero, fp)!= Nnonzero)
+            if(fread(A->column[i].RowIndex, sizeof(int), Nnonzero, fp) != (size_t)Nnonzero)
             {
                 fprintf(stderr, "ERROR in ReadSysMatrix2D: file terminated early %s.\n", fname);
                 exit(-1);
             }
             
-            if(fread(A->column[i].Value, sizeof(float), Nnonzero, fp) != Nnonzero)
+            if(fread(A->column[i].Value, sizeof(float), Nnonzero, fp) != (size_t)Nnonzero)
             {
                 fprintf(stderr, "ERROR in ReadSysMatrix2D: file terminated early %s.\n", fname);
                 exit(-1);
