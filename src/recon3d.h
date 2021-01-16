@@ -14,17 +14,6 @@
     void *_intel_fast_memcpy(void *dest, const void * src, size_t n);
 #endif
 
-void MBIRReconstruct3D(
-	struct Image3D *Image,
-	struct Sino3DParallel *sinogram,
-	float **e,
-	struct ReconParams reconparams,
-	struct SVParams svpar,
-	struct AValues_char **A_Padded_Map,
-	float *Aval_max_ptr,
-	char *ImageReconMask,
-	char verboseLevel);
-
 void MBIRReconstruct(
     float *image,
     float *sino,
@@ -36,15 +25,6 @@ void MBIRReconstruct(
     struct ReconParams reconparams,
     char *Amatrix_fname,
     char verboseLevel);
-
-void forwardProject2D(
-	float *e,
-	float *x,
-	struct AValues_char **A_Padded_Map,
-	float *Aval_max_ptr,
-	struct SinoParams3DParallel *sinoparams,
-	struct ImageParams3D *imgparams,
-	struct SVParams svpar);
 
 void forwardProject(
     float *proj,
