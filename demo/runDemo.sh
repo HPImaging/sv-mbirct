@@ -8,6 +8,7 @@
 # More information on the command line usage can be found
 # in the Readme file, and also by running "./mbir_ct -help".
 
+# Set to number of physical cores
 export OMP_NUM_THREADS=20
 export OMP_DYNAMIC=true
 
@@ -20,11 +21,7 @@ dataDir="."
 dataName="shepp"
 #dataName="xradia"
 
-if [[ "$#" -gt 0 ]]; then
-  dataDir="$(dirname $1)"
-  dataName="$(basename $1)"
-fi
-
+# sample sub-folder organization
 parName="$dataDir/$dataName/par/$dataName"
 sinoName="$dataDir/$dataName/sino/$dataName"
 #wgtName="$dataDir/$dataName/weight/$dataName"
@@ -43,27 +40,8 @@ if [[ ! -d "$(dirname $recName)" ]]; then
   mkdir "$(dirname $recName)" 
 fi
 
-### Compute reconstruction
-
-### Form 1: Reconstruct with a single call (uncomment the next two lines to use)
-# $execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-#    -w $wgtName -r $recName -m $matName
-# exit 0
-
-### Form 2: Pre-compute system matrix and write to file. Then reconstruct.
-###   First call only has to be done once for a given set of
-###   image/sinogram dimensions--resolution, physical size, offsets, etc.
-# $execdir/mbir_ct -i $parName -j $parName -m $matName
-# $execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName \
-#    -r $recName -w $wgtName -m $matName
-# exit 0
-
-### Form 3: The code below checks if the matrix for the input problem 
-###   dimensions was previouly computed and saved in the $matDir folder. If no,
-###   it computes and saves the matrix; If yes, it skips to the reconstruction.
-
-### PRE-COMPUTE STAGE
-# generate the hash value and check the exit status
+# Run separate utility that generates a hash for identifying a
+# matrix file by the problem geometry
 HASH="$(./genMatrixHash.sh $parName)"
 if [[ $? -eq 0 ]]; then
    matName="$matDir/$HASH"
@@ -72,24 +50,44 @@ else
    [[ -f "$matName.2Dsvmatrix" ]] && /bin/rm "$matName.2Dsvmatrix" 
 fi
 
-# check for matrix file, and compute if not present
+### MBIR calls
+
+# Compute system matrix and write to file (only have to run this once for a given geometry)
+#   -i specifies image parameter file
+#   -j specifies sinogram parameter file
+#   -m specifies output system matrix file basename
+#   -v verbose level 0=quiet, 1=show progress (default), 2=show even more
+
 if [[ ! -f "$matName.2Dsvmatrix" ]]; then
-   echo "Generating system matrix file: $matName.2Dsvmatrix"
-   $execdir/mbir_ct -i $parName -j $parName -m $matName
+    $execdir/mbir_ct -i $parName -j $parName -m $matName -v 2
 else
    echo "System matrix file found: $matName.2Dsvmatrix"
    touch $matName.2Dsvmatrix  # reset modification time
 fi
 
-### RECONSTRUCTION STAGE
+# Reconstruct using pre-computed matrix (leave off -m to compute matrix internally)
+#   -m specifies input output system matrix file basename (optional)
+#   -k specifies reconstruction parameter file
+#   -s specifies input sinogram file basename
+#   -w specifies input sinogram weights (optional)
+#   -r specifies output image file basename
+$execdir/mbir_ct -m $matName -i $parName -j $parName -k $parName -s $sinoName -r $recName -v 2
 
-$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -r $recName -m $matName -v 2
+# For fun, re-project the reconstruction image
+#   -t specifies input image basename
+#   -f specifies output projection basename
+projName="$dataDir/$dataName/proj/$dataName"
+$execdir/mbir_ct -m $matName -i $parName -j $parName -t $recName -f $projName -v 2
 
-#OR this (weights are optional if you can't compute based on data)
-#$execdir/mbir_ct -i $parName -j $parName -k $parName -s $sinoName -w $wgtName -r $recName -m $matName
+# This is reconstruction call that also outputs projection of final image state (usefule for Plug & Play)
+#$execdir/mbir_ct -m $matName -i $parName -j $parName -k $parName -s $sinoName -r $recName -f $projName -v 2
 
-#Add this to redirect printed output to a file
-#   2>&1 | tee $(dirname $recName)/out
+# This is reconstruction call that inputs an initial image and initial projection (useful for Plug & Play)
+#   -t specifies initial condition for recon
+#   -e specifies projection of initial image input
+#initImg=$recName
+#initProj=$projName
+#$execdir/mbir_ct -m $matName -i $parName -j $parName -k $parName -s $sinoName -t $initImg -e $initProj -r $recName -f $projName -v 2
 
 exit 0
 

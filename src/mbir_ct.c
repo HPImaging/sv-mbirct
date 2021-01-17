@@ -138,6 +138,8 @@ int main(int argc, char *argv[])
     /* Read projection of initial image if called for */
     if(cmdline.readInitProjectionFlag)
     {
+        if(cmdline.verboseLevel)
+            fprintf(stdout,"Reading projection of initial image...\n");
         proj = (float **)multialloc(sizeof(float),2,sinogram.sinoparams.NSlices,NvNc);
         for(jz=0;jz<Nz;jz++)
         {

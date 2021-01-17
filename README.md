@@ -7,8 +7,14 @@ Source code available at:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 https://github.com/HPImaging/sv-mbirct
 
+Official Python interface for this package:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+https://github.com/cabouman/svmbir  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+https://svmbir.readthedocs.io
+
 Demo scripts and data files for running this program are available
-for download under a separate repository:  
+here and also under a separate repository:  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 https://github.com/HPImaging/mbir-demos
 
