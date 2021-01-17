@@ -58,12 +58,6 @@ int main(int argc, char *argv[])
         return(0);
     }
 
-    /* set input matrix filename pointer--used to determine whether to read or compute */
-    if(cmdline.readAmatrixFlag) {
-        sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
-        readmatrix_fname = &fname[0];
-    }
-
     /* Compute/write projection only and EXIT */
     if(cmdline.writeProjectionFlag && !cmdline.reconFlag)
     {
@@ -73,8 +67,13 @@ int main(int argc, char *argv[])
         FirstSliceNumber = Image.imgparams.FirstSliceNumber;
         Ndigits = setNumSliceDigits(cmdline.InitImageFile,"2Dimgdata",FirstSliceNumber,&sinogram.sinoparams,&Image.imgparams);
         ReadImage3D(cmdline.InitImageFile,&Image);
-
         proj = (float **)multialloc(sizeof(float),2,Nz,NvNc);
+
+        /* set input matrix filename pointer--used to determine whether to read or compute */
+        if(cmdline.readAmatrixFlag) {
+            sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+            readmatrix_fname = &fname[0];
+        }
         forwardProject(&proj[0][0],&(Image.image[0][0]),Image.imgparams,sinogram.sinoparams,readmatrix_fname,cmdline.verboseLevel);
         if(cmdline.verboseLevel)
             fprintf(stdout,"Writing projection to file...\n");
@@ -169,6 +168,12 @@ int main(int argc, char *argv[])
     }
     else
         reconparams.proximalmap = NULL;
+
+    /* set input matrix filename pointer--used to determine whether to read or compute */
+    if(cmdline.readAmatrixFlag) {
+        sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+        readmatrix_fname = &fname[0];
+    }
 
     /* Start Reconstruction */
     MBIRReconstruct(
