@@ -21,13 +21,14 @@
 void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,float *totalValue,float *totalChange,int iter,
 	char *phaseMap,long *order,int *indexList,float *weight,float *sinoerr,
 	struct AValues_char **A_Padded_Map,float *Aval_max_ptr,struct heap_node *headNodeArray,
-	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct ParamExt param_ext,float *image,struct ImageParams3D imgparams,
-	float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
+	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct ParamExt param_ext,float *image,
+    struct ImageParams3D imgparams, float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
 void SVproject(float *proj,float *image,struct AValues_char **A_Padded_Map,float *Aval_max_ptr,
-	struct SinoParams3DParallel sinoparams,struct ImageParams3D imgparams,struct SVParams svpar);
+    struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams,struct SVParams svpar);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArray,int len);
-float MAPCostFunction3D(float **e,struct Image3D *Image,struct Sino3DParallel *sinogram,struct ReconParams reconparams,struct ParamExt param_ext);
+float MAPCostFunction3D(float *x,float *e,float *w,struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams,
+    struct ReconParams reconparams,struct ParamExt param_ext);
 
 
 void MBIRReconstruct(
@@ -52,7 +53,7 @@ void MBIRReconstruct(
     int Ny = imgparams.Ny;
     int Nz = imgparams.Nz;
     int Nxy = Nx*Ny;
-	int Nvc = sinoparams.NViews * sinoparams.NChannels;
+    int Nvc = sinoparams.NViews * sinoparams.NChannels;
     int MaxIterations = reconparams.MaxIterations;
     float StopThreshold = reconparams.StopThreshold;
 
@@ -105,7 +106,7 @@ void MBIRReconstruct(
         if(verboseLevel)
             fprintf(stdout,"Projecting image...\n");
         sinoerr = (float *) mget_spc(Nz*Nvc,sizeof(float));
-        SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,sinoparams,imgparams,svpar);
+        SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar);
     }
     for(k=0; k<(size_t)Nz*Nvc; k++)
         sinoerr[k] = sino[k]-sinoerr[k];
@@ -346,7 +347,7 @@ void MBIRReconstruct(
                     avg_update_rel = avg_update/avg_value * 100;
                     //printf("avg_update %f, avg_value %f, avg_update_rel %f\n",avg_update,avg_value,avg_update_rel);
                 }
-                //float cost = MAPCostFunction3D(e, Image, sinogram, reconparams, param_ext);
+                //float cost = MAPCostFunction3D(image,sinoerr,weight,imgparams,sinoparams,reconparams,param_ext);
                 //fprintf(stdout, "it %d cost = %-15f, avg_update %f \n", iter, cost, avg_update);
 
                 if (avg_update_rel < StopThreshold && (endIndex!=0))
@@ -479,9 +480,7 @@ void super_voxel_recon(
 	int NumUpdates_loc=0;
 	float totalValue_loc=0,totalChange_loc=0;
 
-	//float ** image = Image->image;
 	float * proximalmap = reconparams.proximalmap;
-	//struct ImageParams3D imgparams = Image->imgparams;
 	int Nx = imgparams.Nx;
 	int Ny = imgparams.Ny;
 	int Nz = imgparams.Nz;
@@ -928,27 +927,27 @@ void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArr
 
 
 float MAPCostFunction3D(
-    float **e,
-    struct Image3D *Image,
-    struct Sino3DParallel *sinogram,
+    float *x,
+    float *e,
+    float *w,
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
     struct ReconParams reconparams,
     struct ParamExt param_ext)
 {
-    int i, M, j, jx, jy, jz, Nx, Ny, Nz, plusx, minusx, plusy, plusz;
-    float **x,**w;
-    float nloglike, nlogprior_nearest, nlogprior_diag, nlogprior_interslice ;
+    int i, M, j, jx, jy, jz, Nx, Ny, Nz, Nxy, plusx, minusx, plusy, plusz;
+    float nloglike, nlogprior_nearest, nlogprior_diag, nlogprior_interslice, x0;
 
-    x = Image->image;
-    w = sinogram->weight;
-    M = sinogram->sinoparams.NViews * sinogram->sinoparams.NChannels ;
-    Nx = Image->imgparams.Nx;
-    Ny = Image->imgparams.Ny;
-    Nz = Image->imgparams.Nz;
+    M = sinoparams.NViews * sinoparams.NChannels ;
+    Nx = imgparams.Nx;
+    Ny = imgparams.Ny;
+    Nz = imgparams.Nz;
+    Nxy = Nx*Ny;
 
     nloglike = 0.0;
-    for (i = 0; i <sinogram->sinoparams.NSlices; i++)
+    for (i = 0; i <sinoparams.NSlices; i++)
     for (j = 0; j < M; j++)
-        nloglike += e[i][j]*w[i][j]*e[i][j];
+        nloglike += e[i*M+j]*w[i*M+j]*e[i*M+j];
 
     nloglike /= 2.0;
     nlogprior_nearest = 0.0;
@@ -969,14 +968,13 @@ float MAPCostFunction3D(
         plusz = ((plusz < Nz) ? plusz : 0);
 
         j = jy*Nx + jx;
+        x0 = x[jz*Nxy+j];
 
-        nlogprior_nearest += QGGMRF_Potential((x[jz][j] - x[jz][jy*Nx+plusx]),reconparams,param_ext);
-        nlogprior_nearest += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+jx]),reconparams,param_ext);
-
-        nlogprior_diag += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+minusx]),reconparams,param_ext);
-        nlogprior_diag += QGGMRF_Potential((x[jz][j] - x[jz][plusy*Nx+plusx]),reconparams,param_ext);
-
-        nlogprior_interslice += QGGMRF_Potential((x[jz][j] - x[plusz][jy*Nx+jx]),reconparams,param_ext);
+        nlogprior_nearest += QGGMRF_Potential((x0-x[jz*Nxy+jy*Nx+plusx]),reconparams,param_ext);
+        nlogprior_nearest += QGGMRF_Potential((x0-x[jz*Nxy+plusy*Nx+jx]),reconparams,param_ext);
+        nlogprior_diag += QGGMRF_Potential((x0-x[jz*Nxy+plusy*Nx+minusx]),reconparams,param_ext);
+        nlogprior_diag += QGGMRF_Potential((x0-x[jz*Nxy+plusy*Nx+plusx]),reconparams,param_ext);
+        nlogprior_interslice += QGGMRF_Potential((x0-x[plusz*Nxy+jy*Nx+jx]),reconparams,param_ext);
     }
 
     return (nloglike + reconparams.b_nearest * nlogprior_nearest + reconparams.b_diag * nlogprior_diag + reconparams.b_interslice * nlogprior_interslice) ;
@@ -990,8 +988,8 @@ void SVproject(
 	float *image,
 	struct AValues_char **A_Padded_Map,
 	float *Aval_max_ptr,
-	struct SinoParams3DParallel sinoparams,
 	struct ImageParams3D imgparams,
+	struct SinoParams3DParallel sinoparams,
 	struct SVParams svpar)
 {
     size_t i;
@@ -1103,7 +1101,7 @@ void forwardProject(
     /* Project */
     if(verboseLevel)
         fprintf(stdout,"Projecting image...\n");
-    SVproject(proj,image,A_Padded_Map,Aval_max_ptr,sinoparams,imgparams,svpar);
+    SVproject(proj,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar);
 
     /* Free SV memory */
     for(i=0;i<Nsv;i++) {
