@@ -506,25 +506,25 @@ int NumSliceDigits(char *basename, char *ext, int slice)
 
 
 int setNumSliceDigits(
-	char *basename,
-	char *ext,
-	int slice,
-	struct SinoParams3DParallel *sinoparams,
-	struct ImageParams3D *imgparams)
+    char *basename,
+    char *ext,
+    int slice,
+    struct SinoParams3DParallel *sinoparams,
+    struct ImageParams3D *imgparams)
 {
-	int Ndigits;
-	if( (Ndigits = NumSliceDigits(basename,ext,slice)) > 0 )
-	{
-		sinoparams->NumSliceDigits = Ndigits;
-		imgparams->NumSliceDigits = Ndigits;
-	}
-	else
-	{
-		fprintf(stderr,"Error: Can't determine number of slice digits from given input file.\n");
-		fprintf(stderr,"* Looking for file with this format: %s_slice%d.%s\n",basename,slice,ext);
-		fprintf(stderr,"* where the slice number can contain leading zeros but no spaces.\n");
-		exit(-1);
-	}
+    int Ndigits;
+    if( (Ndigits = NumSliceDigits(basename,ext,slice)) > 0 )
+    {
+        sinoparams->NumSliceDigits = Ndigits;
+        imgparams->NumSliceDigits = Ndigits;
+    }
+    else
+    {
+        fprintf(stderr,"Error: Can't determine number of slice digits from given input file.\n");
+        fprintf(stderr,"* Looking for file with this format: %s_slice%d.%s\n",basename,slice,ext);
+        fprintf(stderr,"* where the slice number can contain leading zeros but no spaces.\n");
+        exit(-1);
+    }
     return(Ndigits);
 }
 
@@ -603,7 +603,7 @@ void printCmdLineUsage(char *ExecFileName)
 
 int CmdLineHelpOption(char *string)
 {
-    if( (strcmp(string,"-h")==0) || (strcmp(string,"-help")==0) || (strcmp(string,"--help")==0) || (strcmp(string,"help")==0) )
+    if((strcmp(string,"-h")==0)||(strcmp(string,"-help")==0)||(strcmp(string,"--help")==0)||(strcmp(string,"help")==0))
         return 1;
     else
         return 0;

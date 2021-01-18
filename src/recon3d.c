@@ -15,6 +15,7 @@
 #include "recon3d.h"
 
 #define TEST
+//#define COMP_COST
 //#define COMP_RMSE
 
 /* Internal functions */
@@ -346,8 +347,10 @@ void MBIRReconstruct(
                     avg_update_rel = avg_update/avg_value * 100;
                     //printf("avg_update %f, avg_value %f, avg_update_rel %f\n",avg_update,avg_value,avg_update_rel);
                 }
-                //float cost = MAPCostFunction3D(image,sinoerr,weight,imgparams,sinoparams,reconparams,param_ext);
-                //fprintf(stdout, "it %d cost = %-15f, avg_update %f \n", iter, cost, avg_update);
+                #ifdef COMP_COST
+                float cost = MAPCostFunction3D(image,sinoerr,weight,imgparams,sinoparams,reconparams,param_ext);
+                fprintf(stdout, "it %d cost = %-15f, avg_update %f \n", iter, cost, avg_update);
+                #endif
 
                 if (avg_update_rel < StopThreshold && (endIndex!=0))
                     stop_FLAG = 1;
@@ -450,435 +453,435 @@ void MBIRReconstruct(
 
 				
 void super_voxel_recon(
-	int jj,
-	struct SVParams svpar,
-	unsigned long *NumUpdates,
-	float *totalValue,
-	float *totalChange,
-	int iter,
-	char *phaseMap,
-	long *order,
-	int *indexList,
-	float *weight,
-	float *sinoerr,
-	struct AValues_char ** A_Padded_Map,
-	float *Aval_max_ptr,
-	struct heap_node *headNodeArray,
-	struct SinoParams3DParallel sinoparams,
-	struct ReconParams reconparams,
-	struct ParamExt param_ext,
-	float *image,
-	struct ImageParams3D imgparams,
-	float *proximalmap,
-	float *voxelsBuffer1,
-	float *voxelsBuffer2,
-	char *group_array,
-	int group_id)
+    int jj,
+    struct SVParams svpar,
+    unsigned long *NumUpdates,
+    float *totalValue,
+    float *totalChange,
+    int iter,
+    char *phaseMap,
+    long *order,
+    int *indexList,
+    float *weight,
+    float *sinoerr,
+    struct AValues_char ** A_Padded_Map,
+    float *Aval_max_ptr,
+    struct heap_node *headNodeArray,
+    struct SinoParams3DParallel sinoparams,
+    struct ReconParams reconparams,
+    struct ParamExt param_ext,
+    float *image,
+    struct ImageParams3D imgparams,
+    float *proximalmap,
+    float *voxelsBuffer1,
+    float *voxelsBuffer2,
+    char *group_array,
+    int group_id)
 {
-	int jy,jx,p,i,q,t,j,currentSlice,startSlice;
-	int SV_depth_modified;
-	int NumUpdates_loc=0;
-	float totalValue_loc=0,totalChange_loc=0;
+    int jy,jx,p,i,q,t,j,currentSlice,startSlice;
+    int SV_depth_modified;
+    int NumUpdates_loc=0;
+    float totalValue_loc=0,totalChange_loc=0;
 
-	int Nx = imgparams.Nx;
-	int Ny = imgparams.Ny;
-	int Nz = imgparams.Nz;
-	int Nxy = Nx*Ny;
-	int Nvc = sinoparams.NViews * sinoparams.NChannels;
-	char PositivityFlag = reconparams.Positivity;
+    int Nx = imgparams.Nx;
+    int Ny = imgparams.Ny;
+    int Nz = imgparams.Nz;
+    int Nxy = Nx*Ny;
+    int Nvc = sinoparams.NViews * sinoparams.NChannels;
+    char PositivityFlag = reconparams.Positivity;
 
-	int SVLength = svpar.SVLength;
-	int overlappingDistance = svpar.overlap;
-	int SV_depth = svpar.SVDepth;
-	int SVsPerRow = svpar.SVsPerRow;
-	struct minStruct * bandMinMap = svpar.bandMinMap;
-	struct maxStruct * bandMaxMap = svpar.bandMaxMap;
-	int pieceLength = svpar.pieceLength;
-	int NViewSets = sinoparams.NViews/pieceLength;
+    int SVLength = svpar.SVLength;
+    int overlappingDistance = svpar.overlap;
+    int SV_depth = svpar.SVDepth;
+    int SVsPerRow = svpar.SVsPerRow;
+    struct minStruct * bandMinMap = svpar.bandMinMap;
+    struct maxStruct * bandMaxMap = svpar.bandMaxMap;
+    int pieceLength = svpar.pieceLength;
+    int NViewSets = sinoparams.NViews/pieceLength;
 
-	int jj_new;
-	if(iter%2==0)
-		jj_new=jj;
-	else
-		jj_new=indexList[jj];
+    int jj_new;
+    if(iter%2==0)
+        jj_new=jj;
+    else
+        jj_new=indexList[jj];
 
-	startSlice = order[jj_new] / Nx / Ny;
-	jy = (order[jj_new] - startSlice* Nx * Ny) / Nx;
-	jx = (order[jj_new] - startSlice* Nx * Ny) % Nx;
+    startSlice = order[jj_new] / Nx / Ny;
+    jy = (order[jj_new] - startSlice* Nx * Ny) / Nx;
+    jx = (order[jj_new] - startSlice* Nx * Ny) % Nx;
 
-	if(phaseMap[jj_new]!=group_array[startSlice/SV_depth*4+group_id])
-		return;
+    if(phaseMap[jj_new]!=group_array[startSlice/SV_depth*4+group_id])
+        return;
 
-	if((startSlice+SV_depth)>Nz)
-		SV_depth_modified=Nz-startSlice;
-	else
-		SV_depth_modified=SV_depth;
+    if((startSlice+SV_depth)>Nz)
+        SV_depth_modified=Nz-startSlice;
+    else
+        SV_depth_modified=SV_depth;
 
-	int SVPosition=jy/(2*SVLength-overlappingDistance)*SVsPerRow+jx/(2*SVLength-overlappingDistance);
+    int SVPosition=jy/(2*SVLength-overlappingDistance)*SVsPerRow+jx/(2*SVLength-overlappingDistance);
 
-	int countNumber=0;	/*XW: the number of voxels chosen for a certain radius of circle*/
-	int radius =SVLength;	/*XW: choose the circle radius*/
-	int coordinateSize=1;	/*XW: CoordinateSize is the size of a minimum square enclosing the circle. For the baseline code, coordinateSize=1 because only 1 voxel*/
-	/*XW: imagine that this is a minimum square enclosing the circle. The square 
-	 * "touches" the circle on 4 coordinate points. CoordianteSize is the possible 
-	 * maximum number of voxels for a certain radius of circle */
-	if(radius!=0)
-		coordinateSize=(2*radius+1)*(2*radius+1);
-	int k_newCoordinate[coordinateSize];
-	int j_newCoordinate[coordinateSize];
-	int j_newAA=0;
-	int k_newAA=0;
-	int voxelIncrement=0;
+    int countNumber=0;	/*XW: the number of voxels chosen for a certain radius of circle*/
+    int radius =SVLength;	/*XW: choose the circle radius*/
+    int coordinateSize=1;	/*XW: CoordinateSize is the size of a minimum square enclosing the circle. For the baseline code, coordinateSize=1 because only 1 voxel*/
+    /*XW: imagine that this is a minimum square enclosing the circle. The square
+     * "touches" the circle on 4 coordinate points. CoordianteSize is the possible
+     * maximum number of voxels for a certain radius of circle */
+    if(radius!=0)
+        coordinateSize=(2*radius+1)*(2*radius+1);
+    int k_newCoordinate[coordinateSize];
+    int j_newCoordinate[coordinateSize];
+    int j_newAA=0;
+    int k_newAA=0;
+    int voxelIncrement=0;
 
-	/*XW: choosing the voxels locations in a circle*/
-	for(j_newAA=jy;j_newAA<=(jy+2*radius);j_newAA++)
-	for(k_newAA=jx;k_newAA<=(jx+2*radius);k_newAA++)
-	{
-		if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx)
-		{
-			if(A_Padded_Map[SVPosition][voxelIncrement].length >0) {
-				j_newCoordinate[countNumber]=j_newAA;
-				k_newCoordinate[countNumber]=k_newAA;
-				countNumber++;
-			} 
-		}
-		voxelIncrement++;
-	}
+    /*XW: choosing the voxels locations in a circle*/
+    for(j_newAA=jy;j_newAA<=(jy+2*radius);j_newAA++)
+    for(k_newAA=jx;k_newAA<=(jx+2*radius);k_newAA++)
+    {
+        if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx)
+        {
+            if(A_Padded_Map[SVPosition][voxelIncrement].length >0) {
+                j_newCoordinate[countNumber]=j_newAA;
+                k_newCoordinate[countNumber]=k_newAA;
+                countNumber++;
+            }
+        }
+        voxelIncrement++;
+    }
 
-	/*XW: if no voxel chosen, we skip this loop iteration*/
-	if(countNumber==0)
-		return;
+    /*XW: if no voxel chosen, we skip this loop iteration*/
+    if(countNumber==0)
+        return;
 
-	coordinateShuffle(&j_newCoordinate[0],&k_newCoordinate[0],countNumber);
+    coordinateShuffle(&j_newCoordinate[0],&k_newCoordinate[0],countNumber);
 
-	/*XW: for a supervoxel, bandMin records the starting position of the sinogram band at each view*/
-	/*XW: for a supervoxel, bandMax records the end position of the sinogram band at each view */
-	channel_t bandMin[sinoparams.NViews]__attribute__((aligned(32)));
-	channel_t bandMax[sinoparams.NViews]__attribute__((aligned(32)));
-	channel_t bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
-	channel_t bandWidth[NViewSets]__attribute__((aligned(32)));
+    /*XW: for a supervoxel, bandMin records the starting position of the sinogram band at each view*/
+    /*XW: for a supervoxel, bandMax records the end position of the sinogram band at each view */
+    channel_t bandMin[sinoparams.NViews]__attribute__((aligned(32)));
+    channel_t bandMax[sinoparams.NViews]__attribute__((aligned(32)));
+    channel_t bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
+    channel_t bandWidth[NViewSets]__attribute__((aligned(32)));
 
-	#ifdef ICC
-	_intel_fast_memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
-	_intel_fast_memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
-	#else
-	memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
-	memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
-	#endif
+    #ifdef ICC
+    _intel_fast_memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
+    _intel_fast_memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
+    #else
+    memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
+    memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
+    #endif
 
-	#pragma vector aligned 
-	for(p=0;p< sinoparams.NViews;p++)
-		bandWidthTemp[p]=bandMax[p]-bandMin[p];
+    #pragma vector aligned
+    for(p=0;p< sinoparams.NViews;p++)
+        bandWidthTemp[p]=bandMax[p]-bandMin[p];
 
-	for (p = 0; p < NViewSets; p++)
-	{
-		int bandWidthMax=bandWidthTemp[p*pieceLength];
-		for(t=0;t<pieceLength;t++){
-			if(bandWidthTemp[p*pieceLength+t]>bandWidthMax)
-				bandWidthMax=bandWidthTemp[p*pieceLength+t];
-		}
-		bandWidth[p]=bandWidthMax;
-	}
+    for (p = 0; p < NViewSets; p++)
+    {
+        int bandWidthMax=bandWidthTemp[p*pieceLength];
+        for(t=0;t<pieceLength;t++){
+            if(bandWidthTemp[p*pieceLength+t]>bandWidthMax)
+                bandWidthMax=bandWidthTemp[p*pieceLength+t];
+        }
+        bandWidth[p]=bandWidthMax;
+    }
 
-	float ** newWArray = (float **)malloc(sizeof(float *) * NViewSets);
-	float ** newEArray = (float **)malloc(sizeof(float *) * NViewSets);
-	float ** CopyNewEArray = (float **)malloc(sizeof(float *) * NViewSets);
+    float ** newWArray = (float **)malloc(sizeof(float *) * NViewSets);
+    float ** newEArray = (float **)malloc(sizeof(float *) * NViewSets);
+    float ** CopyNewEArray = (float **)malloc(sizeof(float *) * NViewSets);
 
-	for (p = 0; p < NViewSets; p++)
-	{
-		newWArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-		newEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-		CopyNewEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-	}
+    for (p = 0; p < NViewSets; p++)
+    {
+        newWArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+        newEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+        CopyNewEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+    }
 
-	float *newWArrayPointer=&newWArray[0][0];
-	float *newEArrayPointer=&newEArray[0][0];
+    float *newWArrayPointer=&newWArray[0][0];
+    float *newEArrayPointer=&newEArray[0][0];
 
-	/*XW: copy the interlaced we into the memory buffer*/ 
-	for (p = 0; p < NViewSets; p++)
-	{
-		newWArrayPointer=&newWArray[p][0];
-		newEArrayPointer=&newEArray[p][0];
-		for(i=0;i<SV_depth_modified;i++)
-		for(q=0;q<pieceLength;q++) 
-		{
-			#ifdef ICC
-			_intel_fast_memcpy(newWArrayPointer,&weight[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-			_intel_fast_memcpy(newEArrayPointer,&sinoerr[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-			#else
-			memcpy(newWArrayPointer,&weight[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-			memcpy(newEArrayPointer,&sinoerr[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-			#endif
-			newWArrayPointer+=bandWidth[p];
-			newEArrayPointer+=bandWidth[p];
-		}
-	}
+    /*XW: copy the interlaced we into the memory buffer*/
+    for (p = 0; p < NViewSets; p++)
+    {
+        newWArrayPointer=&newWArray[p][0];
+        newEArrayPointer=&newEArray[p][0];
+        for(i=0;i<SV_depth_modified;i++)
+        for(q=0;q<pieceLength;q++)
+        {
+            #ifdef ICC
+            _intel_fast_memcpy(newWArrayPointer,&weight[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+            _intel_fast_memcpy(newEArrayPointer,&sinoerr[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+            #else
+            memcpy(newWArrayPointer,&weight[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+            memcpy(newEArrayPointer,&sinoerr[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+            #endif
+            newWArrayPointer+=bandWidth[p];
+            newEArrayPointer+=bandWidth[p];
+        }
+    }
 
-	for (p = 0; p < NViewSets; p++)
-	{
-		#ifdef ICC
-		_intel_fast_memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-		#else
-		memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-		#endif
-	}
+    for (p = 0; p < NViewSets; p++)
+    {
+        #ifdef ICC
+        _intel_fast_memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+        #else
+        memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+        #endif
+    }
 
-	float ** newWArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
-	float ** newEArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
+    float ** newWArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
+    float ** newEArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
 
-	for (p = 0; p < NViewSets; p++)
-	{
-		newWArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-		newEArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-	}
+    for (p = 0; p < NViewSets; p++)
+    {
+        newWArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+        newEArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
+    }
 
-	float *WTransposeArrayPointer=&newWArrayTransposed[0][0];
-	float *ETransposeArrayPointer=&newEArrayTransposed[0][0];
-	
-	for (p = 0; p < NViewSets; p++)
-	for(currentSlice=0;currentSlice<(SV_depth_modified);currentSlice++) 
-	{
-		WTransposeArrayPointer=&newWArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
-		ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
-		newEArrayPointer=&newEArray[p][currentSlice*bandWidth[p]*pieceLength];
-		newWArrayPointer=&newWArray[p][currentSlice*bandWidth[p]*pieceLength];
-		for(q=0;q<bandWidth[p];q++)
-		{
-			#pragma vector aligned 
-			for(t=0;t<pieceLength;t++)
-			{
-				ETransposeArrayPointer[q*pieceLength+t]=newEArrayPointer[bandWidth[p]*t+q];
-				WTransposeArrayPointer[q*pieceLength+t]=newWArrayPointer[bandWidth[p]*t+q];
-			}
-		}
-	}
+    float *WTransposeArrayPointer=&newWArrayTransposed[0][0];
+    float *ETransposeArrayPointer=&newEArrayTransposed[0][0];
 
-	WTransposeArrayPointer=&newWArrayTransposed[0][0];
-	ETransposeArrayPointer=&newEArrayTransposed[0][0];
-	newEArrayPointer=&newEArray[0][0];
+    for (p = 0; p < NViewSets; p++)
+    for(currentSlice=0;currentSlice<(SV_depth_modified);currentSlice++) 
+    {
+        WTransposeArrayPointer=&newWArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
+        ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
+        newEArrayPointer=&newEArray[p][currentSlice*bandWidth[p]*pieceLength];
+        newWArrayPointer=&newWArray[p][currentSlice*bandWidth[p]*pieceLength];
+        for(q=0;q<bandWidth[p];q++)
+        {
+            #pragma vector aligned
+            for(t=0;t<pieceLength;t++)
+            {
+                ETransposeArrayPointer[q*pieceLength+t]=newEArrayPointer[bandWidth[p]*t+q];
+                WTransposeArrayPointer[q*pieceLength+t]=newWArrayPointer[bandWidth[p]*t+q];
+            }
+        }
+    }
 
-	for (p = 0; p < NViewSets; p++)
-		free((void *)newWArray[p]);
+    WTransposeArrayPointer=&newWArrayTransposed[0][0];
+    ETransposeArrayPointer=&newEArrayTransposed[0][0];
+    newEArrayPointer=&newEArray[0][0];
 
-	free((void **)newWArray);
+    for (p = 0; p < NViewSets; p++)
+        free((void *)newWArray[p]);
 
-	/* Turn off zero-skipping for 1st iteration */
-	char zero_skip_enable=0;  // 1: enable, 0: disable
-	if(iter>0 && PositivityFlag)
-		zero_skip_enable=1;
+    free((void **)newWArray);
 
-	/*XW: the start of the loop to compute theta1, theta2*/
-	for(i=0;i<countNumber;i++)
-	{
-		const short j_new = j_newCoordinate[i];   /*XW: get the voxel's x,y location*/
-		const short k_new = k_newCoordinate[i];
-		float Aval_max = Aval_max_ptr[j_new*Nx+k_new];
-		float tempV[SV_depth_modified];
-		float tempProxMap[SV_depth_modified];
-		float neighbors[SV_depth_modified][10];
-		char zero_skip_FLAG[SV_depth_modified];
-		float diff[SV_depth_modified];
+    /* Turn off zero-skipping for 1st iteration */
+    char zero_skip_enable=0;  // 1: enable, 0: disable
+    if(iter>0 && PositivityFlag)
+        zero_skip_enable=1;
 
-		float THETA1[SV_depth_modified];
-		float THETA2[SV_depth_modified];
-		memset(&THETA1[0],0.0, sizeof(THETA1));
-		memset(&THETA2[0],0.0, sizeof(THETA2));	
+    /*XW: the start of the loop to compute theta1, theta2*/
+    for(i=0;i<countNumber;i++)
+    {
+        const short j_new = j_newCoordinate[i];   /*XW: get the voxel's x,y location*/
+        const short k_new = k_newCoordinate[i];
+        float Aval_max = Aval_max_ptr[j_new*Nx+k_new];
+        float tempV[SV_depth_modified];
+        float tempProxMap[SV_depth_modified];
+        float neighbors[SV_depth_modified][10];
+        char zero_skip_FLAG[SV_depth_modified];
+        float diff[SV_depth_modified];
 
-		int theVoxelPosition=(j_new-jy)*(2*SVLength+1)+(k_new-jx); 
-		unsigned char * A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
+        float THETA1[SV_depth_modified];
+        float THETA2[SV_depth_modified];
+        memset(&THETA1[0],0.0, sizeof(THETA1));
+        memset(&THETA2[0],0.0, sizeof(THETA2));
 
-		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-		{
-			tempV[currentSlice] = (float)(image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new]); /* current voxel value */
+        int theVoxelPosition=(j_new-jy)*(2*SVLength+1)+(k_new-jx);
+        unsigned char * A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
 
-			zero_skip_FLAG[currentSlice] = 0;
+        for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
+        {
+            tempV[currentSlice] = (float)(image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new]); /* current voxel value */
 
-			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
-			{
-				ExtractNeighbors3D(&neighbors[currentSlice][0],k_new,j_new,&image[(startSlice+currentSlice)*Nxy],imgparams);
+            zero_skip_FLAG[currentSlice] = 0;
 
-				if((startSlice+currentSlice)==0)
-					neighbors[currentSlice][8]=voxelsBuffer1[j_new*Nx+k_new];
-				else
-					neighbors[currentSlice][8]=image[(startSlice+currentSlice-1)*Nxy + j_new*Nx+k_new];
+            if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
+            {
+                ExtractNeighbors3D(&neighbors[currentSlice][0],k_new,j_new,&image[(startSlice+currentSlice)*Nxy],imgparams);
 
-				if((startSlice+currentSlice)<(Nz-1))
-					neighbors[currentSlice][9]=image[(startSlice+currentSlice+1)*Nxy + j_new*Nx+k_new];
-				else
-					neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
+                if((startSlice+currentSlice)==0)
+                    neighbors[currentSlice][8]=voxelsBuffer1[j_new*Nx+k_new];
+                else
+                    neighbors[currentSlice][8]=image[(startSlice+currentSlice-1)*Nxy + j_new*Nx+k_new];
 
-				if(zero_skip_enable)
-				if(tempV[currentSlice] == 0.0)
-				{
-					zero_skip_FLAG[currentSlice] = 1;
-					for (j = 0; j < 10; j++)
-					{
-						if (neighbors[currentSlice][j] != 0.0)
-						{
-							zero_skip_FLAG[currentSlice] = 0;
-							break; 
-						}
-					}
-				}
-			}
-			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
-				tempProxMap[currentSlice] = proximalmap[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new];
-		}
+                if((startSlice+currentSlice)<(Nz-1))
+                    neighbors[currentSlice][9]=image[(startSlice+currentSlice+1)*Nxy + j_new*Nx+k_new];
+                else
+                    neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
 
-		A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
-		for(p=0;p<NViewSets;p++)
-		{
-			const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
-			const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
-			#pragma vector aligned
-			for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-			if(zero_skip_FLAG[currentSlice] == 0)
-			{
-				WTransposeArrayPointer=&newWArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
-				ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
-				WTransposeArrayPointer+=pieceMin*pieceLength;
-				ETransposeArrayPointer+=pieceMin*pieceLength;
-				float tempTHETA1=0.0;
-				float tempTHETA2=0.0;
-				//Not finding evidence this makes a difference --SJK
-				//Deprecated by Intel anyway
-				//#pragma vector aligned
-				//#pragma simd reduction(+:tempTHETA2,tempTHETA1)
-				for(t=0;t<myCount*pieceLength;t++)
-				{	/* summing over voxels which are not skipped or masked*/     
-					tempTHETA1 += A_padd_Tranpose_pointer[t]*WTransposeArrayPointer[t]*ETransposeArrayPointer[t];
-					tempTHETA2 += A_padd_Tranpose_pointer[t]*WTransposeArrayPointer[t]*A_padd_Tranpose_pointer[t];
-				}
-				THETA1[currentSlice]+=tempTHETA1;
-				THETA2[currentSlice]+=tempTHETA2;
-			}
-			A_padd_Tranpose_pointer += myCount*pieceLength;
-		}
-		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-		{
-			THETA1[currentSlice]=-THETA1[currentSlice]*Aval_max*(1.0/255);
-			THETA2[currentSlice]=THETA2[currentSlice]*Aval_max*(1.0/255)*Aval_max*(1.0/255);
-		}
+                if(zero_skip_enable)
+                if(tempV[currentSlice] == 0.0)
+                {
+                    zero_skip_FLAG[currentSlice] = 1;
+                    for (j = 0; j < 10; j++)
+                    {
+                        if (neighbors[currentSlice][j] != 0.0)
+                        {
+                            zero_skip_FLAG[currentSlice] = 0;
+                            break;
+                        }
+                    }
+                }
+            }
+            if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+                tempProxMap[currentSlice] = proximalmap[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new];
+        }
 
-		ETransposeArrayPointer=&newEArrayTransposed[0][0];
+        A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
+        for(p=0;p<NViewSets;p++)
+        {
+            const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
+            const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
+            #pragma vector aligned
+            for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
+            if(zero_skip_FLAG[currentSlice] == 0)
+            {
+                WTransposeArrayPointer=&newWArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
+                ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
+                WTransposeArrayPointer+=pieceMin*pieceLength;
+                ETransposeArrayPointer+=pieceMin*pieceLength;
+                float tempTHETA1=0.0;
+                float tempTHETA2=0.0;
+                //Not finding evidence this makes a difference --SJK
+                //Deprecated by Intel anyway
+                //#pragma vector aligned
+                //#pragma simd reduction(+:tempTHETA2,tempTHETA1)
+                for(t=0;t<myCount*pieceLength;t++)
+                {	/* summing over voxels which are not skipped or masked*/
+                    tempTHETA1 += A_padd_Tranpose_pointer[t]*WTransposeArrayPointer[t]*ETransposeArrayPointer[t];
+                    tempTHETA2 += A_padd_Tranpose_pointer[t]*WTransposeArrayPointer[t]*A_padd_Tranpose_pointer[t];
+                }
+                THETA1[currentSlice]+=tempTHETA1;
+                THETA2[currentSlice]+=tempTHETA2;
+            }
+            A_padd_Tranpose_pointer += myCount*pieceLength;
+        }
+        for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
+        {
+            THETA1[currentSlice]=-THETA1[currentSlice]*Aval_max*(1.0/255);
+            THETA2[currentSlice]=THETA2[currentSlice]*Aval_max*(1.0/255)*Aval_max*(1.0/255);
+        }
 
-		A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
-	
-		for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-		if(zero_skip_FLAG[currentSlice] == 0)
-		{
-			float pixel,step;
-			if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
-			{
-				step = QGGMRF3D_Update(reconparams,param_ext,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice]);
-			}
-			else if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
-			{
-				step = PandP_Update(reconparams,param_ext,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
-			}
-			else
-			{
-				fprintf(stderr,"Error** Unrecognized ReconType in ICD update\n");
-				exit(-1);
-			}
+        ETransposeArrayPointer=&newEArrayTransposed[0][0];
 
-			pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
+        A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
 
-			if(PositivityFlag)
-				image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = ((pixel < 0.0) ? 0.0 : pixel);
-			else
-				image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = pixel;
+        for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
+        if(zero_skip_FLAG[currentSlice] == 0)
+        {
+            float pixel,step;
+            if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
+            {
+                step = QGGMRF3D_Update(reconparams,param_ext,tempV[currentSlice],&neighbors[currentSlice][0],THETA1[currentSlice],THETA2[currentSlice]);
+            }
+            else if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+            {
+                step = PandP_Update(reconparams,param_ext,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
+            }
+            else
+            {
+                fprintf(stderr,"Error** Unrecognized ReconType in ICD update\n");
+                exit(-1);
+            }
 
-			diff[currentSlice] = image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] - tempV[currentSlice];
+            pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
 
-			totalChange_loc += fabs(diff[currentSlice]);
-			totalValue_loc += fabs(tempV[currentSlice]);
-			NumUpdates_loc++;
+            if(PositivityFlag)
+                image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = ((pixel < 0.0) ? 0.0 : pixel);
+            else
+                image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = pixel;
 
-			diff[currentSlice]=diff[currentSlice]*Aval_max*(1.0/255);
-		}
+            diff[currentSlice] = image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] - tempV[currentSlice];
 
-		for(p=0;p<NViewSets;p++)
-		{
-			const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
-			const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p]; 
-			#pragma vector aligned
-			for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-			if(diff[currentSlice]!=0 && zero_skip_FLAG[currentSlice] == 0)
-			{
-				ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
-				ETransposeArrayPointer+=pieceMin*pieceLength;
+            totalChange_loc += fabs(diff[currentSlice]);
+            totalValue_loc += fabs(tempV[currentSlice]);
+            NumUpdates_loc++;
 
-				#pragma vector aligned
-				for(t=0;t<(myCount*pieceLength);t++)
-					ETransposeArrayPointer[t]= ETransposeArrayPointer[t]-A_padd_Tranpose_pointer[t]*diff[currentSlice];
-			}
-			A_padd_Tranpose_pointer+=myCount*pieceLength;
-		}
-	}
+            diff[currentSlice]=diff[currentSlice]*Aval_max*(1.0/255);
+        }
 
-	for (p = 0; p < NViewSets; p++)
-		free((void *)newWArrayTransposed[p]);
+        for(p=0;p<NViewSets;p++)
+        {
+            const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
+            const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
+            #pragma vector aligned
+            for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
+            if(diff[currentSlice]!=0 && zero_skip_FLAG[currentSlice] == 0)
+            {
+                ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
+                ETransposeArrayPointer+=pieceMin*pieceLength;
 
-	free((void **)newWArrayTransposed);
+                #pragma vector aligned
+                for(t=0;t<(myCount*pieceLength);t++)
+                    ETransposeArrayPointer[t]= ETransposeArrayPointer[t]-A_padd_Tranpose_pointer[t]*diff[currentSlice];
+            }
+            A_padd_Tranpose_pointer+=myCount*pieceLength;
+        }
+    }
 
-	headNodeArray[jj_new].x=totalChange_loc;
+    for (p = 0; p < NViewSets; p++)
+        free((void *)newWArrayTransposed[p]);
 
-	for (p = 0; p < NViewSets; p++)
-	for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-	{
-		ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
-		newEArrayPointer=&newEArray[p][currentSlice*bandWidth[p]*pieceLength]; 
-		for(q=0;q<bandWidth[p];q++)
-		{
-			#pragma vector aligned
-			for(t=0;t<pieceLength;t++)
-				newEArrayPointer[bandWidth[p]*t+q]=ETransposeArrayPointer[q*pieceLength+t];
-		}
-	}
+    free((void **)newWArrayTransposed);
 
-	for (p = 0; p < NViewSets; p++)
-		free((void *)newEArrayTransposed[p]);
+    headNodeArray[jj_new].x=totalChange_loc;
 
-	free((void **)newEArrayTransposed);
+    for (p = 0; p < NViewSets; p++)
+    for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
+    {
+        ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
+        newEArrayPointer=&newEArray[p][currentSlice*bandWidth[p]*pieceLength];
+        for(q=0;q<bandWidth[p];q++)
+        {
+            #pragma vector aligned
+            for(t=0;t<pieceLength;t++)
+                newEArrayPointer[bandWidth[p]*t+q]=ETransposeArrayPointer[q*pieceLength+t];
+        }
+    }
 
-	newEArrayPointer=&newEArray[0][0];
-	float* CopyNewEArrayPointer=&CopyNewEArray[0][0];
-	float* eArrayPointer=&sinoerr[0];
+    for (p = 0; p < NViewSets; p++)
+        free((void *)newEArrayTransposed[p]);
 
-	for (p = 0; p < NViewSets; p++)      /*XW: update the error term in the memory buffer*/
-	{
-		newEArrayPointer=&newEArray[p][0];
-		CopyNewEArrayPointer=&CopyNewEArray[p][0];
-		for (currentSlice=0; currentSlice< SV_depth_modified;currentSlice++)
-		{
-			#pragma vector aligned
-			for(q=0;q<pieceLength;q++)
-			{
-				eArrayPointer=&sinoerr[(startSlice+currentSlice)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]];
-				for(t=0;t<bandWidth[p];t++)
-				{
-					#pragma omp atomic
-					*eArrayPointer += (*newEArrayPointer)-(*CopyNewEArrayPointer); 
-					newEArrayPointer++;
-					CopyNewEArrayPointer++;
-					eArrayPointer++;
-				}
-			}
-		}
-	}
+    free((void **)newEArrayTransposed);
 
-	for (p = 0; p < NViewSets; p++)
-	{
-		free((void *)newEArray[p]);
-		free((void *)CopyNewEArray[p]);
-	}
-	free((void **)newEArray);
-	free((void **)CopyNewEArray);
+    newEArrayPointer=&newEArray[0][0];
+    float* CopyNewEArrayPointer=&CopyNewEArray[0][0];
+    float* eArrayPointer=&sinoerr[0];
 
-	*NumUpdates += NumUpdates_loc;
-	*totalValue += totalValue_loc;
-	*totalChange += totalChange_loc;
+    for (p = 0; p < NViewSets; p++)      /*XW: update the error term in the memory buffer*/
+    {
+        newEArrayPointer=&newEArray[p][0];
+        CopyNewEArrayPointer=&CopyNewEArray[p][0];
+        for (currentSlice=0; currentSlice< SV_depth_modified;currentSlice++)
+        {
+            #pragma vector aligned
+            for(q=0;q<pieceLength;q++)
+            {
+                eArrayPointer=&sinoerr[(startSlice+currentSlice)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]];
+                for(t=0;t<bandWidth[p];t++)
+                {
+                    #pragma omp atomic
+                    *eArrayPointer += (*newEArrayPointer)-(*CopyNewEArrayPointer);
+                    newEArrayPointer++;
+                    CopyNewEArrayPointer++;
+                    eArrayPointer++;
+                }
+            }
+        }
+    }
+
+    for (p = 0; p < NViewSets; p++)
+    {
+        free((void *)newEArray[p]);
+        free((void *)CopyNewEArray[p]);
+    }
+    free((void **)newEArray);
+    free((void **)CopyNewEArray);
+
+    *NumUpdates += NumUpdates_loc;
+    *totalValue += totalValue_loc;
+    *totalChange += totalChange_loc;
 
 }   /* END super_voxel_recon() */
 
