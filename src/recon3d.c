@@ -22,7 +22,7 @@ void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,fl
 	char *phaseMap,long *order,int *indexList,float *weight,float *sinoerr,
 	struct AValues_char **A_Padded_Map,float *Aval_max_ptr,struct heap_node *headNodeArray,
 	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct ParamExt param_ext,float *image,
-    struct ImageParams3D imgparams, float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
+    struct ImageParams3D imgparams, float *proximalmap, float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
 void SVproject(float *proj,float *image,struct AValues_char **A_Padded_Map,float *Aval_max_ptr,
     struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams,struct SVParams svpar);
 void coordinateShuffle(int *order1, int *order2,int len);
@@ -114,7 +114,6 @@ void MBIRReconstruct(
     /* Recon parameters */
     NormalizePriorWeights3D(&reconparams);
     if(proximalmap != NULL) {
-        reconparams.proximalmap = proximalmap;
         reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
     }
     struct ParamExt param_ext;
@@ -334,7 +333,7 @@ void MBIRReconstruct(
                 for (jj = startIndex; jj < endIndex; jj+=1)
                     super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,
                             &phaseMap[0],order,&indexList[0],weight,sinoerr,A_Padded_Map,&Aval_max_ptr[0],
-                            &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,
+                            &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,proximalmap,
                             voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
             }
 
@@ -470,6 +469,7 @@ void super_voxel_recon(
 	struct ParamExt param_ext,
 	float *image,
 	struct ImageParams3D imgparams,
+	float *proximalmap,
 	float *voxelsBuffer1,
 	float *voxelsBuffer2,
 	char *group_array,
@@ -480,7 +480,6 @@ void super_voxel_recon(
 	int NumUpdates_loc=0;
 	float totalValue_loc=0,totalChange_loc=0;
 
-	float * proximalmap = reconparams.proximalmap;
 	int Nx = imgparams.Nx;
 	int Ny = imgparams.Ny;
 	int Nz = imgparams.Nz;

@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
     struct timeval tm0,tm2;
     unsigned long long tdiff;
     float **proj;
+    float *proximalmap;
     int jz,FirstSliceNumber,Ndigits;
 
     gettimeofday(&tm0,NULL);
@@ -166,10 +167,10 @@ int main(int argc, char *argv[])
         ProxMap.imgparams.NumSliceDigits = Image.imgparams.NumSliceDigits;
         AllocateImageData3D(&ProxMap);
         ReadImage3D(cmdline.ProxMapImageFile,&ProxMap);
-        reconparams.proximalmap = &(ProxMap.image[0][0]);  // *ptr to proximal map image
+        proximalmap = &(ProxMap.image[0][0]);  // *ptr to proximal map image
     }
     else
-        reconparams.proximalmap = NULL;
+        proximalmap = NULL;
 
     /* set input matrix filename pointer--used to determine whether to read or compute */
     if(cmdline.readAmatrixFlag) {
@@ -183,7 +184,7 @@ int main(int argc, char *argv[])
         sinogram.sino[0],
         sinogram.weight[0],
         proj[0],
-        reconparams.proximalmap,
+        proximalmap,
         Image.imgparams,
         sinogram.sinoparams,
         reconparams,
