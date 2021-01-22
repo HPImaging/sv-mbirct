@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <sys/time.h>
 #include <string.h>
 #include <omp.h>
+#ifndef MSVC	/* not included in MS Visual C++ */
+    #include <sys/time.h>
+#endif
 
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
@@ -47,7 +49,9 @@ void MBIRReconstruct(
     float *sinoerr;
     int i,j,jj,p,t,iter,it_print=1;
     size_t k;
+    #ifndef MSVC	/* not included in MS Visual C++ */
     struct timeval tm1,tm2;
+    #endif
 
     /* image/sino/recon parameters */
     int Nx = imgparams.Nx;
@@ -283,7 +287,9 @@ void MBIRReconstruct(
 
     if(verboseLevel) {
         fprintf(stdout,"Reconstructing...\n");
+        #ifndef MSVC	/* not included in MS Visual C++ */
         gettimeofday(&tm1,NULL);
+        #endif
     }
 
     #pragma omp parallel
@@ -392,9 +398,11 @@ void MBIRReconstruct(
             fprintf(stdout,"\tAverage update in last iteration (relative) = %f %%\n",avg_update_rel);
             fprintf(stdout,"\tAverage update in last iteration (magnitude) = %.4g\n",avg_update);
         }
+        #ifndef MSVC	/* not included in MS Visual C++ */
         gettimeofday(&tm2,NULL);
         unsigned long long tt = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
         printf("\tReconstruction time = %llu ms (iterations only)\n", tt);
+        #endif
     }
 
     /* If initial projection was supplied, update to return final projection */

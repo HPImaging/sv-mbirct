@@ -2,12 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libgen.h>  /* for dirname */
 #include <math.h>
 
 #include "allocate.h"
 #include "MBIRModularDefs.h"
 #include "MBIRModularUtils.h"
+
+#ifndef MSVC  /* dirname(), libgen.h not in MS Visual C++ */
+#include <libgen.h>
+#endif
 
 
 /*************************************************/
@@ -153,10 +156,12 @@ int ReadSinoParams3DParallel(
 	}
 
 	/* form full pathname of ViewAngleList file; path relative to sinoparams directory */
+	#ifndef MSVC  /* dirname(), libgen.h not in MS Visual C++ */
 	strcpy(fieldval_s,AngleListFname);  // tmp copy
 	strcpy(tag,fname);
 	ptr=dirname(tag);
 	sprintf(AngleListFname,"%s/%s",ptr,fieldval_s);
+	#endif
 	//printf("Views filename \"%s\"\n",AngleListFname);
 
 	/* Read the view angles file */
