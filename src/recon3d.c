@@ -134,7 +134,7 @@ void MBIRReconstruct(
     struct heap priorityheap;
     initialize_heap(&priorityheap);
     long *order;
-    char *phaseMap;
+    char *phaseMap, **group_id_list;
 
     int NumMaskVoxels=0;
     for(j=0;j<Nxy;j++)
@@ -168,6 +168,8 @@ void MBIRReconstruct(
     #endif
 
     order = (long *) mget_spc(Nsv*SV_per_Z,sizeof(long));
+    phaseMap = (char *) mget_spc(Nsv*SV_per_Z,sizeof(char));
+    group_id_list = (char **) multialloc(sizeof(char),2,SV_per_Z,4);
 
     /* Order of pixel updates need NOT be raster order, just initialize */
     t=0;
@@ -178,8 +180,6 @@ void MBIRReconstruct(
         order[t]=(long)p*Nxy+i*Nx+j;  /* order is the first voxel coordinate, not the center */
         t++;
     }
-
-    phaseMap = (char *) mget_spc(Nsv*SV_per_Z,sizeof(char));
 
     #pragma omp parallel for private(jj) schedule(dynamic)
     for(i=0;i<SV_per_Z;i++)
@@ -200,8 +200,6 @@ void MBIRReconstruct(
                 phaseMap[i*Nsv+jj]=3;
         }
     }
-
-    char group_id_list[SV_per_Z][4];
 
     for(i=0;i<SV_per_Z;i++) {
         if(i%4==0){
@@ -245,7 +243,7 @@ void MBIRReconstruct(
         headNodeArray[i*Nsv+jj].x=0.0;
     }
     int indexList_size=(int) Nsv*SV_per_Z*4*c_ratio*(1-convergence_rho);
-    int indexList[indexList_size];
+    int * indexList = (int *) mget_spc(indexList_size,sizeof(int));
 
     #ifdef ICC
         voxelsBuffer1 = (float *)_mm_malloc(Nxy*sizeof(float),64);
@@ -420,8 +418,10 @@ void MBIRReconstruct(
 
     free((void *)headNodeArray);
     free_heap((void *)&priorityheap);
-    free((void *)phaseMap);
     free((void *)order);
+    free((void *)phaseMap);
+    multifree(group_id_list,2);
+    free((void *)indexList);
 
     #ifdef COMP_RMSE
         FreeImageData3D(&Image_ref);
@@ -527,8 +527,8 @@ void super_voxel_recon(
      * maximum number of voxels for a certain radius of circle */
     if(radius!=0)
         coordinateSize=(2*radius+1)*(2*radius+1);
-    int k_newCoordinate[coordinateSize];
-    int j_newCoordinate[coordinateSize];
+    int * k_newCoordinate = (int *) mget_spc(coordinateSize,sizeof(int));
+    int * j_newCoordinate = (int *) mget_spc(coordinateSize,sizeof(int));
     int j_newAA=0;
     int k_newAA=0;
     int voxelIncrement=0;
@@ -556,10 +556,10 @@ void super_voxel_recon(
 
     /*XW: for a supervoxel, bandMin records the starting position of the sinogram band at each view*/
     /*XW: for a supervoxel, bandMax records the end position of the sinogram band at each view */
-    channel_t bandMin[sinoparams.NViews]__attribute__((aligned(32)));
-    channel_t bandMax[sinoparams.NViews]__attribute__((aligned(32)));
-    channel_t bandWidthTemp[sinoparams.NViews]__attribute__((aligned(32)));
-    channel_t bandWidth[NViewSets]__attribute__((aligned(32)));
+    channel_t * bandMin = (channel_t *) mget_spc(sinoparams.NViews,sizeof(channel_t));
+    channel_t * bandMax = (channel_t *) mget_spc(sinoparams.NViews,sizeof(channel_t));
+    channel_t * bandWidthTemp = (channel_t *) mget_spc(sinoparams.NViews,sizeof(channel_t));
+    channel_t * bandWidth = (channel_t *) mget_spc(NViewSets,sizeof(channel_t));
 
     #ifdef ICC
     _intel_fast_memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
@@ -569,7 +569,7 @@ void super_voxel_recon(
     memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
     #endif
 
-    #pragma vector aligned
+    //#pragma vector aligned
     for(p=0;p< sinoparams.NViews;p++)
         bandWidthTemp[p]=bandMax[p]-bandMin[p];
 
@@ -587,8 +587,7 @@ void super_voxel_recon(
     float ** newEArray = (float **)malloc(sizeof(float *) * NViewSets);
     float ** CopyNewEArray = (float **)malloc(sizeof(float *) * NViewSets);
 
-    for (p = 0; p < NViewSets; p++)
-    {
+    for (p = 0; p < NViewSets; p++) {
         newWArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
         newEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
         CopyNewEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
@@ -671,21 +670,22 @@ void super_voxel_recon(
         zero_skip_enable=1;
 
     /*XW: the start of the loop to compute theta1, theta2*/
+    float * tempV = (float *) mget_spc(SV_depth_modified,sizeof(float));
+    float * tempProxMap = (float *) mget_spc(SV_depth_modified,sizeof(float));
+    float ** neighbors = (float **) multialloc(sizeof(float),2,SV_depth_modified,10);
+    char * zero_skip_FLAG = (char *) mget_spc(SV_depth_modified,sizeof(char));
+    float * diff = (float *) mget_spc(SV_depth_modified,sizeof(float));
+    float * THETA1 = (float *) get_spc(SV_depth_modified,sizeof(float));
+    float * THETA2 = (float *) get_spc(SV_depth_modified,sizeof(float));
+
     for(i=0;i<countNumber;i++)
     {
         const short j_new = j_newCoordinate[i];   /*XW: get the voxel's x,y location*/
         const short k_new = k_newCoordinate[i];
         float Aval_max = Aval_max_ptr[j_new*Nx+k_new];
-        float tempV[SV_depth_modified];
-        float tempProxMap[SV_depth_modified];
-        float neighbors[SV_depth_modified][10];
-        char zero_skip_FLAG[SV_depth_modified];
-        float diff[SV_depth_modified];
 
-        float THETA1[SV_depth_modified];
-        float THETA2[SV_depth_modified];
-        memset(&THETA1[0],0.0, sizeof(THETA1));
-        memset(&THETA2[0],0.0, sizeof(THETA2));
+        for(p=0;p<SV_depth_modified;p++)
+            THETA1[p]=THETA2[p]=0.0;
 
         int theVoxelPosition=(j_new-jy)*(2*SVLength+1)+(k_new-jx);
         unsigned char * A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
@@ -855,7 +855,7 @@ void super_voxel_recon(
         CopyNewEArrayPointer=&CopyNewEArray[p][0];
         for (currentSlice=0; currentSlice< SV_depth_modified;currentSlice++)
         {
-            #pragma vector aligned
+            //#pragma vector aligned
             for(q=0;q<pieceLength;q++)
             {
                 eArrayPointer=&sinoerr[(startSlice+currentSlice)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]];
@@ -878,6 +878,20 @@ void super_voxel_recon(
     }
     free((void **)newEArray);
     free((void **)CopyNewEArray);
+
+    free((void *)k_newCoordinate);
+    free((void *)j_newCoordinate);
+    free((void *)bandMin);
+    free((void *)bandMax);
+    free((void *)bandWidth);
+    free((void *)bandWidthTemp);
+    free((void *)tempV);
+    free((void *)tempProxMap);
+    multifree(neighbors,2);
+    free((void *)zero_skip_FLAG);
+    free((void *)diff);
+    free((void *)THETA1);
+    free((void *)THETA2);
 
     *NumUpdates += NumUpdates_loc;
     *totalValue += totalValue_loc;
