@@ -156,9 +156,13 @@ int ReadSinoParams3DParallel(
 	}
 
 	/* form full pathname of ViewAngleList file; path relative to sinoparams directory */
-	#ifndef MSVC  /* dirname(), libgen.h not in MS Visual C++ */
 	strcpy(fieldval_s,AngleListFname);  // tmp copy
-	strcpy(tag,fname);
+	#ifdef MSVC  /* dirname(), libgen.h not in MS Visual C++ */
+	char tmp_drive[1024],tmp_path[1024];
+	_splitpath_s(fname,tmp_drive,1024,tmp_path,1024,NULL,0,NULL,0);
+	sprintf(AngleListFname,"%s%s%s",tmp_drive,tmp_path,fieldval_s);
+	#else
+	strcpy(tag,fname);	// fname contains sinoparams full path filename
 	ptr=dirname(tag);
 	sprintf(AngleListFname,"%s/%s",ptr,fieldval_s);
 	#endif
