@@ -101,7 +101,8 @@ void A_comp_ij(
     struct ACol *A_col,float *A_Values)
 {
     static int first_call=1;
-    static float t_0, x_0, y_0, dprof[LEN_DET];
+    static float dprof[LEN_DET];
+    float t_0, x_0, y_0;
     int i, k, pr, ind_min, ind_max, pix_prof_ind, proj_count;
     float Aval, t_min, t_max, ang, x, y;
     float t, const1, const2, const3, const4;
@@ -110,16 +111,9 @@ void A_comp_ij(
     int NChannels = sinoparams->NChannels;
     float DeltaChannel = sinoparams->DeltaChannel;
 
-    t = 0;
-    pix_prof_ind = 0;
-
     if (first_call == 1)
     {
         first_call = 0;
-
-        t_0 = -(NChannels-1)*DeltaChannel/2.0 - sinoparams->CenterOffset * DeltaChannel;
-        x_0 = -(imgparams->Nx-1)*Deltaxy/2.0;
-        y_0 = -(imgparams->Ny-1)*Deltaxy/2.0;
 
         /* delta profile */
         /*
@@ -149,6 +143,10 @@ void A_comp_ij(
     }
 
     /* WATCH THIS; ONLY FOR SQUARE PIXELS NOW   */
+
+    t_0 = -(NChannels-1)*DeltaChannel/2.0 - sinoparams->CenterOffset * DeltaChannel;
+    x_0 = -(imgparams->Nx-1)*Deltaxy/2.0;
+    y_0 = -(imgparams->Ny-1)*Deltaxy/2.0;
 
     y = y_0 + im_row*Deltaxy;
     x = x_0 + im_col*Deltaxy;
