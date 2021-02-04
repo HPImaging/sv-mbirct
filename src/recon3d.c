@@ -110,7 +110,7 @@ void MBIRReconstruct(
     {
         if(verboseLevel)
             fprintf(stdout,"Projecting image...\n");
-        sinoerr = (float *) mget_spc(Nz*Nvc,sizeof(float));
+        sinoerr = (float *) mget_spc((size_t)Nz*Nvc,sizeof(float));
         SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar);
     }
     for(k=0; k<(size_t)Nz*Nvc; k++)
@@ -162,7 +162,7 @@ void MBIRReconstruct(
         for(j=0; j<Nxy; j++)
         if(ImageReconMask[j]) {
             rms_val += image_ref[jz][j]*image_ref[jz][j];
-            rms_err += (image[jz*Nxy+j]-image_ref[jz][j])*(image[jz*Nxy+j]-image_ref[jz][j]);
+            rms_err += (image[(size_t)jz*Nxy+j]-image_ref[jz][j])*(image[(size_t)jz*Nxy+j]-image_ref[jz][j]);
         }
         rms_val = sqrt(rms_val/((float)NumMaskVoxels*(Nz1-Nz0)));
         rms_err = sqrt(rms_err/((float)NumMaskVoxels*(Nz1-Nz0)));
@@ -372,7 +372,7 @@ void MBIRReconstruct(
                     for(jz=Nz0; jz<Nz1; jz++)
                     for(j=0; j<Nxy; j++)
                     if(ImageReconMask[j])
-                        rms_err += (image[jz*Nxy+j]-image_ref[jz][j])*(image[jz*Nxy+j]-image_ref[jz][j]);
+                        rms_err += (image[(size_t)jz*Nxy+j]-image_ref[jz][j])*(image[(size_t)jz*Nxy+j]-image_ref[jz][j]);
                     rms_err = sqrt(rms_err/((float)NumMaskVoxels*(Nz1-Nz0)));
                     fprintf(fp_mse,"%.2f %g %g %g\n",equits,rms_err,rms_val,rms_err/rms_val);
                 #endif
@@ -700,21 +700,21 @@ void super_voxel_recon(
 
         for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
         {
-            tempV[currentSlice] = (float)(image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new]); /* current voxel value */
+            tempV[currentSlice] = (float)(image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new]); /* current voxel value */
 
             zero_skip_FLAG[currentSlice] = 0;
 
             if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
             {
-                ExtractNeighbors3D(&neighbors[currentSlice][0],k_new,j_new,&image[(startSlice+currentSlice)*Nxy],imgparams);
+                ExtractNeighbors3D(&neighbors[currentSlice][0],k_new,j_new,&image[(size_t)(startSlice+currentSlice)*Nxy],imgparams);
 
                 if((startSlice+currentSlice)==0)
                     neighbors[currentSlice][8]=voxelsBuffer1[j_new*Nx+k_new];
                 else
-                    neighbors[currentSlice][8]=image[(startSlice+currentSlice-1)*Nxy + j_new*Nx+k_new];
+                    neighbors[currentSlice][8]=image[(size_t)(startSlice+currentSlice-1)*Nxy + j_new*Nx+k_new];
 
                 if((startSlice+currentSlice)<(Nz-1))
-                    neighbors[currentSlice][9]=image[(startSlice+currentSlice+1)*Nxy + j_new*Nx+k_new];
+                    neighbors[currentSlice][9]=image[(size_t)(startSlice+currentSlice+1)*Nxy + j_new*Nx+k_new];
                 else
                     neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
 
@@ -796,11 +796,11 @@ void super_voxel_recon(
             pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
 
             if(PositivityFlag)
-                image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = ((pixel < 0.0) ? 0.0 : pixel);
+                image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = ((pixel < 0.0) ? 0.0 : pixel);
             else
-                image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = pixel;
+                image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = pixel;
 
-            diff[currentSlice] = image[(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] - tempV[currentSlice];
+            diff[currentSlice] = image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] - tempV[currentSlice];
 
             totalChange_loc += fabs(diff[currentSlice]);
             totalValue_loc += fabs(tempV[currentSlice]);
@@ -1054,7 +1054,7 @@ void SVproject(
             {
                 unsigned char* A_padd_Tr_ptr = &A_Padded_Map[SVPosition][VoxelPosition].val[0];
                 float rescale = Aval_max_ptr[jy*Nx+jx]*(1.0/255);
-                float xval = image[jz*Nx*Ny + jy*Nx + jx];
+                float xval = image[(size_t)jz*Nx*Ny + jy*Nx + jx];
 
                 for(p=0;p<NViewSets;p++)
                 {
@@ -1065,8 +1065,8 @@ void SVproject(
                     for(r=0;r<myCount;r++)
                     for(k=0;k<pieceLength;k++)
                     {
-                        int bandMin = bandMinMap[SVPosition].bandMin[p*pieceLength+k];
-                        int proj_idx = jz*Nvc + position + k*NChannels + bandMin + r;
+                        channel_t bandMin = bandMinMap[SVPosition].bandMin[p*pieceLength+k];
+                        size_t proj_idx = jz*Nvc + position + k*NChannels + bandMin + r;
 
                         if((pieceWiseMin + bandMin + r) >= NChannels || (position + k*NChannels + bandMin + r) >= Nvc ) {
                             fprintf(stderr,"SVproject() out of bounds: p %d r %d k %d\n",p,r,k);
