@@ -9,6 +9,9 @@
 #include "allocate.h"
 #include "initialize.h"
 #include "A_comp.h"
+#ifndef MSVC    /* not included in MS Visual C++ */
+#include <sys/time.h>
+#endif
 
 /* Pixel profile params */
 #define WIDE_BEAM   /* Finite element analysis of detector channel, accounts for sensitivity variation across its aperture */
@@ -523,72 +526,64 @@ void A_comp(
     char *recon_mask,
     struct ImageParams3D *imgparams)
 {
-    int i, j, r;
-
-    struct ACol A_col_sgl, **ACol_arr;
-    float *A_val_sgl;
+    int i,j,r;
+    struct ACol **ACol_arr;
     struct AValues_char **AVal_arr;
-
     int NViews = sinoparams->NViews;
     int NChannels = sinoparams->NChannels;
     int Nx = imgparams->Nx;
     int Ny = imgparams->Ny;
-
-    A_col_sgl.countTheta = (chanwidth_t *)get_spc(NViews,sizeof(chanwidth_t));
-    A_col_sgl.minIndex = (channel_t *)get_spc(NViews,sizeof(channel_t));
-    A_val_sgl = (float *)get_spc(NViews*NChannels, sizeof(float));
 
     ACol_arr = (struct ACol **)multialloc(sizeof(struct ACol), 2, Ny, Nx);
     AVal_arr = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, Ny, Nx);
 
     float **pix_prof = ComputePixelProfile3DParallel(sinoparams,imgparams);
 
-    for (i=0; i<Ny; i++)
-    for (j=0; j<Nx; j++)
-    if(recon_mask[i*Nx+j])
+    #pragma omp parallel private(j,r)
     {
-        A_comp_ij(i,j,sinoparams,imgparams,pix_prof,&A_col_sgl,A_val_sgl);
-        ACol_arr[i][j].n_index = A_col_sgl.n_index;
-        ACol_arr[i][j].countTheta = (chanwidth_t *) get_spc(NViews,sizeof(chanwidth_t));
-        ACol_arr[i][j].minIndex = (channel_t *) get_spc(NViews,sizeof(channel_t));
-        AVal_arr[i][j].val = (unsigned char *) get_spc(A_col_sgl.n_index, sizeof(unsigned char));
+        struct ACol A_col_sgl;
+        A_col_sgl.countTheta = (chanwidth_t *)get_spc(NViews,sizeof(chanwidth_t));
+        A_col_sgl.minIndex = (channel_t *)get_spc(NViews,sizeof(channel_t));
+        float *A_val_sgl = (float *)get_spc(NViews*NChannels, sizeof(float));
 
-        float maxval = A_val_sgl[0];
-        for (r = 0; r < A_col_sgl.n_index; r++) {
-            if(A_val_sgl[r]>maxval)
-                maxval = A_val_sgl[r];
+        #pragma omp for schedule(static)
+        for (i=0; i<Ny; i++)
+        for (j=0; j<Nx; j++)
+        if(recon_mask[i*Nx+j])
+        {
+            A_comp_ij(i,j,sinoparams,imgparams,pix_prof,&A_col_sgl,A_val_sgl);
+            ACol_arr[i][j].n_index = A_col_sgl.n_index;
+            ACol_arr[i][j].countTheta = (chanwidth_t *) get_spc(NViews,sizeof(chanwidth_t));
+            ACol_arr[i][j].minIndex = (channel_t *) get_spc(NViews,sizeof(channel_t));
+            AVal_arr[i][j].val = (unsigned char *) get_spc(A_col_sgl.n_index, sizeof(unsigned char));
+
+            float maxval = A_val_sgl[0];
+            for (r = 0; r < A_col_sgl.n_index; r++) {
+                if(A_val_sgl[r]>maxval)
+                    maxval = A_val_sgl[r];
+            }
+            Aval_max_ptr[i*Nx+j] = maxval;
+
+            for (r=0; r < A_col_sgl.n_index; r++)
+                AVal_arr[i][j].val[r] = (unsigned char)((A_val_sgl[r])/maxval*255+0.5);
+
+            for (r=0; r < NViews; r++) {
+                ACol_arr[i][j].countTheta[r] = A_col_sgl.countTheta[r];
+                ACol_arr[i][j].minIndex[r] = A_col_sgl.minIndex[r];
+            }
         }
-        Aval_max_ptr[i*Nx+j] = maxval;
-
-        for (r=0; r < A_col_sgl.n_index; r++)
-            AVal_arr[i][j].val[r] = (unsigned char)((A_val_sgl[r])/maxval*255+0.5);
-
-        for (r=0; r < NViews; r++) {
-            ACol_arr[i][j].countTheta[r] = A_col_sgl.countTheta[r];
-            ACol_arr[i][j].minIndex[r] = A_col_sgl.minIndex[r];
+        else
+        {
+            ACol_arr[i][j].n_index = 0;
+            Aval_max_ptr[i*Nx+j] = 0;
         }
-    }
-    else
-    {
-        ACol_arr[i][j].n_index = 0;
-        Aval_max_ptr[i*Nx+j] = 0;
-        // The following block is unnecessary. If uncommented it will produce
-        // an identical matrix file as previous commit due to assignment of
-        // unused Aval_max entries.
-        //A_comp_ij(i,j,sinoparams,imgparams,pix_prof,&A_col_sgl,A_val_sgl);
-        //float maxval = A_val_sgl[0];
-        //for (r = 0; r < A_col_sgl.n_index; r++) {
-        //    if(A_val_sgl[r]>maxval)
-        //        maxval = A_val_sgl[r];
-        //}
-        //Aval_max_ptr[i*Nx+j] = maxval;
+
+        free((void *)A_val_sgl);
+        free((void *)A_col_sgl.countTheta);
+        free((void *)A_col_sgl.minIndex);
     }
 
     A_piecewise(ACol_arr,AVal_arr,A_Padded_Map,svpar,sinoparams,imgparams);
-
-    free((void *)A_val_sgl);
-    free((void *)A_col_sgl.countTheta);
-    free((void *)A_col_sgl.minIndex);
 
     for (i=0; i<Ny; i++)
     for (j=0; j<Nx; j++)
@@ -724,12 +719,16 @@ void AmatrixComputeToFile(
     float *Aval_max_ptr;
     char *ImageReconMask;   /* Image reconstruction mask (determined by ROI) */
     int i,j;
-    //struct timeval tm1,tm2;
-    //unsigned long long tdiff;
+    #ifndef MSVC    /* not included in MS Visual C++ */
+    struct timeval tm1,tm2;
+    unsigned long long tdiff;
+    #endif
 
     if(verboseLevel) {
         fprintf(stdout,"Computing system matrix...\n");
-//        gettimeofday(&tm1,NULL);
+        #ifndef MSVC    /* not included in MS Visual C++ */
+        gettimeofday(&tm1,NULL);
+        #endif
     }
 
     initSVParams(&svpar,imgparams,sinoparams);  /* Initialize/allocate SV parameters */
@@ -747,14 +746,14 @@ void AmatrixComputeToFile(
 
     A_comp(A_Padded_Map,Aval_max_ptr,svpar,&sinoparams,ImageReconMask,&imgparams);
 
-//    if(verboseLevel) {
-//        gettimeofday(&tm2,NULL);
-//        tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
-//        fprintf(stdout,"\tmatrix time = %llu ms\n",tdiff);
-//    }
-
-    if(verboseLevel>1)
+    if(verboseLevel>1) {
+        #ifndef MSVC    /* not included in MS Visual C++ */
+        gettimeofday(&tm2,NULL);
+        tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+        fprintf(stdout,"\tmatrix time = %llu ms\n",tdiff);
+        #endif
         fprintf(stdout,"Writing system matrix %s\n",Amatrix_fname);
+    }
     else if(verboseLevel)
         fprintf(stdout,"Writing system matrix...\n");
 
