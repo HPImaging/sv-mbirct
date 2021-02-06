@@ -254,7 +254,6 @@ void A_piecewise(
 {
 
     int i,j,jj,p,t;
-    int jx,jy,q,jx_new,jy_new;
     int Nx = imgparams->Nx;
     int Ny = imgparams->Ny;
     int NViews = sinoparams->NViews;
@@ -296,29 +295,18 @@ void A_piecewise(
                 ACol_ptr[i][j].minIndex[p] = ACol_ptr[i][j].minIndex[t];
             }
         }
-        //From A_comp_ij() if countTheta[p]==zero, then minIndex[p]==0 so this 
-        //block isn't reachable. When it was with the SV loop below, it could be
-        //reached from a voxel being touched twice due to overlapped SVs, so it
-        //it would affect the SV matrix but in an unnecessary way.
-        else if(ACol_ptr[i][j].minIndex[p]==(NChannels-1) && ACol_ptr[i][j].countTheta[p]==0)
-        {
-            if(p!=0)
-                ACol_ptr[i][j].minIndex[p] = ACol_ptr[i][j].minIndex[p-1];
-            else
-            {
-                t=0;
-                while(ACol_ptr[i][j].minIndex[t] == (NChannels-1) && t<NViews-1)
-                    t++;
-                ACol_ptr[i][j].minIndex[p] = ACol_ptr[i][j].minIndex[t];
-            }
-        }
-
     }
+
+    /* Note this gets *slower* if running more than a few threads */
+    #pragma omp parallel private(i,j,p,t) num_threads(4)
+    {
+    int jx,jy,q,jx_new,jy_new;
 
     channel_t *bandMin = (channel_t *) mget_spc(NViews,sizeof(channel_t));
     channel_t *bandMax = (channel_t *) mget_spc(NViews,sizeof(channel_t));
     channel_t *bandWidth=(channel_t *) mget_spc(NViews,sizeof(channel_t));
     channel_t *bandWidthPW = (channel_t *) mget_spc(NViewSets,sizeof(channel_t));
+
     int SVSize = (2*SVLength+1)*(2*SVLength+1);
     channel_t **piecewiseMin = (channel_t **)multialloc(sizeof(channel_t),2,SVSize,NViewSets);
     channel_t **piecewiseMax = (channel_t **)multialloc(sizeof(channel_t),2,SVSize,NViewSets);
@@ -327,6 +315,7 @@ void A_piecewise(
     int *jy_list = (int *) mget_spc(SVSize,sizeof(int));
     int *totalSum = (int *) mget_spc(SVSize,sizeof(int));
 
+    #pragma omp for schedule(static)
     for(jj=0; jj<svpar.Nsv; jj++)
     {
         jy = order[jj] / Nx;
@@ -518,6 +507,9 @@ void A_piecewise(
     free((void *) jx_list);
     free((void *) jy_list);
     free((void *) totalSum);
+
+    }   //omp parallel block
+
     free((void *) order);
 
 }  /*** END A_piecewise() ***/
@@ -548,6 +540,10 @@ void A_comp(
     AVal_arr = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, Ny, Nx);
 
     float **pix_prof = ComputePixelProfile3DParallel(sinoparams,imgparams);
+
+struct timeval tm1,tm2;
+unsigned long long tdiff;
+gettimeofday(&tm1,NULL);
 
     #pragma omp parallel private(j,r)
     {
@@ -593,7 +589,16 @@ void A_comp(
         free((void *)A_col_sgl.minIndex);
     }
 
+gettimeofday(&tm2,NULL);
+tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+fprintf(stdout,"matrix time 1 = %llu ms\n",tdiff);
+gettimeofday(&tm1,NULL);
+
     A_piecewise(ACol_arr,AVal_arr,A_Padded_Map,svpar,sinoparams,imgparams);
+
+gettimeofday(&tm2,NULL);
+tdiff = 1000 * (tm2.tv_sec - tm1.tv_sec) + (tm2.tv_usec - tm1.tv_usec) / 1000;
+fprintf(stdout,"matrix time 2 = %llu ms\n",tdiff);
 
     for (i=0; i<Ny; i++)
     for (j=0; j<Nx; j++)
