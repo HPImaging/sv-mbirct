@@ -253,7 +253,8 @@ void A_piecewise(
     struct ImageParams3D *imgparams)
 {
 
-    int i,j,k,jj,jx,jy,p,q,t,jx_new,jy_new;
+    int i,j,jj,p,t;
+    int jx,jy,q,jx_new,jy_new;
     int Nx = imgparams->Nx;
     int Ny = imgparams->Ny;
     int NViews = sinoparams->NViews;
@@ -264,19 +265,7 @@ void A_piecewise(
     struct minStruct * bandMinMap = svpar.bandMinMap;
     struct maxStruct * bandMaxMap = svpar.bandMaxMap;
 
-    channel_t *bandMin = (channel_t *) mget_spc(NViews,sizeof(channel_t));
-    channel_t *bandMax = (channel_t *) mget_spc(NViews,sizeof(channel_t));
-    channel_t *bandWidth=(channel_t *) mget_spc(NViews,sizeof(channel_t));
-    channel_t *bandWidthPW = (channel_t *) mget_spc(NViewSets,sizeof(channel_t));
-    int countNumber = (2*SVLength+1)*(2*SVLength+1);
-    channel_t **piecewiseMin = (channel_t **)multialloc(sizeof(channel_t),2,countNumber,NViewSets);
-    channel_t **piecewiseMax = (channel_t **)multialloc(sizeof(channel_t),2,countNumber,NViewSets);
-    channel_t **piecewiseWidth=(channel_t **)multialloc(sizeof(channel_t),2,countNumber,NViewSets);
-    int *jx_list = (int *) mget_spc(countNumber,sizeof(int));
-    int *jy_list = (int *) mget_spc(countNumber,sizeof(int));
-    int *totalSum = (int *) mget_spc(countNumber,sizeof(int));
     int *order = (int *) mget_spc(svpar.Nsv,sizeof(int));
-
     t=0;
     for(i=0; i<Ny; i+=(SVLength*2-svpar.overlap))
     for(j=0; j<Nx; j+=(SVLength*2-svpar.overlap)) {
@@ -290,19 +279,67 @@ void A_piecewise(
         A_Padded_Map[jj][i].length=0;
     }
 
+    for(i=0; i<Ny; i++)
+    for(j=0; j<Nx; j++)
+    if(ACol_ptr[i][j].n_index > 0)
+    for(p=0; p<NViews; p++)
+    {
+        if(ACol_ptr[i][j].minIndex[p]==0 && ACol_ptr[i][j].countTheta[p]==0)
+        {
+            if(p!=0)
+                ACol_ptr[i][j].minIndex[p] = ACol_ptr[i][j].minIndex[p-1];
+            else
+            {
+                t=0;
+                while(ACol_ptr[i][j].minIndex[t] == 0 && t<NViews-1)
+                    t++;
+                ACol_ptr[i][j].minIndex[p] = ACol_ptr[i][j].minIndex[t];
+            }
+        }
+        //From A_comp_ij() if countTheta[p]==zero, then minIndex[p]==0 so this 
+        //block isn't reachable. When it was with the SV loop below, it could be
+        //reached from a voxel being touched twice due to overlapped SVs, so it
+        //it would affect the SV matrix but in an unnecessary way.
+        else if(ACol_ptr[i][j].minIndex[p]==(NChannels-1) && ACol_ptr[i][j].countTheta[p]==0)
+        {
+            if(p!=0)
+                ACol_ptr[i][j].minIndex[p] = ACol_ptr[i][j].minIndex[p-1];
+            else
+            {
+                t=0;
+                while(ACol_ptr[i][j].minIndex[t] == (NChannels-1) && t<NViews-1)
+                    t++;
+                ACol_ptr[i][j].minIndex[p] = ACol_ptr[i][j].minIndex[t];
+            }
+        }
+
+    }
+
+    channel_t *bandMin = (channel_t *) mget_spc(NViews,sizeof(channel_t));
+    channel_t *bandMax = (channel_t *) mget_spc(NViews,sizeof(channel_t));
+    channel_t *bandWidth=(channel_t *) mget_spc(NViews,sizeof(channel_t));
+    channel_t *bandWidthPW = (channel_t *) mget_spc(NViewSets,sizeof(channel_t));
+    int SVSize = (2*SVLength+1)*(2*SVLength+1);
+    channel_t **piecewiseMin = (channel_t **)multialloc(sizeof(channel_t),2,SVSize,NViewSets);
+    channel_t **piecewiseMax = (channel_t **)multialloc(sizeof(channel_t),2,SVSize,NViewSets);
+    channel_t **piecewiseWidth=(channel_t **)multialloc(sizeof(channel_t),2,SVSize,NViewSets);
+    int *jx_list = (int *) mget_spc(SVSize,sizeof(int));
+    int *jy_list = (int *) mget_spc(SVSize,sizeof(int));
+    int *totalSum = (int *) mget_spc(SVSize,sizeof(int));
+
     for(jj=0; jj<svpar.Nsv; jj++)
     {
         jy = order[jj] / Nx;
         jx = order[jj] % Nx;
-        countNumber = 0;
+        SVSize = 0;
 
         for(jy_new=jy; jy_new<=(jy+2*SVLength); jy_new++)
         for(jx_new=jx; jx_new<=(jx+2*SVLength); jx_new++)
         if(jy_new<Ny && jx_new<Nx) {
             if(ACol_ptr[jy_new][jx_new].n_index >0) {
-                jy_list[countNumber] = jy_new;
-                jx_list[countNumber] = jx_new;
-                countNumber++;
+                jy_list[SVSize] = jy_new;
+                jx_list[SVSize] = jx_new;
+                SVSize++;
             }
         }
 
@@ -311,39 +348,12 @@ void A_piecewise(
         for(p=0; p< NViews; p++)
             bandMin[p] = NChannels;
 
-        for(i=0; i<countNumber; i++)
+        for(i=0; i<SVSize; i++)
         {
             jy_new = jy_list[i];
             jx_new = jx_list[i];
             for(p=0; p< NViews; p++)
             {
-                if(ACol_ptr[jy_new][jx_new].minIndex[p]==0 && ACol_ptr[jy_new][jx_new].countTheta[p]==0)
-                {
-                    if(p!=0)
-                        ACol_ptr[jy_new][jx_new].minIndex[p] = ACol_ptr[jy_new][jx_new].minIndex[p-1];
-                    else
-                    {
-                        k=0;
-                        while(ACol_ptr[jy_new][jx_new].minIndex[k] == 0 && k<NViews-1)
-                            k++;
-                        ACol_ptr[jy_new][jx_new].minIndex[p] = ACol_ptr[jy_new][jx_new].minIndex[k];
-                    }
-                }
-                //From A_comp_ij() if countTheta[p]==zero, then minIndex[p]==0
-                //This block is not currently ever reachable !!!
-                else if(ACol_ptr[jy_new][jx_new].minIndex[p]==(NChannels-1) && ACol_ptr[jy_new][jx_new].countTheta[p]==0)
-                {
-                    if(p!=0)
-                        ACol_ptr[jy_new][jx_new].minIndex[p] = ACol_ptr[jy_new][jx_new].minIndex[p-1];
-                    else
-                    {
-                        k=0;
-                        while(ACol_ptr[jy_new][jx_new].minIndex[k] == (NChannels-1) && k<NViews-1)
-                            k++;
-                        ACol_ptr[jy_new][jx_new].minIndex[p] = ACol_ptr[jy_new][jx_new].minIndex[k];
-                    }
-                }
-
                 if(ACol_ptr[jy_new][jx_new].minIndex[p] < bandMin[p])
                     bandMin[p] = ACol_ptr[jy_new][jx_new].minIndex[p];
             }
@@ -352,7 +362,7 @@ void A_piecewise(
         for(p=0; p< NViews; p++)
             bandMax[p]=bandMin[p];
 
-        for(i=0; i<countNumber; i++)
+        for(i=0; i<SVSize; i++)
         {
             jy_new = jy_list[i];
             jx_new = jx_list[i];
@@ -388,8 +398,8 @@ void A_piecewise(
         memcpy(&bandMinMap[jj].bandMin[0],&bandMin[0],sizeof(channel_t)*NViews);
         memcpy(&bandMaxMap[jj].bandMax[0],&bandMax[0],sizeof(channel_t)*NViews);
 
-        //int totalSum[countNumber]__attribute__((aligned(64)));
-        for(i=0; i<countNumber; i++)
+        //int totalSum[SVSize]__attribute__((aligned(64)));
+        for(i=0; i<SVSize; i++)
         {
             jy_new = jy_list[i];
             jx_new = jx_list[i];
@@ -412,7 +422,7 @@ void A_piecewise(
             }
         }
 
-        for(i=0; i<countNumber; i++)
+        for(i=0; i<SVSize; i++)
         {
             totalSum[i]=0;
             //#pragma vector aligned
@@ -420,15 +430,15 @@ void A_piecewise(
                 totalSum[i] += piecewiseWidth[i][p] * pieceLength;
         }
 
-        unsigned char **AMatrixPadded= (unsigned char **) mget_spc(countNumber,sizeof(unsigned char *));
-        unsigned char **AMatrixPaddedTranspose=(unsigned char **) mget_spc(countNumber,sizeof(unsigned char *));
+        unsigned char **AMatrixPadded= (unsigned char **) mget_spc(SVSize,sizeof(unsigned char *));
+        unsigned char **AMatrixPaddedTranspose=(unsigned char **) mget_spc(SVSize,sizeof(unsigned char *));
 
-        for(i=0;i<countNumber;i++) {
+        for(i=0;i<SVSize;i++) {
             AMatrixPadded[i] = (unsigned char *) mget_spc(totalSum[i],sizeof(unsigned char));
             AMatrixPaddedTranspose[i] = (unsigned char *) mget_spc(totalSum[i],sizeof(unsigned char));
         }
 
-        for(i=0; i<countNumber; i++)
+        for(i=0; i<SVSize; i++)
         {
             jy_new = jy_list[i];
             jx_new = jx_list[i];
@@ -458,7 +468,7 @@ void A_piecewise(
             }
         }
 
-        for(i=0; i<countNumber; i++)
+        for(i=0; i<SVSize; i++)
         {
             unsigned char * A_padded_pointer = &AMatrixPadded[i][0];
             unsigned char * A_padd_Tranpose_pointer = &AMatrixPaddedTranspose[i][0];
@@ -474,7 +484,7 @@ void A_piecewise(
             }
         }
 
-        for(i=0;i<countNumber;i++)
+        for(i=0;i<SVSize;i++)
         {
             jy_new = jy_list[i];
             jx_new = jx_list[i];
@@ -489,7 +499,7 @@ void A_piecewise(
             memcpy(&A_Padded_Map[jj][VoxelPosition].pieceWiseWidth[0],&piecewiseWidth[i][0],sizeof(channel_t)*NViewSets);
         }
 
-        for(i=0;i<countNumber;i++) {
+        for(i=0;i<SVSize;i++) {
             free((void *)AMatrixPadded[i]);
             free((void *)AMatrixPaddedTranspose[i]);
         }
