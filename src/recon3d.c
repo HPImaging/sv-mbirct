@@ -558,7 +558,11 @@ void super_voxel_recon(
 
     /*XW: if no voxel chosen, we skip this loop iteration*/
     if(countNumber==0)
+    {
+        free((void *)k_newCoordinate);
+        free((void *)j_newCoordinate);
         return;
+    }
 
     coordinateShuffle(&j_newCoordinate[0],&k_newCoordinate[0],countNumber);
 
