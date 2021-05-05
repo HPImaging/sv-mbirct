@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     struct Image3D ProxMap;
     struct Sino3DParallel sinogram;
     struct ReconParams reconparams;
-    char fname[1024], *readmatrix_fname=NULL;
+    char fname[1064], *readmatrix_fname=NULL;
     struct timeval tm0,tm2;
     unsigned long long tdiff;
     float **proj;
