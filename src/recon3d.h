@@ -32,6 +32,7 @@ void forwardProject(
     struct ImageParams3D imgparams,
     struct SinoParams3DParallel sinoparams,
     char *Amatrix_fname,
+    char backproject_flag,
     char verboseLevel);
 
 #endif

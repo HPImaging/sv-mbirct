@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
             sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
             readmatrix_fname = &fname[0];
         }
-        forwardProject(&proj[0][0],&(Image.image[0][0]),Image.imgparams,sinogram.sinoparams,readmatrix_fname,cmdline.verboseLevel);
+        forwardProject(&proj[0][0],&(Image.image[0][0]),Image.imgparams,sinogram.sinoparams,readmatrix_fname,0,cmdline.verboseLevel);
         if(cmdline.verboseLevel)
             fprintf(stdout,"Writing projection to file...\n");
         for(jz=0; jz<Nz; jz++) {
@@ -92,13 +92,6 @@ int main(int argc, char *argv[])
 
     /*** From this point we're in Reconstruction mode ***/
 
-    ReadReconParams(cmdline.ReconParamsFile,&reconparams);
-    if(reconparams.ReconType != cmdline.reconFlag)
-    {
-        fprintf(stdout,"**\nWarning: \"PriorModel\" field in reconparams file doesn't agree with\n");
-        fprintf(stdout,"Warning: what the command line is doing. Proceeding anyway.\n**\n");
-        reconparams.ReconType = cmdline.reconFlag;
-    }
     /* The image parameters specify the relevant slice range to reconstruct, so re-set the  */
     /* relevant sinogram parameters so it pulls the correct slices and indexes them consistently */
     sinogram.sinoparams.NSlices = Image.imgparams.Nz;
@@ -108,9 +101,38 @@ int main(int argc, char *argv[])
     /* Detect the number of slice number digits in input file names */
     Ndigits = setNumSliceDigits(cmdline.SinoDataFile,"2Dsinodata",FirstSliceNumber,&sinogram.sinoparams,&Image.imgparams);
 
-    /* Allocate and read sinogram,weight data */
+    /* Allocate and read sinogram data */
+    AllocateImageData3D(&Image);
     AllocateSinoData3DParallel(&sinogram);
     ReadSinoData3DParallel(cmdline.SinoDataFile, &sinogram);
+
+    /* set input matrix filename pointer--used to determine whether to read or compute */
+    if(cmdline.readAmatrixFlag) {
+        sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
+        readmatrix_fname = &fname[0];
+    }
+
+    /* Special case: Compute back projection and exit */
+    if(cmdline.reconFlag == MBIR_MODULAR_RECONTYPE_ADJOINT) {
+        forwardProject(sinogram.sino[0],Image.image[0],Image.imgparams,sinogram.sinoparams,readmatrix_fname,1,cmdline.verboseLevel);
+        /* Write out reconstructed image(s) */
+        if(cmdline.verboseLevel)
+            fprintf(stdout,"Writing image files...\n");
+        WriteImage3D(cmdline.ReconImageFile, &Image);
+        FreeImageData3D(&Image);
+        FreeSinoData3DParallel(&sinogram);
+        return(0);
+    }
+
+    ReadReconParams(cmdline.ReconParamsFile,&reconparams);
+    if(reconparams.ReconType != cmdline.reconFlag)
+    {
+        fprintf(stdout,"**\nWarning: \"PriorModel\" field in reconparams file doesn't agree with\n");
+        fprintf(stdout,"Warning: what the command line is doing. Proceeding anyway.\n**\n");
+        reconparams.ReconType = cmdline.reconFlag;
+    }
+
+    /* Read/compute sinogram weights */
     if(cmdline.SinoWeightsFileFlag)
     {
         ReadWeights3D(cmdline.SinoWeightsFile, &sinogram);
@@ -118,11 +140,9 @@ int main(int argc, char *argv[])
     }
     else if(reconparams.weightType < 1)	// if weightType is expecting file input, revert to default
         reconparams.weightType = 1;
-
     ComputeSinoWeights(sinogram,reconparams);  // either compute internally, or scale input by 1/SigmaY^2
 
     /* Initialize image state */
-    AllocateImageData3D(&Image);
     if(cmdline.readInitImageFlag) {
         if(cmdline.verboseLevel)
             fprintf(stdout,"Reading initial image...\n");
@@ -172,12 +192,6 @@ int main(int argc, char *argv[])
     else
         proximalmap = NULL;
 
-    /* set input matrix filename pointer--used to determine whether to read or compute */
-    if(cmdline.readAmatrixFlag) {
-        sprintf(fname,"%s.2Dsvmatrix",cmdline.SysMatrixFile);
-        readmatrix_fname = &fname[0];
-    }
-
     /* Start Reconstruction */
     MBIRReconstruct(
         Image.image[0],
@@ -205,7 +219,7 @@ int main(int argc, char *argv[])
         {
             multifree(proj,2);
             proj = (float **)multialloc(sizeof(float),2,Nz,NvNc);
-            forwardProject(&proj[0][0],&(Image.image[0][0]),Image.imgparams,sinogram.sinoparams,readmatrix_fname,cmdline.verboseLevel);
+            forwardProject(&proj[0][0],&(Image.image[0][0]),Image.imgparams,sinogram.sinoparams,readmatrix_fname,0,cmdline.verboseLevel);
         }
         if(cmdline.verboseLevel)
             fprintf(stdout,"Writing projection to file...\n");
@@ -264,7 +278,7 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
     }
     
     /* get options */
-    while ((ch = getopt(argc, argv, "i:j:k:s:w:r:m:t:e:f:p:v:")) != EOF)
+    while ((ch = getopt(argc, argv, "bi:j:k:s:w:r:m:t:e:f:p:v:")) != EOF)
     {
         switch (ch)
         {
@@ -330,8 +344,14 @@ void readCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
             }
             case 'p':
             {
-                cmdline->reconFlag = MBIR_MODULAR_RECONTYPE_PandP;
+                if(cmdline->reconFlag != MBIR_MODULAR_RECONTYPE_ADJOINT)
+                    cmdline->reconFlag = MBIR_MODULAR_RECONTYPE_PandP;
                 sprintf(cmdline->ProxMapImageFile, "%s", optarg);
+                break;
+            }
+            case 'b':
+            {
+                cmdline->reconFlag = MBIR_MODULAR_RECONTYPE_ADJOINT;
                 break;
             }
             case 'v':
@@ -381,9 +401,15 @@ void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
         if(cmdline->readInitProjectionFlag && !cmdline->readInitImageFlag)
             cmdline->readInitProjectionFlag = 0;
 
-        if(!cmdline->ReconParamsFileFlag || !cmdline->SinoDataFileFlag)
+        if(!cmdline->SinoDataFileFlag)
         {
-            fprintf(stderr,"Error: Either input data or reconstruction parameters weren't specified\n");
+            fprintf(stderr,"Error: Input sinogram data files not specified\n");
+            fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
+            exit(-1);
+        }
+        if(!cmdline->ReconParamsFileFlag && (cmdline->reconFlag != MBIR_MODULAR_RECONTYPE_ADJOINT) )
+        {
+            fprintf(stderr,"Error: Reconstruction parameter file not specified\n");
             fprintf(stderr,"Try '%s -help' for more information.\n",argv[0]);
             exit(-1);
         }
@@ -420,6 +446,8 @@ void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
         if(cmdline->reconFlag)
         {
             fprintf(stdout,"-> will perform reconstruction ");
+            if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_ADJOINT)
+                fprintf(stdout,"(Adjoint only! No MBIR)\n");
             if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
                 fprintf(stdout,"(QGGMRF)\n");
             if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_PandP)
@@ -571,6 +599,7 @@ void printCmdLineUsage(char *ExecFileName)
     fprintf(stdout,"\t                             : ** -p specifies to use proximal prior\n");
     fprintf(stdout,"\t                             : ** generally use with -t -e -f\n");
 //  fprintf(stdout,"***80 columns*******************************************************************\n\n");
+    fprintf(stdout,"\t-b                           : compute and output simple back projection rather than MBIR\n");
     fprintf(stdout,"\t-v <verbose level>           : 0:quiet, 1:status info (default), 2:more info\n");
     fprintf(stdout,"\n");
     fprintf(stdout,"Compute projection of input only:\n");

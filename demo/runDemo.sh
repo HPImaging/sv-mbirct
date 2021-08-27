@@ -89,6 +89,11 @@ $execdir/mbir_ct -m $matName -i $parName -j $parName -t $recName -f $projName -v
 #initProj=$projName
 #$execdir/mbir_ct -m $matName -i $parName -j $parName -k $parName -s $sinoName -t $initImg -e $initProj -r $recName -f $projName -v 2
 
+# This computes the backprojection only (no MBIR)
+#   -b option flag that calls for back projection
+#   no recon parameter file needed
+#$execdir/mbir_ct -b -m $matName -i $parName -j $parName -s $sinoName -r $recName -v 2
+
 exit 0
 
 

@@ -4,8 +4,9 @@
 /* Define constants that will be used in modular MBIR framework */
 #define MBIR_MODULAR_UTIL_VERSION "2.2"
 
-#define MBIR_MODULAR_RECONTYPE_QGGMRF_3D 1
-#define MBIR_MODULAR_RECONTYPE_PandP 2
+#define MBIR_MODULAR_RECONTYPE_ADJOINT 1
+#define MBIR_MODULAR_RECONTYPE_QGGMRF_3D 2
+#define MBIR_MODULAR_RECONTYPE_PandP 3
 
 #define MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS 4 /* allows up to 10,000 slices */
 

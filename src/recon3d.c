@@ -27,7 +27,7 @@ void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,fl
 	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct ParamExt param_ext,float *image,
     struct ImageParams3D imgparams, float *proximalmap, float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
 void SVproject(float *proj,float *image,struct AValues_char **A_Padded_Map,float *Aval_max_ptr,
-    struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams,struct SVParams svpar);
+    struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams,struct SVParams svpar,char backproject_flag);
 void coordinateShuffle(int *order1, int *order2,int len);
 void three_way_shuffle(long *order1, char *order2, struct heap_node *headNodeArray,int len);
 float MAPCostFunction3D(float *x,float *e,float *w,struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams,
@@ -111,7 +111,7 @@ void MBIRReconstruct(
         if(verboseLevel)
             fprintf(stdout,"Projecting image...\n");
         sinoerr = (float *) mget_spc((size_t)Nz*Nvc,sizeof(float));
-        SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar);
+        SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar,0);
     }
     for(k=0; k<(size_t)Nz*Nvc; k++)
         sinoerr[k] = sino[k]-sinoerr[k];
@@ -1012,13 +1012,14 @@ float MAPCostFunction3D(
 /* Forward projection using input SV system matrix */
 
 void SVproject(
-	float *proj,
-	float *image,
-	struct AValues_char **A_Padded_Map,
-	float *Aval_max_ptr,
-	struct ImageParams3D imgparams,
-	struct SinoParams3DParallel sinoparams,
-	struct SVParams svpar)
+    float *proj,
+    float *image,
+    struct AValues_char **A_Padded_Map,
+    float *Aval_max_ptr,
+    struct ImageParams3D imgparams,
+    struct SinoParams3DParallel sinoparams,
+    struct SVParams svpar,
+    char backproject_flag)
 {
     size_t i;
     int jz;
@@ -1033,9 +1034,13 @@ void SVproject(
     int NViewSets = sinoparams.NViews/pieceLength;
     struct minStruct * bandMinMap = svpar.bandMinMap;
 
-    /* initialize projection */
-    for (i = 0; i < (size_t)Nvc*Nz; i++)
-        proj[i] = 0.0;
+    /* initialize output */
+    if(backproject_flag)
+        for (i = 0; i < (size_t)Nx*Ny*Nz; i++)
+            image[i] = 0.0;
+    else
+        for (i = 0; i < (size_t)Nvc*Nz; i++)
+            proj[i] = 0.0;
 
     #pragma omp parallel for schedule(dynamic)
     for(jz=0;jz<Nz;jz++)
@@ -1058,7 +1063,8 @@ void SVproject(
             {
                 unsigned char* A_padd_Tr_ptr = &A_Padded_Map[SVPosition][VoxelPosition].val[0];
                 float rescale = Aval_max_ptr[jy*Nx+jx]*(1.0/255);
-                float xval = image[(size_t)jz*Nx*Ny + jy*Nx + jx];
+                size_t image_idx = (size_t)jz*Nx*Ny + jy*Nx + jx;
+                float xval = image[image_idx];
 
                 for(p=0;p<NViewSets;p++)
                 {
@@ -1078,7 +1084,12 @@ void SVproject(
                             exit(-1);
                         }
                         else
-                            proj[proj_idx] += A_padd_Tr_ptr[r*pieceLength+k]*rescale * xval;
+                        {
+                            if(backproject_flag)
+                                image[image_idx] += A_padd_Tr_ptr[r*pieceLength+k]*rescale * proj[proj_idx];
+                            else
+                                proj[proj_idx] += A_padd_Tr_ptr[r*pieceLength+k]*rescale * xval;
+                        }
                     }
                     A_padd_Tr_ptr += myCount*pieceLength;
                 }
@@ -1096,6 +1107,7 @@ void forwardProject(
     struct ImageParams3D imgparams,
     struct SinoParams3DParallel sinoparams,
     char *Amatrix_fname,
+    char backproject_flag,
     char verboseLevel)
 {
     int i,j;
@@ -1128,8 +1140,11 @@ void forwardProject(
 
     /* Project */
     if(verboseLevel)
-        fprintf(stdout,"Projecting image...\n");
-    SVproject(proj,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar);
+        if(backproject_flag)
+            fprintf(stdout,"Back-projecting sinogram...\n");
+        else
+            fprintf(stdout,"Projecting image...\n");
+    SVproject(proj,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar,backproject_flag);
 
     /* Free SV memory */
     for(i=0;i<Nsv;i++) {
