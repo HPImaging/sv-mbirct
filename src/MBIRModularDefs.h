@@ -4,9 +4,9 @@
 /* Define constants that will be used in modular MBIR framework */
 #define MBIR_MODULAR_UTIL_VERSION "2.2"
 
-#define MBIR_MODULAR_RECONTYPE_ADJOINT 1
-#define MBIR_MODULAR_RECONTYPE_QGGMRF_3D 2
-#define MBIR_MODULAR_RECONTYPE_PandP 3
+#define MBIR_MODULAR_RECONTYPE_QGGMRF_3D 1
+#define MBIR_MODULAR_RECONTYPE_PandP 2
+#define MBIR_MODULAR_RECONTYPE_ADJOINT 3
 
 #define MBIR_MODULAR_MAX_NUMBER_OF_SLICE_DIGITS 4 /* allows up to 10,000 slices */
 
@@ -68,7 +68,7 @@ struct Image3D
 /* Reconstruction Parameters Data Structure */
 struct ReconParams
 {
-  char ReconType;         /* 1:QGGMRF_3D, 2:PandP */
+  char ReconType;         /* 1:QGGMRF, 2:PandP, 3:Adjoint */
   /* General parameters */
   float InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
   float StopThreshold;   /* Stopping threshold in percent */
