@@ -446,12 +446,12 @@ void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
         if(cmdline->reconFlag)
         {
             fprintf(stdout,"-> will perform reconstruction ");
-            if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_ADJOINT)
-                fprintf(stdout,"(Adjoint only! No MBIR)\n");
             if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_QGGMRF_3D)
                 fprintf(stdout,"(QGGMRF)\n");
             if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_PandP)
                 fprintf(stdout,"(Plug & Play)\n");
+            if(cmdline->reconFlag == MBIR_MODULAR_RECONTYPE_ADJOINT)
+                fprintf(stdout,"(Backproject only! No MBIR)\n");
 
             if(cmdline->readAmatrixFlag)
                 fprintf(stdout,"-> will read system matrix from file\n");
@@ -463,17 +463,20 @@ void procCmdLine(int argc, char *argv[], struct CmdLine *cmdline)
                 fprintf(stdout," *** See help (-m option)\n");
             //  fprintf(stdout,"***80 columns*******************************************************************\n\n");
             }
-            if(!cmdline->SinoWeightsFileFlag)
-                fprintf(stdout,"-> will compute sinogram weights internally (no file provided)\n");
-            if(cmdline->readInitImageFlag)
-                fprintf(stdout,"-> will read initial condition from file(s)\n");
-            if(cmdline->readInitProjectionFlag)
-                fprintf(stdout,"-> will read projection of initial condition\n");
-            else
-                fprintf(stdout,"-> will compute forward projection of initial condition\n");
 
-            if(cmdline->writeProjectionFlag)
-                fprintf(stdout,"-> will save projection of output image state to file(s)\n");
+            if(cmdline->reconFlag != MBIR_MODULAR_RECONTYPE_ADJOINT)
+            {
+                if(!cmdline->SinoWeightsFileFlag)
+                    fprintf(stdout,"-> will compute sinogram weights internally (no file provided)\n");
+                if(cmdline->readInitImageFlag)
+                    fprintf(stdout,"-> will read initial condition from file(s)\n");
+                if(cmdline->readInitProjectionFlag)
+                    fprintf(stdout,"-> will read projection of initial condition\n");
+                else
+                    fprintf(stdout,"-> will compute forward projection of initial condition\n");
+                if(cmdline->writeProjectionFlag)
+                    fprintf(stdout,"-> will save projection of output image state to file(s)\n");
+            }
         }
         else if(cmdline->writeAmatrixFlag || cmdline->writeProjectionFlag)
         {
