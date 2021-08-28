@@ -1115,6 +1115,14 @@ void forwardProject(
     float *Aval_max_ptr;
     struct SVParams svpar;
 
+    /* print summary to stdout */
+    if(verboseLevel>1)
+    {
+        fprintf(stdout,"forwardProject() -- build time: %s, %s\n", __DATE__, __TIME__);
+        printSinoParams3DParallel(&sinoparams);
+        printImageParams3D(&imgparams);
+    }
+
     /* Initialize/allocate SV parameters */
     initSVParams(&svpar, imgparams, sinoparams);
     int Nsv = svpar.Nsv;
