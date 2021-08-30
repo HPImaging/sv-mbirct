@@ -46,7 +46,7 @@ void MBIRReconstruct(
     char *Amatrix_fname,
     char verboseLevel)
 {
-    float *sinoerr;
+    float *sinoerr, *proximalmap_loc=NULL;
     int i,j,jj,p,t,iter,it_print=1;
     size_t k;
     #ifndef MSVC	/* not included in MS Visual C++ */
@@ -71,6 +71,21 @@ void MBIRReconstruct(
     int SVLength = svpar.SVLength;
     int SV_per_Z = svpar.SV_per_Z;
     int SVsPerRow = svpar.SVsPerRow;
+
+    /* Activate proximal map mode if given as input */
+    if(proximalmap != NULL)
+    {
+        reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
+        /* 'image' is reconstructed in place, so if proximal map is the same array, make a local copy */
+        if(proximalmap == image)
+        {
+            proximalmap_loc = (float *) mget_spc((size_t)Nx*Ny*Nz,sizeof(float));
+            for(k=0; k<(size_t)Nx*Ny*Nz; k++)
+                proximalmap_loc[k] = proximalmap[k];
+        }
+        else
+            proximalmap_loc = proximalmap;
+    }
 
     /* print summary to stdout */
     if(verboseLevel>1)
@@ -118,9 +133,6 @@ void MBIRReconstruct(
 
     /* Recon parameters */
     NormalizePriorWeights3D(&reconparams);
-    if(proximalmap != NULL) {
-        reconparams.ReconType = MBIR_MODULAR_RECONTYPE_PandP;
-    }
     struct ParamExt param_ext;
     param_ext.pow_sigmaX_p = powf(reconparams.SigmaX,reconparams.p);
     param_ext.pow_sigmaX_q = powf(reconparams.SigmaX,reconparams.q);
@@ -338,7 +350,7 @@ void MBIRReconstruct(
                 for (jj = startIndex; jj < endIndex; jj+=1)
                     super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,
                             &phaseMap[0],order,&indexList[0],weight,sinoerr,A_Padded_Map,&Aval_max_ptr[0],
-                            &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,proximalmap,
+                            &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,proximalmap_loc,
                             voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
             }
 
@@ -413,6 +425,10 @@ void MBIRReconstruct(
     }
     else
         free((void *)sinoerr);
+
+    /* If local copy of proximal map was made, free it */
+    if(proximalmap == image)
+        free((void *)proximalmap_loc);
 
     #ifdef ICC
         _mm_free((void *)voxelsBuffer1);
@@ -1148,10 +1164,12 @@ void forwardProject(
 
     /* Project */
     if(verboseLevel)
+    {
         if(backproject_flag)
             fprintf(stdout,"Back-projecting sinogram...\n");
         else
             fprintf(stdout,"Projecting image...\n");
+    }
     SVproject(proj,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar,backproject_flag);
 
     /* Free SV memory */
