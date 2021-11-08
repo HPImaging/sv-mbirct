@@ -20,14 +20,14 @@
 struct SinoParams3DParallel
 {
     int NChannels;         /* Number of channels in detector */
-    float DeltaChannel;    /* Detector spacing (mm) */
+    float DeltaChannel;    /* Detector spacing */
     float CenterOffset;    /* Offset of center-of-rotation ... */
                            /* Computed from center of detector in increasing direction (no. of channels) */
                            /* This can be fractional though */
     int NViews;            /* Number of view angles */
     float *ViewAngles;     /* Array of NTheta view angle entries in degrees */
     int NSlices;           /* Number of rows (slices) stored in Sino array */
-    float DeltaSlice;      /* Spacing along row (slice) direction (mm) */
+    float DeltaSlice;      /* Spacing along row (slice) direction */
     int FirstSliceNumber;  /* Row (slice) index coresponding to first row (slice) stored in Sino array */
                            /* This is in absolute coordinates and is used if a partial set of slices is needed */
     int NumSliceDigits;    /* Number of slice numbers digits used in file name */
@@ -47,9 +47,9 @@ struct ImageParams3D
 {
     int Nx;                 /* Number of columns in image */
     int Ny;                 /* Number of rows in image */
-    float Deltaxy;          /* Spacing between pixels in x and y direction (mm) */
-    float ROIRadius;        /* Radius of the reconstruction (mm) */
-    float DeltaZ;           /* Spacing between pixels in z direction (mm) [This should be equal to DeltaSlice */
+    float Deltaxy;          /* Spacing between pixels in x and y direction */
+    float ROIRadius;        /* Radius of the reconstruction */
+    float DeltaZ;           /* Spacing between pixels in z direction [This should be equal to DeltaSlice */
     int Nz;                 /* Number of rows (slices) in image */
     int FirstSliceNumber;   /* Detector row (slice) index cooresponding to first row (slice) stored in Image array */
                             /* This is in absolute coordinates and is used if a partial set of slices is needed */
@@ -85,7 +85,7 @@ struct ReconParams
   float p;               /* q-GGMRF p parameter */
   float q;               /* q-GGMRF q parameter (q=2 is typical choice) */
   float T;               /* q-GGMRF T parameter */
-  float SigmaX;          /* q-GGMRF sigma_x parameter (mm-1) */
+  float SigmaX;          /* q-GGMRF sigma_x parameter */
 };
 
 
