@@ -94,7 +94,7 @@ float QGGMRF_SurrogateCoeff(float delta, struct ReconParams reconparams, struct 
     float p, q, T, SigmaX, qmp;
     float num, denom, temp;
     float fabs_delta;
-    
+
     p = reconparams.p;
     q = reconparams.q;
     T = reconparams.T;
@@ -104,17 +104,17 @@ float QGGMRF_SurrogateCoeff(float delta, struct ReconParams reconparams, struct 
     float pow_T_qmp = param_ext.pow_T_qmp;
     qmp = q - p;
     fabs_delta=(float)fabs(delta);
-    
-    /* Refer to Chapter 7, MBIR Textbook by Prof Bouman, Page 151 */
+
+    /* Refer to MBIP Textbook by C.A. Bouman, */
     /* Table on Quadratic surrogate functions for different prior models */
-    
-    if (delta == 0.0)
-    return 2.0/( p*pow_sigmaX_q*pow_T_qmp ) ; /* rho"(0) */
-    
+
+    if (fabs_delta < 1e-5)
+        return 2.0/( p*pow_sigmaX_q*pow_T_qmp ); /* rho"(0) */
+
     temp = powf(fabs_delta/(T*SigmaX), qmp);
     num = (q/p + temp) * powf(fabs_delta,p-2) * temp;
     denom = pow_sigmaX_p * (1.0+temp) * (1.0+temp);
-    
+
     return num/denom;
 }
 
