@@ -20,7 +20,6 @@ float QGGMRF3D_Update(
 	float THETA2);
 
 float PandP_Update(
-	struct ReconParams reconparams,
 	struct ParamExt param_ext,
 	float tempV,
 	float tempProxMap,

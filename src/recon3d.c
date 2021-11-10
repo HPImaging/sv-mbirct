@@ -25,7 +25,7 @@ void super_voxel_recon(int jj,struct SVParams svpar,unsigned long *NumUpdates,fl
 	char *phaseMap,long *order,int *indexList,float *weight,float *sinoerr,
 	struct AValues_char **A_Padded_Map,float *Aval_max_ptr,struct heap_node *headNodeArray,
 	struct SinoParams3DParallel sinoparams,struct ReconParams reconparams,struct ParamExt param_ext,float *image,
-    struct ImageParams3D imgparams, float *proximalmap, float *voxelsBuffer1,float *voxelsBuffer2,char *group_array,int group_id);
+    struct ImageParams3D imgparams, float *proximalmap, char *group_array,int group_id);
 void SVproject(float *proj,float *image,struct AValues_char **A_Padded_Map,float *Aval_max_ptr,
     struct ImageParams3D imgparams,struct SinoParams3DParallel sinoparams,struct SVParams svpar,char backproject_flag);
 void coordinateShuffle(int *order1, int *order2,int len);
@@ -139,8 +139,6 @@ void MBIRReconstruct(
     param_ext.pow_T_qmp    = powf(reconparams.T,reconparams.q - reconparams.p);
     param_ext.SigmaXsq = reconparams.SigmaX * reconparams.SigmaX;
 
-    float *voxelsBuffer1;  /* the first N entries are the voxel values.  */
-    float *voxelsBuffer2;
     unsigned long NumUpdates=0;
     float totalValue=0,totalChange=0,equits=0;
     float avg_update=0,avg_update_rel=0;
@@ -197,7 +195,6 @@ void MBIRReconstruct(
         t++;
     }
 
-    #pragma omp parallel for private(jj) schedule(dynamic)
     for(i=0;i<SV_per_Z;i++)
     for(jj=0;jj<Nsv;jj++)
     {
@@ -260,23 +257,6 @@ void MBIRReconstruct(
     }
     int indexList_size=(int) Nsv*SV_per_Z*4*c_ratio*(1-convergence_rho);
     int * indexList = (int *) mget_spc(indexList_size,sizeof(int));
-
-    #ifdef ICC
-        voxelsBuffer1 = (float *)_mm_malloc(Nxy*sizeof(float),64);
-        voxelsBuffer2 = (float *)_mm_malloc(Nxy*sizeof(float),64);
-    #else
-        voxelsBuffer1 = (float *) malloc(Nxy*sizeof(float));
-        voxelsBuffer2 = (float *) malloc(Nxy*sizeof(float));
-        //voxelsBuffer1 = (float *) aligned_alloc(64,Nxy*sizeof(float));
-        //voxelsBuffer2 = (float *) aligned_alloc(64,Nxy*sizeof(float));
-        //voxelsBuffer1 = (float *) _aligned_malloc(Nxy*sizeof(float),64);
-        //voxelsBuffer2 = (float *) _aligned_malloc(Nxy*sizeof(float),64);
-    #endif
-
-    for(i=0;i<Nxy;i++) {
-        voxelsBuffer1[i]=0;
-        voxelsBuffer2[i]=0;
-    }
 
     //coordinateShuffle(&order[0],&phaseMap[0],Nsv*SV_per_Z);
     long tmp_long;
@@ -351,7 +331,7 @@ void MBIRReconstruct(
                     super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,
                             &phaseMap[0],order,&indexList[0],weight,sinoerr,A_Padded_Map,&Aval_max_ptr[0],
                             &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,proximalmap_loc,
-                            voxelsBuffer1,voxelsBuffer2,&group_id_list[0][0],group);
+                            &group_id_list[0][0],group);
             }
 
             #pragma omp single
@@ -430,16 +410,6 @@ void MBIRReconstruct(
     if(proximalmap == image)
         free((void *)proximalmap_loc);
 
-    #ifdef ICC
-        _mm_free((void *)voxelsBuffer1);
-        _mm_free((void *)voxelsBuffer2);
-    #else
-        free((void *)voxelsBuffer1);
-        free((void *)voxelsBuffer2);
-        //_aligned_free((void *)voxelsBuffer1);
-        //_aligned_free((void *)voxelsBuffer2);
-    #endif
-
     free((void *)headNodeArray);
     free_heap((void *)&priorityheap);
     free((void *)order);
@@ -497,13 +467,12 @@ void super_voxel_recon(
     float *image,
     struct ImageParams3D imgparams,
     float *proximalmap,
-    float *voxelsBuffer1,
-    float *voxelsBuffer2,
     char *group_array,
     int group_id)
 {
     int jy,jx,p,i,q,t,j,currentSlice,startSlice;
     int SV_depth_modified;
+    float *tempProxMap=NULL;
     int NumUpdates_loc=0;
     float totalValue_loc=0,totalChange_loc=0;
 
@@ -543,26 +512,18 @@ void super_voxel_recon(
 
     int SVPosition=jy/(2*SVLength-overlappingDistance)*SVsPerRow+jx/(2*SVLength-overlappingDistance);
 
-    int countNumber=0;	/*XW: the number of voxels chosen for a certain radius of circle*/
-    int radius =SVLength;	/*XW: choose the circle radius*/
-    int coordinateSize=1;	/*XW: CoordinateSize is the size of a minimum square enclosing the circle. For the baseline code, coordinateSize=1 because only 1 voxel*/
-    /*XW: imagine that this is a minimum square enclosing the circle. The square
-     * "touches" the circle on 4 coordinate points. CoordianteSize is the possible
-     * maximum number of voxels for a certain radius of circle */
-    if(radius!=0)
-        coordinateSize=(2*radius+1)*(2*radius+1);
+    int countNumber=0;	/* number of voxels in given SV */
+    int coordinateSize=(2*SVLength+1)*(2*SVLength+1);
     int * k_newCoordinate = (int *) mget_spc(coordinateSize,sizeof(int));
     int * j_newCoordinate = (int *) mget_spc(coordinateSize,sizeof(int));
     int j_newAA=0;
     int k_newAA=0;
     int voxelIncrement=0;
 
-    /*XW: choosing the voxels locations in a circle*/
-    for(j_newAA=jy;j_newAA<=(jy+2*radius);j_newAA++)
-    for(k_newAA=jx;k_newAA<=(jx+2*radius);k_newAA++)
-    {
-        if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx)
-        {
+    /* choosing the voxels locations in an SV */
+    for(j_newAA=jy;j_newAA<=(jy+2*SVLength);j_newAA++)
+    for(k_newAA=jx;k_newAA<=(jx+2*SVLength);k_newAA++) {
+        if(j_newAA>=0 && k_newAA >=0 && j_newAA <Ny && k_newAA < Nx) {
             if(A_Padded_Map[SVPosition][voxelIncrement].length >0) {
                 j_newCoordinate[countNumber]=j_newAA;
                 k_newCoordinate[countNumber]=k_newAA;
@@ -572,7 +533,7 @@ void super_voxel_recon(
         voxelIncrement++;
     }
 
-    /*XW: if no voxel chosen, we skip this loop iteration*/
+    /* if no voxels in this region skip this loop iteration */
     if(countNumber==0)
     {
         free((void *)k_newCoordinate);
@@ -689,7 +650,6 @@ void super_voxel_recon(
 
     for (p = 0; p < NViewSets; p++)
         free((void *)newWArray[p]);
-
     free((void **)newWArray);
 
     /* Turn off zero-skipping for 1st iteration */
@@ -698,13 +658,14 @@ void super_voxel_recon(
         zero_skip_enable=1;
 
     /*XW: the start of the loop to compute theta1, theta2*/
-    float * tempV = (float *) mget_spc(SV_depth_modified,sizeof(float));
-    float * tempProxMap = (float *) mget_spc(SV_depth_modified,sizeof(float));
-    float ** neighbors = (float **) multialloc(sizeof(float),2,SV_depth_modified,10);
-    char * zero_skip_FLAG = (char *) mget_spc(SV_depth_modified,sizeof(char));
-    float * diff = (float *) mget_spc(SV_depth_modified,sizeof(float));
     float * THETA1 = (float *) get_spc(SV_depth_modified,sizeof(float));
     float * THETA2 = (float *) get_spc(SV_depth_modified,sizeof(float));
+    float * tempV = (float *) mget_spc(SV_depth_modified,sizeof(float));
+    float * diff = (float *) mget_spc(SV_depth_modified,sizeof(float));
+    float ** neighbors = (float **) multialloc(sizeof(float),2,SV_depth_modified,10);
+    char * zero_skip_FLAG = (char *) mget_spc(SV_depth_modified,sizeof(char));
+    if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+        tempProxMap = (float *) mget_spc(SV_depth_modified,sizeof(float));
 
     for(i=0;i<countNumber;i++)
     {
@@ -729,14 +690,14 @@ void super_voxel_recon(
                 ExtractNeighbors3D(&neighbors[currentSlice][0],k_new,j_new,&image[(size_t)(startSlice+currentSlice)*Nxy],imgparams);
 
                 if((startSlice+currentSlice)==0)
-                    neighbors[currentSlice][8]=voxelsBuffer1[j_new*Nx+k_new];
+                    neighbors[currentSlice][8]=0.0;
                 else
                     neighbors[currentSlice][8]=image[(size_t)(startSlice+currentSlice-1)*Nxy + j_new*Nx+k_new];
 
                 if((startSlice+currentSlice)<(Nz-1))
                     neighbors[currentSlice][9]=image[(size_t)(startSlice+currentSlice+1)*Nxy + j_new*Nx+k_new];
                 else
-                    neighbors[currentSlice][9]=voxelsBuffer2[j_new*Nx+k_new];
+                    neighbors[currentSlice][9]=0.0;
 
                 if(zero_skip_enable)
                 if(tempV[currentSlice] == 0.0)
@@ -757,10 +718,11 @@ void super_voxel_recon(
         }
 
         A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
+
         for(p=0;p<NViewSets;p++)
         {
-            const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
-            const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
+            int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
+            int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
             #pragma vector aligned
             for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
             if(zero_skip_FLAG[currentSlice] == 0)
@@ -785,15 +747,15 @@ void super_voxel_recon(
             }
             A_padd_Tranpose_pointer += myCount*pieceLength;
         }
+
         for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
         {
             THETA1[currentSlice]=-THETA1[currentSlice]*Aval_max*(1.0/255);
             THETA2[currentSlice]=THETA2[currentSlice]*Aval_max*(1.0/255)*Aval_max*(1.0/255);
         }
 
-        ETransposeArrayPointer=&newEArrayTransposed[0][0];
-
         A_padd_Tranpose_pointer = &A_Padded_Map[SVPosition][theVoxelPosition].val[0];
+        ETransposeArrayPointer = &newEArrayTransposed[0][0];
 
         for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
         if(zero_skip_FLAG[currentSlice] == 0)
@@ -805,7 +767,7 @@ void super_voxel_recon(
             }
             else if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
             {
-                step = PandP_Update(reconparams,param_ext,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
+                step = PandP_Update(param_ext,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
             }
             else
             {
@@ -831,11 +793,11 @@ void super_voxel_recon(
 
         for(p=0;p<NViewSets;p++)
         {
-            const int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
-            const int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
+            int myCount=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseWidth[p];
+            int pieceMin=A_Padded_Map[SVPosition][theVoxelPosition].pieceWiseMin[p];
             #pragma vector aligned
             for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
-            if(diff[currentSlice]!=0 && zero_skip_FLAG[currentSlice] == 0)
+            if(fabsf(diff[currentSlice])>0 && zero_skip_FLAG[currentSlice] == 0)
             {
                 ETransposeArrayPointer=&newEArrayTransposed[p][currentSlice*bandWidth[p]*pieceLength];
                 ETransposeArrayPointer+=pieceMin*pieceLength;
@@ -848,12 +810,22 @@ void super_voxel_recon(
         }
     }
 
+    free((void *)THETA1);
+    free((void *)THETA2);
+    free((void *)tempV);
+    free((void *)diff);
+    multifree(neighbors,2);
+    free((void *)zero_skip_FLAG);
+    if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
+        free((void *)tempProxMap);
+
     for (p = 0; p < NViewSets; p++)
         free((void *)newWArrayTransposed[p]);
-
     free((void **)newWArrayTransposed);
 
-    headNodeArray[jj_new].x=totalChange_loc;
+    free((void *)k_newCoordinate);
+    free((void *)j_newCoordinate);
+
 
     for (p = 0; p < NViewSets; p++)
     for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
@@ -870,15 +842,12 @@ void super_voxel_recon(
 
     for (p = 0; p < NViewSets; p++)
         free((void *)newEArrayTransposed[p]);
-
     free((void **)newEArrayTransposed);
-
-    newEArrayPointer=&newEArray[0][0];
-    float* CopyNewEArrayPointer=&CopyNewEArray[0][0];
-    float* eArrayPointer=&sinoerr[0];
 
     for (p = 0; p < NViewSets; p++)      /*XW: update the error term in the memory buffer*/
     {
+        float *CopyNewEArrayPointer;
+        float *eArrayPointer;
         newEArrayPointer=&newEArray[p][0];
         CopyNewEArrayPointer=&CopyNewEArray[p][0];
         for (currentSlice=0; currentSlice< SV_depth_modified;currentSlice++)
@@ -907,20 +876,12 @@ void super_voxel_recon(
     free((void **)newEArray);
     free((void **)CopyNewEArray);
 
-    free((void *)k_newCoordinate);
-    free((void *)j_newCoordinate);
     free((void *)bandMin);
     free((void *)bandMax);
     free((void *)bandWidth);
     free((void *)bandWidthTemp);
-    free((void *)tempV);
-    free((void *)tempProxMap);
-    multifree(neighbors,2);
-    free((void *)zero_skip_FLAG);
-    free((void *)diff);
-    free((void *)THETA1);
-    free((void *)THETA2);
 
+    headNodeArray[jj_new].x=totalChange_loc;
     *NumUpdates += NumUpdates_loc;
     *totalValue += totalValue_loc;
     *totalChange += totalChange_loc;
