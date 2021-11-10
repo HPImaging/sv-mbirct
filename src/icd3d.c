@@ -9,9 +9,8 @@
 
 	
 /* Plug & Play update w/ proximal map prior */
-float PandP_Update(struct ParamExt param_ext,float tempV,float tempProxMap,float THETA1,float THETA2)
+float PandP_Update(float SigmaXsq,float tempV,float tempProxMap,float THETA1,float THETA2)
 {
-    float SigmaXsq = param_ext.SigmaXsq;
     return(-(SigmaXsq*THETA1 + tempV - tempProxMap) / (SigmaXsq*THETA2 + 1.0));
 }
 

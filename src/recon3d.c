@@ -340,7 +340,10 @@ void MBIRReconstruct(
                 if(NumUpdates>0) {
                     avg_update = totalChange/NumUpdates;
                     float avg_value = totalValue/NumUpdates;
-                    avg_update_rel = avg_update/avg_value * 100;
+                    if(avg_value > 0.0)
+                        avg_update_rel = avg_update/avg_value * 100;
+                    else
+                        avg_update_rel = avg_update;
                     //printf("avg_update %f, avg_value %f, avg_update_rel %f\n",avg_update,avg_value,avg_update_rel);
                 }
                 #ifdef COMP_COST
@@ -577,8 +580,12 @@ void super_voxel_recon(
         CopyNewEArray[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
     }
 
-    float *newWArrayPointer=&newWArray[0][0];
-    float *newEArrayPointer=&newEArray[0][0];
+    float *newWArrayPointer;
+    float *newEArrayPointer;
+    float **newWArrayTransposed;
+    float **newEArrayTransposed;
+    float *WTransposeArrayPointer;
+    float *ETransposeArrayPointer;
 
     /*XW: copy the interlaced we into the memory buffer*/
     for (p = 0; p < NViewSets; p++)
@@ -598,17 +605,14 @@ void super_voxel_recon(
     for (p = 0; p < NViewSets; p++)
         memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
 
-    float ** newWArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
-    float ** newEArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
+    newWArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
+    newEArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
 
     for (p = 0; p < NViewSets; p++)
     {
         newWArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
         newEArrayTransposed[p] = (float *)malloc(sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
     }
-
-    float *WTransposeArrayPointer=&newWArrayTransposed[0][0];
-    float *ETransposeArrayPointer=&newEArrayTransposed[0][0];
 
     for (p = 0; p < NViewSets; p++)
     for(currentSlice=0;currentSlice<(SV_depth_modified);currentSlice++) 
@@ -751,7 +755,7 @@ void super_voxel_recon(
             }
             else if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
             {
-                step = PandP_Update(param_ext,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
+                step = PandP_Update(param_ext.SigmaXsq,tempV[currentSlice],tempProxMap[currentSlice],THETA1[currentSlice],THETA2[currentSlice]);
             }
             else
             {
@@ -810,7 +814,6 @@ void super_voxel_recon(
     free((void *)k_newCoordinate);
     free((void *)j_newCoordinate);
 
-
     for (p = 0; p < NViewSets; p++)
     for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
     {
@@ -852,8 +855,7 @@ void super_voxel_recon(
         }
     }
 
-    for (p = 0; p < NViewSets; p++)
-    {
+    for (p = 0; p < NViewSets; p++) {
         free((void *)newEArray[p]);
         free((void *)CopyNewEArray[p]);
     }
