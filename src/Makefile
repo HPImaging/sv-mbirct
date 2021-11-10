@@ -9,7 +9,7 @@ CFLAGS += -Wall
 LIBS = -lm
 
 ifeq ($(CC),icc)
-  CFLAGS += -DICC -qopenmp
+  CFLAGS += -qopenmp
   CFLAGS += -no-prec-div -restrict -ipo -inline-calloc -qopt-calloc -no-ansi-alias
   CFLAGS += -xCORE-AVX2
   #CFLAGS += -qopenmp-link=static

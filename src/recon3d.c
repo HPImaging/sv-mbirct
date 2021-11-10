@@ -470,8 +470,7 @@ void super_voxel_recon(
     char *group_array,
     int group_id)
 {
-    int jy,jx,p,i,q,t,j,currentSlice,startSlice;
-    int SV_depth_modified;
+    int p,i,q,t,j,currentSlice;
     float *tempProxMap=NULL;
     int NumUpdates_loc=0;
     float totalValue_loc=0,totalChange_loc=0;
@@ -483,6 +482,7 @@ void super_voxel_recon(
     int Nvc = sinoparams.NViews * sinoparams.NChannels;
     char PositivityFlag = reconparams.Positivity;
 
+    int SV_depth_modified, SVPosition;
     int SVLength = svpar.SVLength;
     int overlappingDistance = svpar.overlap;
     int SV_depth = svpar.SVDepth;
@@ -498,26 +498,26 @@ void super_voxel_recon(
     else
         jj_new=indexList[jj];
 
-    startSlice = order[jj_new] / Nx / Ny;
-    jy = (order[jj_new] - startSlice* Nx * Ny) / Nx;
-    jx = (order[jj_new] - startSlice* Nx * Ny) % Nx;
+    int startSlice = order[jj_new] / Nxy;
 
-    if(phaseMap[jj_new]!=group_array[startSlice/SV_depth*4+group_id])
+    if(phaseMap[jj_new] != group_array[startSlice/SV_depth*4+group_id])
         return;
+
+    int jy = (order[jj_new] - startSlice*Nxy) / Nx;
+    int jx = (order[jj_new] - startSlice*Nxy) % Nx;
 
     if((startSlice+SV_depth)>Nz)
         SV_depth_modified=Nz-startSlice;
     else
         SV_depth_modified=SV_depth;
 
-    int SVPosition=jy/(2*SVLength-overlappingDistance)*SVsPerRow+jx/(2*SVLength-overlappingDistance);
+    SVPosition = jy/(2*SVLength-overlappingDistance)*SVsPerRow+jx/(2*SVLength-overlappingDistance);
 
     int countNumber=0;	/* number of voxels in given SV */
     int coordinateSize=(2*SVLength+1)*(2*SVLength+1);
     int * k_newCoordinate = (int *) mget_spc(coordinateSize,sizeof(int));
     int * j_newCoordinate = (int *) mget_spc(coordinateSize,sizeof(int));
-    int j_newAA=0;
-    int k_newAA=0;
+    int j_newAA,k_newAA;
     int voxelIncrement=0;
 
     /* choosing the voxels locations in an SV */
@@ -550,13 +550,8 @@ void super_voxel_recon(
     channel_t * bandWidthTemp = (channel_t *) mget_spc(sinoparams.NViews,sizeof(channel_t));
     channel_t * bandWidth = (channel_t *) mget_spc(NViewSets,sizeof(channel_t));
 
-    #ifdef ICC
-    _intel_fast_memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
-    _intel_fast_memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
-    #else
     memcpy(&bandMin[0],&bandMinMap[SVPosition].bandMin[0],sizeof(channel_t)*(sinoparams.NViews));
     memcpy(&bandMax[0],&bandMaxMap[SVPosition].bandMax[0],sizeof(channel_t)*(sinoparams.NViews));
-    #endif
 
     //#pragma vector aligned
     for(p=0;p< sinoparams.NViews;p++)
@@ -593,26 +588,15 @@ void super_voxel_recon(
         for(i=0;i<SV_depth_modified;i++)
         for(q=0;q<pieceLength;q++)
         {
-            #ifdef ICC
-            _intel_fast_memcpy(newWArrayPointer,&weight[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-            _intel_fast_memcpy(newEArrayPointer,&sinoerr[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-            #else
             memcpy(newWArrayPointer,&weight[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
             memcpy(newEArrayPointer,&sinoerr[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-            #endif
             newWArrayPointer+=bandWidth[p];
             newEArrayPointer+=bandWidth[p];
         }
     }
 
     for (p = 0; p < NViewSets; p++)
-    {
-        #ifdef ICC
-        _intel_fast_memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-        #else
         memcpy(&CopyNewEArray[p][0],&newEArray[p][0],sizeof(float)*bandWidth[p]*pieceLength*SV_depth_modified);
-        #endif
-    }
 
     float ** newWArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);
     float ** newEArrayTransposed = (float **)malloc(sizeof(float *) * NViewSets);

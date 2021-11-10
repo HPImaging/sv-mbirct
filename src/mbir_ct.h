@@ -1,8 +1,6 @@
 #ifndef _MBIRCT_H_
 #define _MBIRCT_H_
 
-//This directive is set with the compiler option -DICC
-//#define ICC
 
 struct CmdLine
 {
