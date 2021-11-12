@@ -288,8 +288,8 @@ void MBIRReconstruct(
     // Limit threads for smaller problem size if no positivity constraint
     int max_threads = omp_get_max_threads();
     if(reconparams.Positivity==0) {
-        k = ((Nx < Ny) ? Nx : Ny) / (2*SVLength+1) * SV_per_Z;
-        max_threads = (k < max_threads) ? k : max_threads ;
+        i = ((Nx < Ny) ? Nx : Ny) / (2*SVLength+1) * SV_per_Z;
+        max_threads = ( i < max_threads) ? i : max_threads ;
     }
 
     #pragma omp parallel num_threads(max_threads)
