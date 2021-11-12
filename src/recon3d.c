@@ -255,7 +255,8 @@ void MBIRReconstruct(
         headNodeArray[i*Nsv+jj].pt=i*Nsv+jj;
         headNodeArray[i*Nsv+jj].x=0.0;
     }
-    int indexList_size=(int) Nsv*SV_per_Z*4*c_ratio*(1-convergence_rho);
+    //int indexList_size=(int) Nsv*SV_per_Z*4*c_ratio*(1-convergence_rho);
+    int indexList_size= Nsv*SV_per_Z/4;
     int * indexList = (int *) mget_spc(indexList_size,sizeof(int));
 
     //coordinateShuffle(&order[0],&phaseMap[0],Nsv*SV_per_Z);
@@ -284,7 +285,14 @@ void MBIRReconstruct(
         #endif
     }
 
-    #pragma omp parallel
+    // Limit threads for smaller problem size if no positivity constraint
+    int max_threads = omp_get_max_threads();
+    if(reconparams.Positivity==0) {
+        k = ((Nx < Ny) ? Nx : Ny) / (2*SVLength+1) * SV_per_Z;
+        max_threads = (k < max_threads) ? k : max_threads ;
+    }
+
+    #pragma omp parallel num_threads(max_threads)
     {
         while(stop_FLAG==0 && equits<MaxIterations && iter<100*MaxIterations)
         {
@@ -326,12 +334,29 @@ void MBIRReconstruct(
 
             for (group = 0; group < 4; group++)
             {
-                #pragma omp for schedule(dynamic)  reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
-                for (jj = startIndex; jj < endIndex; jj+=1)
-                    super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,
-                            &phaseMap[0],order,&indexList[0],weight,sinoerr,A_Padded_Map,&Aval_max_ptr[0],
-                            &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,proximalmap_loc,
-                            &group_id_list[0][0],group);
+                if(iter%2 == 1 && reconparams.Positivity==0)
+                {   // Non-homogeneous update + no positivity constraint
+                    // SJK: using static scheduling for non-homogeneous case because
+                    // structural features can cause spatial alignment among SVs at
+                    // the top of the priority queue. Dynamic scheduling will tend to
+                    // schedule these at the same time--bad because of potential instability
+                    // in the case positivity constraint is turned off
+                    #pragma omp for schedule(static) reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
+                    for (jj = startIndex; jj < endIndex; jj+=1)
+                        super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,
+                                &phaseMap[0],order,&indexList[0],weight,sinoerr,A_Padded_Map,&Aval_max_ptr[0],
+                                &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,proximalmap_loc,
+                                &group_id_list[0][0],group);
+                }
+                else  // iter%2==0 Homogeneous update
+                {
+                    #pragma omp for schedule(dynamic) reduction(+:NumUpdates) reduction(+:totalValue) reduction(+:totalChange)
+                    for (jj = startIndex; jj < endIndex; jj+=1)
+                        super_voxel_recon(jj,svpar,&NumUpdates,&totalValue,&totalChange,iter,
+                                &phaseMap[0],order,&indexList[0],weight,sinoerr,A_Padded_Map,&Aval_max_ptr[0],
+                                &headNodeArray[0],sinoparams,reconparams,param_ext,image,imgparams,proximalmap_loc,
+                                &group_id_list[0][0],group);
+                }
             }
 
             #pragma omp single
