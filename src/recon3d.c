@@ -680,6 +680,11 @@ void super_voxel_recon(
     if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
         tempProxMap = (float *) mget_spc(SV_depth_modified,sizeof(float));
 
+    int update_buffer_length = (2*SVLength+1)*(2*SVLength+1)*SV_depth_modified;
+    float * update_buffer = (float *) mget_spc(update_buffer_length,sizeof(float));
+    for(p=0;p<update_buffer_length;p++)
+        update_buffer[p] = 0.0;
+
     for(i=0;i<countNumber;i++)
     {
         const short j_new = j_newCoordinate[i];   /*XW: get the voxel's x,y location*/
@@ -794,8 +799,14 @@ void super_voxel_recon(
                 image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = ((pixel < 0.0) ? 0.0 : pixel);
             else
                 image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = pixel;
-
             diff[currentSlice] = image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] - tempV[currentSlice];
+
+            /* buffer pixel updates; write out after along with error sino update */
+            if(PositivityFlag)
+                update_buffer[currentSlice*SV_depth_modified + theVoxelPosition] = ((pixel < 0.0) ? 0.0 : pixel);
+            else
+                update_buffer[currentSlice*SV_depth_modified + theVoxelPosition] = pixel;
+            diff[currentSlice] = update_buffer[currentSlice*SV_depth_modified + theVoxelPosition] - tempV[currentSlice];
 
             totalChange_loc += fabs(diff[currentSlice]);
             totalValue_loc += fabs(tempV[currentSlice]);
@@ -831,6 +842,7 @@ void super_voxel_recon(
     free((void *)zero_skip_FLAG);
     if(reconparams.ReconType == MBIR_MODULAR_RECONTYPE_PandP)
         free((void *)tempProxMap);
+    free((void *)update_buffer);
 
     for (p = 0; p < NViewSets; p++)
         free((void *)newWArrayTransposed[p]);
@@ -855,6 +867,16 @@ void super_voxel_recon(
     for (p = 0; p < NViewSets; p++)
         free((void *)newEArrayTransposed[p]);
     free((void **)newEArrayTransposed);
+
+
+    /* update pixels from buffer */
+    for(currentSlice=0;currentSlice<SV_depth_modified;currentSlice++)
+    {
+            image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = 
+            update_buffer[currentSlice*SV_depth_modified + theVoxelPosition];
+
+    }
+
 
     for (p = 0; p < NViewSets; p++)      /*XW: update the error term in the memory buffer*/
     {
