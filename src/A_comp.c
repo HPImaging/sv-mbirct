@@ -241,6 +241,7 @@ void A_comp_ij(
     int i, k, pr, ind_min, ind_max, pix_prof_ind, proj_count;
     float Aval, t_min, t_max, ang, x, y;
     float t, const1, const2, const3, const4;
+    float t_pix;
 
     float Deltaxy = imgparams->Deltaxy;
     int NChannels = sinoparams->NChannels;
@@ -296,8 +297,9 @@ void A_comp_ij(
         ang = sinoparams->ViewAngles[pr];
 
         /* range for pixel profile.  Need profile to contain 2 pixel widths */
-        t_min = y*cos(ang) - x*sin(ang) - Deltaxy;
-        t_max = t_min + 2.0*Deltaxy;
+        t_pix = y*cos(ang) - x*sin(ang);
+        t_min = t_pix - Deltaxy;
+        t_max = t_pix + Deltaxy;
 
         /* Relevant detector indices */
         ind_min = ceil((t_min-t_0)/DeltaChannel - 0.5);
@@ -328,9 +330,10 @@ void A_comp_ij(
             for (k = 0; k < LEN_DET; k++)
             {
                 t = const1 + (float)i*DeltaChannel + (float)k*const2;
-                pix_prof_ind = (t+const3)*const4 +0.5;   /* +0.5 for rounding */
-                if (pix_prof_ind >= 0 && pix_prof_ind < LEN_PIX)
-                    Aval += dprof[k]*pix_prof[pr][pix_prof_ind];
+                //pix_prof_ind = (t+const3)*const4 +0.5;   /* +0.5 for rounding */
+                //if (pix_prof_ind >= 0 && pix_prof_ind < LEN_PIX)
+                //    Aval += dprof[k]*pix_prof[pr][pix_prof_ind];
+                Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, ang, t-t_pix);
             }
             #else
             /*** this block computes zero-beam-width projection model ****/
@@ -671,7 +674,8 @@ void A_comp(
     AVal_arr = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, Ny, Nx);
 
     //float **pix_prof = ComputePixelProfile3DParallel(sinoparams,imgparams);
-    float **pix_prof = ComputePixelProfile3DParallel_new(sinoparams,imgparams);
+    //float **pix_prof = ComputePixelProfile3DParallel_new(sinoparams,imgparams);
+    float **pix_prof = ComputePixelProfLookup(imgparams->Deltaxy);
 
     //struct timeval tm1,tm2;
     //unsigned long long tdiff;
