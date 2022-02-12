@@ -19,6 +19,138 @@
                     /* In this implementation, spatial resolution is : [2*PixelDimension/LEN_PIX]^(-1) */
 #define LEN_DET 101 /* Each detector channel is "split" into LEN_DET sub-elements ... */
                     /* to account for detector sensitivity variation across its aperture */
+#define LEN_ANG 511 /* Number of angles in pixel projection lookup table */
+
+#define PI 3.1415926535897932384
+
+/* internal declarations */
+double angle_mod(double theta, double lower, double upper);
+
+/*********************************************************************/
+/* Compute line segment length through a square pixel of unit size.  */
+/* Inputs:                                                           */
+/*    angle : (float) angle of line segment (rad)                    */
+/*    t     : (float) displacement of line segment from pixel center */
+/* Returns:                                                          */
+/*    prof  : (float) segment length                                 */
+/**********************************************************************/
+float UnitPixelProj(float angle, float t)
+{
+    float radius = 0.7071067811865476;  /* sqrt(2)/2 radius of circumscribing circle */
+    float proj,d1,d2,tmag;
+
+    /* Translate angle to [-pi/4,pi/4] */
+    angle = angle_mod(angle,-PI/4.0,PI/4.0);
+
+    /* Projection through pixel is nonzero only when |t| is in [0,d2] */
+    /* |t|=d1 is the inflection point. Should always have 0<=d1<=d2 */
+    if(angle>0) {
+        d1 = radius*cos(angle + PI/4.0);
+        d2 = radius*cos(angle - PI/4.0);
+    }
+    else {
+        d1 = radius*cos(angle - PI/4.0);
+        d2 = radius*cos(angle + PI/4.0);
+    }
+
+    tmag = fabs(t);
+    if(tmag >= d2)
+        proj = 0.0;
+    else if (tmag <= d1)
+        proj = 1.0/cos(angle);
+    else
+        proj = 1.0/cos(angle) * (d2-tmag)/(d2-d1);
+
+    return proj;
+}
+
+/***************************************************************************/
+/* Create pixel profile lookup table pix_prof[i][j], which is the segment  */
+/* length through a pixel of size Deltaxy, the segment having angle,       */
+/*     angle = (pi/2)(i/N_angle), and distance t from pixel center,        */
+/*     t = Deltaxy*(j/N_t)                                                 */
+/* Inputs:                                                                 */
+/*    (float) Deltaxy  : length of square pixel sides in arbitrary units   */
+/* Returns:                                                                */
+/*    (float **) pix_prof : pointer to lookup table                        */
+/***************************************************************************/
+float **ComputePixelProfLookup(float Deltaxy)
+{
+    int i,j;
+    float angle,t;
+    float **pix_prof;
+
+    pix_prof = (float **)get_img(LEN_PIX, LEN_ANG, sizeof(float));
+
+    for (i = 0; i < LEN_ANG; i++) {
+
+        angle = (PI/2.0)/LEN_ANG * i;
+
+        for (j = 0; j < LEN_PIX; j++) {
+            t = 1.0/LEN_PIX * j;
+            pix_prof[i][j] = Deltaxy * UnitPixelProj(angle, t);
+        }
+    }
+    return pix_prof;
+}
+
+/******************************************************************/
+/* Retrieve line segment length through square pixel using lookup */
+/* table (see above). Takes care of computing lookup indices.     */
+/* Inputs:                                                        */
+/*    pix_prof : (float **) lookup table (see above)              */
+/*    Deltaxy  : length of pixel side, arbitrary units            */
+/*    angle  : angle of line segment (rad)                        */
+/*    t      : distance of line segment from pixel center         */
+/* Returns:                                                       */
+/*    proj  : segment length                                      */
+/******************************************************************/
+float PixProjLookup(float **pix_prof, float Deltaxy, float angle, float t)
+{
+    int i_ang, i_t;
+    float proj;
+
+    /* Translate angle to [0,pi/2] for pix_prof lookup */
+    angle = angle_mod(angle,0.0,PI/2.0);
+
+    i_ang = (int) (angle/(PI/2.0)*LEN_ANG + 0.5);
+    if(i_ang == LEN_ANG) i_ang = 0;   /* wrap pi/2 to zero */
+
+    i_t = (int) (fabs(t)/Deltaxy*LEN_PIX + 0.5);
+    if(i_t >= LEN_PIX)
+        proj = 0.0;
+    else
+        proj = pix_prof[i_ang][i_t];
+
+    return proj;
+}
+
+/*************************************************************/
+/* Temporary replacement for ComputePixelProfile3DParallel() */
+/* that uses new UnitPixelProj() function                    */
+/*************************************************************/
+float **ComputePixelProfile3DParallel_new(
+    struct SinoParams3DParallel *sinoparams,
+    struct ImageParams3D *imgparams)
+{
+    int i,j;
+    float angle,t;
+    float **pix_prof;
+
+    pix_prof = (float **)get_img(LEN_PIX, sinoparams->NViews, sizeof(float));
+
+    for (i = 0; i < sinoparams->NViews; i++)
+    for (j = 0; j < LEN_PIX; j++)
+    {
+        t = -1.0 + 2.0*j/(float)LEN_PIX;
+        angle = sinoparams->ViewAngles[i];
+        pix_prof[i][j] = imgparams->Deltaxy * UnitPixelProj(angle, t);
+    }
+
+    return pix_prof;
+}
+
+
 
 /******************************************************************/
 /* Compute line segment lengths through a pixel for the given set */
@@ -538,7 +670,8 @@ void A_comp(
     ACol_arr = (struct ACol **)multialloc(sizeof(struct ACol), 2, Ny, Nx);
     AVal_arr = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, Ny, Nx);
 
-    float **pix_prof = ComputePixelProfile3DParallel(sinoparams,imgparams);
+    //float **pix_prof = ComputePixelProfile3DParallel(sinoparams,imgparams);
+    float **pix_prof = ComputePixelProfile3DParallel_new(sinoparams,imgparams);
 
     //struct timeval tm1,tm2;
     //unsigned long long tdiff;
@@ -786,5 +919,24 @@ void AmatrixComputeToFile(
     free((void *)Aval_max_ptr);
     free((void *)ImageReconMask);
 
+}
+
+
+/*********************************************************/
+/* Use "fmod" to translate angle to range [lower,upper]  */
+/* Ex. angle_mod(pi/2,-pi/4,pi/4) -> 0                   */
+/* Ex. angle_mod(pi+delta,0,pi/2) -> delta               */
+/*   ** much faster than using while loops **            */
+/*********************************************************/
+double angle_mod(double theta, double lower, double upper)
+{
+    double x,z,interval;
+    interval = upper-lower;
+    x = theta-lower;
+    z = fmod(x,interval);
+    if(x<0)
+        z += interval;  // deal w/ how fmod handles negative inputs
+
+    return z + lower;
 }
 
