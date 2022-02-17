@@ -1,4 +1,4 @@
-Geometry : 3DPARALLEL
+Geometry : parallel
 NChannels: 512
 NViews: 288
 NSlices: 1

@@ -19,11 +19,13 @@
 /* 3D Sinogram Parameters */
 struct SinoParams3DParallel
 {
+    int Geometry;          /* 0:parallel, 1:fanbeam */
     int NChannels;         /* Number of channels in detector */
     float DeltaChannel;    /* Detector spacing */
-    float CenterOffset;    /* Offset of center-of-rotation ... */
-                           /* Computed from center of detector in increasing direction (no. of channels) */
-                           /* This can be fractional though */
+    float CenterOffset;    /* Offset of center-of-rotation, computed from center of detector in */
+                           /*   increasing direction (fractional no. of channels) */
+    float DistSourceDetector; /* (fanbeam only) Distance from source to detectors */
+    float Magnification;   /* (fanbeam only) magnification = dist_source_detector / dist_source_isocenter */
     int NViews;            /* Number of view angles */
     float *ViewAngles;     /* Array of NTheta view angle entries in degrees */
     int NSlices;           /* Number of rows (slices) stored in Sino array */

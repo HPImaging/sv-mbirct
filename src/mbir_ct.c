@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 
     readCmdLine(argc, argv, &cmdline);
     if(cmdline.verboseLevel) {
-        fprintf(stdout,"SUPER-VOXEL MBIR RECONSTRUCTION FOR 3D PARALLEL-BEAM CT\n");
+        fprintf(stdout,"SUPER-VOXEL MBIR CT RECONSTRUCTION\n");
         fprintf(stdout,"%s -- build time: %s, %s\n", argv[0], __DATE__,  __TIME__);
     }
     procCmdLine(argc, argv, &cmdline);

@@ -12,8 +12,6 @@
 #include <sys/time.h>
 #endif
 
-#define FAN
-
 /* Pixel profile params */
 #define LEN_DET 101 /* Number of sampling points across each detector element in computing A coeffs */
                     /* --set to "1" to include only the ray hitting center of detector */
@@ -142,6 +140,7 @@ void A_comp_ij(
     float t_0, x_0, y_0, x, y, ang;
     float t, t_pix, t_min, t_max, t_start;
     float Aval, detSampleD;
+    float r_sd, r_si, x_s, y_s, theta, alpha, D;
 
     float Deltaxy = imgparams->Deltaxy;
     int NChannels = sinoparams->NChannels;
@@ -167,15 +166,15 @@ void A_comp_ij(
         */
     }
 
-#ifdef FAN
-    // r_si,r_sd need to be added as sinogram parameters
-    float r_si = 2.0*Deltaxy*imgparams->Nx;
-    float r_sd = 2.0*r_si;
-    DeltaChannel = sinoparams->DeltaChannel / r_sd;   /* radians */
-    // For fanbeam "DeltaChannel" and "t" are in units of radians
-#else
-    DeltaChannel = sinoparams->DeltaChannel;
-#endif
+    if(sinoparams->Geometry == 1)   // fanbeam
+    {
+        r_sd = sinoparams->DistSourceDetector;
+        r_si = r_sd / sinoparams->Magnification;
+        // For fanbeam, "DeltaChannel" and "t" are in units of radians
+        DeltaChannel = sinoparams->DeltaChannel / r_sd;   /* radians */
+    }
+    else    // parallel beam
+        DeltaChannel = sinoparams->DeltaChannel;
 
     /* sampling interval for detector in computing wide-beam coefficient */
     if(LEN_DET > 1)
@@ -197,23 +196,26 @@ void A_comp_ij(
         int write=1;
         int minCount=0;
 
-#ifdef FAN
-        float x_s = r_si * cos(sinoparams->ViewAngles[pr]);
-        float y_s = r_si * sin(sinoparams->ViewAngles[pr]);
-        float theta = atan2(y_s-y, x_s-x);
-        float alpha = theta - sinoparams->ViewAngles[pr];
-        float D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
+        if(sinoparams->Geometry == 1)
+        {
+            x_s = r_si * cos(sinoparams->ViewAngles[pr]);
+            y_s = r_si * sin(sinoparams->ViewAngles[pr]);
+            theta = atan2(y_s-y, x_s-x);
+            alpha = theta - sinoparams->ViewAngles[pr];
+            D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
 
-        t_min = alpha - Deltaxy/D;
-        t_max = t_min + 2.0*Deltaxy/D;
-#else
-        ang = sinoparams->ViewAngles[pr];
+            t_min = alpha - Deltaxy/D;
+            t_max = t_min + 2.0*Deltaxy/D;
+        }
+        else
+        {
+            ang = sinoparams->ViewAngles[pr];
 
-        /* range for pixel profile.  Need profile to contain 2 pixel widths */
-        t_pix = y*cos(ang) - x*sin(ang);
-        t_min = t_pix - Deltaxy;
-        t_max = t_pix + Deltaxy;
-#endif
+            /* t_min,t_max is range for pixel profile */
+            t_pix = y*cos(ang) - x*sin(ang);
+            t_min = t_pix - Deltaxy;
+            t_max = t_pix + Deltaxy;
+        }
 
         /* Relevant detector indices */
         ind_min = ceil((t_min-t_0)/DeltaChannel - 0.5);
@@ -239,11 +241,10 @@ void A_comp_ij(
             for (k = 0; k < LEN_DET; k++)
             {
                 t = t_start + k*detSampleD;
-#ifdef FAN
-                Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, theta, (t-alpha)*D);
-#else
-                Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, ang, t-t_pix);
-#endif
+                if(sinoparams->Geometry == 1)
+                    Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, theta, (t-alpha)*D);
+                else
+                    Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, ang, t-t_pix);
             }
 
             if (Aval > 0.0)
