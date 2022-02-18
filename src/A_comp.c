@@ -201,7 +201,7 @@ void A_comp_ij(
             x_s = r_si * cos(sinoparams->ViewAngles[pr]);
             y_s = r_si * sin(sinoparams->ViewAngles[pr]);
             theta = atan2(y_s-y, x_s-x);
-            alpha = theta - sinoparams->ViewAngles[pr];
+            alpha = angle_mod(theta - sinoparams->ViewAngles[pr],-PI,PI);
             D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
 
             t_min = alpha - Deltaxy/D;
@@ -817,12 +817,14 @@ void AmatrixComputeToFile(
 }
 
 
-/*********************************************************/
-/* Use "fmod" to translate angle to range [lower,upper]  */
-/* Ex. angle_mod(pi/2,-pi/4,pi/4) -> 0                   */
-/* Ex. angle_mod(pi+delta,0,pi/2) -> delta               */
-/*   ** much faster than using while loops **            */
-/*********************************************************/
+/********************************************************************/
+/* Use "fmod" to translate angle to range [lower,upper]             */
+/*   phi = angle_mod(theta,lower,upper), then                       */
+/*      phi = theta + i*(upper-lower), s.t. phi is in [lower,upper] */
+/* Ex. angle_mod(theta,-pi,pi) -> theta in principal reg. [-pi,pi]  */
+/* Ex. angle_mod(pi+delta,0,pi/2) -> delta                          */
+/*   ** note fmod much faster than using while loops **             */
+/********************************************************************/
 double angle_mod(double theta, double lower, double upper)
 {
     double x,z,interval;
