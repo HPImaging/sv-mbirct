@@ -51,6 +51,8 @@ int ReadSinoParams3DParallel(
 	sinoparams->FirstSliceNumber=-1;	/* slice index coresponding to first slice in volume */
 	sinoparams->DeltaSlice=0.0;	/* Spacing along slice direction */
 	sinoparams->CenterOffset=0.0;	/* Offset of center-of-rotation ... */
+	sinoparams->DistSourceDetector=-1.0;	/* (fanbeam only) distance from source to detectors */
+	sinoparams->Magnification=-1.0;		/* (fanbeam only) source-dist-to-detectors / source-dist-to-isocenter */
 
 	strcpy(fname,basename);
 	strcat(fname,".sinoparams"); /* append file extension */
@@ -84,7 +86,11 @@ int ReadSinoParams3DParallel(
 		if(strcmp(fieldname,"Geometry")==0)
 		{
 			Geometry_flag=1;
-			if(strcmp(fieldval_s,"3DPARALLEL")!=0) {
+			if(strcmp(fieldval_s,"parallel")==0)
+				sinoparams->Geometry = 0;
+			else if(strcmp(fieldval_s,"fan")==0)
+				sinoparams->Geometry = 1;
+			else {
 				fprintf(stderr,"Error in %s: Geometry value \"%s\" unrecognized\n",fname,fieldval_s);
 				exit(-1);
 			}
@@ -108,6 +114,14 @@ int ReadSinoParams3DParallel(
 		else if(strcmp(fieldname,"CenterOffset")==0)
 		{
 			sscanf(fieldval_s,"%f",&(sinoparams->CenterOffset));
+		}
+		else if(strcmp(fieldname,"DistSourceDetector")==0)
+		{
+			sscanf(fieldval_s,"%f",&(sinoparams->DistSourceDetector));
+		}
+		else if(strcmp(fieldname,"Magnification")==0)
+		{
+			sscanf(fieldval_s,"%f",&(sinoparams->Magnification));
 		}
 		else if(strcmp(fieldname,"DeltaSlice")==0)
 		{
@@ -133,6 +147,12 @@ int ReadSinoParams3DParallel(
 	if(Geometry_flag==0) {
 		fprintf(stderr,"Error in %s: \"Geometry\" field unspecified\n",fname);
 		exit(-1);
+	}
+	if(sinoparams->Geometry == 1) {
+		if(sinoparams->DistSourceDetector < 0.0 || sinoparams->Magnification < 0.0) {
+			fprintf(stderr,"Error in %s: Invalid/unspecified DistSourceDetector or Magnification\n",fname);
+			exit(-1);
+		}
 	}
 	if(sinoparams->NViews<=0 || sinoparams->NChannels<=0 || sinoparams->NSlices<=0) {
 		printSinoParams3DParallel(sinoparams);

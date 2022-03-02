@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,83 +13,115 @@
 #endif
 
 /* Pixel profile params */
-#define WIDE_BEAM   /* Finite element analysis of detector channel, accounts for sensitivity variation across its aperture */
-#define LEN_PIX 511 /* determines the spatial resolution for Detector-Pixel computation. Higher LEN_PIX, higher resolution */
-                    /* In this implementation, spatial resolution is : [2*PixelDimension/LEN_PIX]^(-1) */
-#define LEN_DET 101 /* Each detector channel is "split" into LEN_DET sub-elements ... */
-                    /* to account for detector sensitivity variation across its aperture */
+#define LEN_DET 101 /* Number of sampling points across each detector element in computing A coeffs */
+                    /* --set to "1" to include only the ray hitting center of detector */
+#define LEN_PIX 511 /* Number of translations in pixel projection lookup table */
+#define LEN_ANG 511 /* Number of angles in pixel projection lookup table */
 
-/******************************************************************/
-/* Compute line segment lengths through a pixel for the given set */
-/* of sinogram angles and for multiple displacements (LEN_PIX)    */
-/******************************************************************/
-/* Fill profiles of pixels from all angles
-   ONLY FOR SQUARE PIXELS NOW   
-   Each profile assumed 2 pixels wide
-   This is used to speed calculation (too many to store) of the
-   entries of the projection matrix.
-   Values are scaled by "scale"
- */
+#define PI 3.1415926535897932384
 
+/* internal declarations */
+double angle_mod(double theta, double lower, double upper);
 
-/* The System matrix does not vary with slice for 3-D Parallel Geometry */
-/* So, the method of compuatation is same as that of 2-D Parallel Geometry */
-
-float **ComputePixelProfile3DParallel(
-    struct SinoParams3DParallel *sinoparams,
-    struct ImageParams3D *imgparams)
+/*********************************************************************/
+/* Compute line segment length through a square pixel of unit size.  */
+/* Inputs:                                                           */
+/*    angle : (float) angle of line segment (rad)                    */
+/*    t     : (float) displacement of line segment from pixel center */
+/* Returns:                                                          */
+/*    prof  : (float) segment length                                 */
+/**********************************************************************/
+float UnitPixelProj(float angle, float t)
 {
-    int i, j;
-    float pi, ang, d1, d2, t, t_1, t_2, t_3, t_4, maxval, rc;
-    float **pix_prof ; /* Detector-pixel profile, indexed by view angle and detector-pixel displacement */
+    float radius = 0.7071067811865476;  /* sqrt(2)/2 radius of circumscribing circle */
+    float proj,d1,d2,tmag;
 
-    pix_prof = (float **)get_img(LEN_PIX, sinoparams->NViews, sizeof(float));
+    /* Translate angle to [-pi/4,pi/4] */
+    angle = angle_mod(angle,-PI/4.0,PI/4.0);
 
-    pi = PI;
-    rc = sin(pi/4.0);
-
-    /* Compute 3 parameters of the profile function */
-    /* Here the corresponding parameters are : maxval, d1 and d2 */
-
-    for (i = 0; i < sinoparams->NViews; i++)
-    {
-        ang = sinoparams->ViewAngles[i];
-
-        while(ang >= pi/2.0)
-            ang -= pi/2.0;
-        while(ang < 0.0)
-            ang += pi/2.0;
-
-        if (ang <= pi/4.0)
-            maxval = imgparams->Deltaxy/cos(ang);
-        else
-            maxval = imgparams->Deltaxy/cos(pi/2.0-ang);
-
-        d1 = rc*cos(pi/4.0-ang);
-        d2 = rc*fabs(sin(pi/4.0-ang));
-
-        t_1 = 1.0 - d1;
-        t_2 = 1.0 - d2;
-        t_3 = 1.0 + d2;
-        t_4 = 1.0 + d1;
-
-        /* Profile is a trapezoidal function of detector-pixel displacement*/
-        for (j = 0; j < LEN_PIX; j++)
-        {
-            t = 2.0*j/(float)LEN_PIX;
-            if(t <= t_1 || t > t_4)
-                pix_prof[i][j] = 0.0;
-            else if(t <= t_2)
-                pix_prof[i][j] = maxval*(t-t_1)/(t_2-t_1);
-            else if(t <= t_3)
-                pix_prof[i][j] = maxval;
-            else
-                pix_prof[i][j] = maxval*(t_4-t)/(t_4-t_3);
-        }
+    /* Projection through pixel is nonzero only when |t| is in [0,d2] */
+    /* |t|=d1 is the inflection point. Should always have 0<=d1<=d2 */
+    if(angle>0) {
+        d1 = radius*cos(angle + PI/4.0);
+        d2 = radius*cos(angle - PI/4.0);
+    }
+    else {
+        d1 = radius*cos(angle - PI/4.0);
+        d2 = radius*cos(angle + PI/4.0);
     }
 
+    tmag = fabs(t);
+    if(tmag >= d2)
+        proj = 0.0;
+    else if (tmag <= d1)
+        proj = 1.0/cos(angle);
+    else
+        proj = 1.0/cos(angle) * (d2-tmag)/(d2-d1);
+
+    return proj;
+}
+
+/***************************************************************************/
+/* Create pixel profile lookup table pix_prof[i][j], which is the segment  */
+/* length through a pixel of size Deltaxy, the segment having angle,       */
+/*     angle = (pi/2)(i/N_angle), and distance t from pixel center,        */
+/*     t = Deltaxy*(j/N_t)                                                 */
+/* Inputs:                                                                 */
+/*    (float) Deltaxy  : length of square pixel sides in arbitrary units   */
+/* Returns:                                                                */
+/*    (float **) pix_prof : pointer to lookup table                        */
+/***************************************************************************/
+float **ComputePixelProfLookup(float Deltaxy)
+{
+    int i,j;
+    float angle,t;
+    float **pix_prof;
+
+    pix_prof = (float **)get_img(LEN_PIX, LEN_ANG, sizeof(float));
+
+    for (i = 0; i < LEN_ANG; i++) {
+
+        angle = (PI/2.0)/LEN_ANG * i;
+
+        for (j = 0; j < LEN_PIX; j++) {
+            t = 1.0/LEN_PIX * j;
+            pix_prof[i][j] = Deltaxy * UnitPixelProj(angle, t);
+        }
+    }
     return pix_prof;
 }
+
+/******************************************************************/
+/* Retrieve line segment length through square pixel using lookup */
+/* table (see above). Takes care of computing lookup indices.     */
+/* Inputs:                                                        */
+/*    pix_prof : (float **) lookup table (see above)              */
+/*    Deltaxy  : length of pixel side, arbitrary units            */
+/*    angle  : angle of line segment (rad)                        */
+/*    t      : distance of line segment from pixel center         */
+/* Returns:                                                       */
+/*    proj  : segment length                                      */
+/******************************************************************/
+float PixProjLookup(float **pix_prof, float Deltaxy, float angle, float t)
+{
+    int i_ang, i_t;
+    float proj;
+
+    /* Translate angle to [0,pi/2] for pix_prof lookup */
+    angle = angle_mod(angle,0.0,PI/2.0);
+
+    i_ang = (int) (angle/(PI/2.0)*LEN_ANG + 0.5);
+    if(i_ang == LEN_ANG) i_ang = 0;   /* wrap pi/2 to zero */
+
+    i_t = (int) (fabs(t)/Deltaxy*LEN_PIX + 0.5);
+    if(i_t >= LEN_PIX)
+        proj = 0.0;
+    else
+        proj = pix_prof[i_ang][i_t];
+
+    return proj;
+}
+
 
 
 /* Compute the System Matrix column for a given pixel */
@@ -105,47 +136,51 @@ void A_comp_ij(
 {
     static int first_call=1;
     static float dprof[LEN_DET];
-    float t_0, x_0, y_0;
-    int i, k, pr, ind_min, ind_max, pix_prof_ind, proj_count;
-    float Aval, t_min, t_max, ang, x, y;
-    float t, const1, const2, const3, const4;
+    int i, k, pr, ind_min, ind_max, proj_count;
+    float t_0, x_0, y_0, x, y, ang;
+    float t, t_pix, t_min, t_max, t_start;
+    float Aval, detSampleD;
+    float r_sd, r_si, x_s, y_s, theta, alpha, D;
 
     float Deltaxy = imgparams->Deltaxy;
     int NChannels = sinoparams->NChannels;
-    float DeltaChannel = sinoparams->DeltaChannel;
+    float DeltaChannel;
 
     if (first_call == 1)
     {
         first_call = 0;
 
-        /* delta profile */
-        /*
-        for(k=0;k<LEN_DET;k++)
-        dprof[k] =0;
-        dprof[(LEN_DET-1)/2]=1.0;
-        */
-
-        /* square profile */
+        /* square detector profile */
         for (k = 0; k < LEN_DET; k++)
             dprof[k] = 1.0/(LEN_DET);
 
-        /* triangular profile */
+        /*** triangular profile ***/
         /*
-        float sum=0;
-        for(k=0;k<LEN_DET;k++)
-        {
-            if(k<=(LEN_DET-1)/2)
-                dprof[k]=2.0*k/(LEN_DET-1);
-            else
-                dprof[k]=2.0*(LEN_DET-1-k)/(LEN_DET-1);
-            sum += dprof[k];
-        }
-        for(k=0;k<LEN_DET;k++)
-            dprof[k] /= sum;
+            float sum=0;
+            for(k=0;k<LEN_DET;k++) {
+                dprof[k] = 1.0 - fabs( (float)k - (LEN_DET-1)/2 )/((float)(LEN_DET-1)/2);
+                sum += dprof[k];
+            }
+            for(k=0;k<LEN_DET;k++)
+                dprof[k] /= sum;
         */
     }
 
-    /* WATCH THIS; ONLY FOR SQUARE PIXELS NOW   */
+    if(sinoparams->Geometry == 1)   // fanbeam
+    {
+        r_sd = sinoparams->DistSourceDetector;
+        r_si = r_sd / sinoparams->Magnification;
+        // For fanbeam, "DeltaChannel" and "t" are in units of radians
+        DeltaChannel = sinoparams->DeltaChannel / r_sd;   /* radians */
+    }
+    else    // parallel beam
+        DeltaChannel = sinoparams->DeltaChannel;
+
+    /* sampling interval for detector in computing wide-beam coefficient */
+    if(LEN_DET > 1)
+        detSampleD = DeltaChannel/(LEN_DET-1);
+    else
+        detSampleD = DeltaChannel/2.0;
 
     t_0 = -(NChannels-1)*DeltaChannel/2.0 - sinoparams->CenterOffset * DeltaChannel;
     x_0 = -(imgparams->Nx-1)*Deltaxy/2.0;
@@ -161,11 +196,26 @@ void A_comp_ij(
         int write=1;
         int minCount=0;
 
-        ang = sinoparams->ViewAngles[pr];
+        if(sinoparams->Geometry == 1)
+        {
+            x_s = r_si * cos(sinoparams->ViewAngles[pr]);
+            y_s = r_si * sin(sinoparams->ViewAngles[pr]);
+            theta = atan2(y_s-y, x_s-x);
+            alpha = angle_mod(theta - sinoparams->ViewAngles[pr],-PI,PI);
+            D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
 
-        /* range for pixel profile.  Need profile to contain 2 pixel widths */
-        t_min = y*cos(ang) - x*sin(ang) - Deltaxy;
-        t_max = t_min + 2.0*Deltaxy;
+            t_min = alpha - Deltaxy/D;
+            t_max = t_min + 2.0*Deltaxy/D;
+        }
+        else
+        {
+            ang = sinoparams->ViewAngles[pr];
+
+            /* t_min,t_max is range for pixel profile */
+            t_pix = y*cos(ang) - x*sin(ang);
+            t_min = t_pix - Deltaxy;
+            t_max = t_pix + Deltaxy;
+        }
 
         /* Relevant detector indices */
         ind_min = ceil((t_min-t_0)/DeltaChannel - 0.5);
@@ -183,41 +233,19 @@ void A_comp_ij(
         ind_min = (ind_min<0) ? 0 : ind_min;
         ind_max = (ind_max>=NChannels) ? NChannels-1 : ind_max;
 
-        const1 = t_0 - DeltaChannel/2.0;
-        const2 = DeltaChannel/(float)(LEN_DET-1);
-        const3 = Deltaxy - (y*cos(ang) - x*sin(ang));
-        const4 = (float)(LEN_PIX-1)/(2.0*Deltaxy);
-
         for (i = ind_min; i <= ind_max; i++)
         {
-            #ifdef WIDE_BEAM
             /* step through values of detector profile, inner product with PIX prof */
             Aval = 0;
+            t_start = t_0 - DeltaChannel/2.0 + i*DeltaChannel;
             for (k = 0; k < LEN_DET; k++)
             {
-                t = const1 + (float)i*DeltaChannel + (float)k*const2;
-                pix_prof_ind = (t+const3)*const4 +0.5;   /* +0.5 for rounding */
-                if (pix_prof_ind >= 0 && pix_prof_ind < LEN_PIX)
-                    Aval += dprof[k]*pix_prof[pr][pix_prof_ind];
-            }
-            #else
-            /*** this block computes zero-beam-width projection model ****/
-            int prof_ind = LEN_PIX*(t_0+i*DeltaChannel+const3)/(2.0*Deltaxy);
-
-            if (prof_ind >= LEN_PIX || prof_ind < 0)
-            {
-                if (prof_ind == LEN_PIX)
-                    prof_ind = LEN_PIX-1;
-                else if (prof_ind == -1)
-                    prof_ind = 0;
+                t = t_start + k*detSampleD;
+                if(sinoparams->Geometry == 1)
+                    Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, theta, (t-alpha)*D);
                 else
-                {
-                    fprintf(stderr,"A_comp_ij() Error: input parameters inconsistant\n");
-                    exit(-1);
-                }
+                    Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, ang, t-t_pix);
             }
-            Aval = pix_prof[pr][prof_ind];
-            #endif
 
             if (Aval > 0.0)
             {
@@ -538,7 +566,7 @@ void A_comp(
     ACol_arr = (struct ACol **)multialloc(sizeof(struct ACol), 2, Ny, Nx);
     AVal_arr = (struct AValues_char **)multialloc(sizeof(struct AValues_char), 2, Ny, Nx);
 
-    float **pix_prof = ComputePixelProfile3DParallel(sinoparams,imgparams);
+    float **pix_prof = ComputePixelProfLookup(imgparams->Deltaxy);
 
     //struct timeval tm1,tm2;
     //unsigned long long tdiff;
@@ -786,5 +814,26 @@ void AmatrixComputeToFile(
     free((void *)Aval_max_ptr);
     free((void *)ImageReconMask);
 
+}
+
+
+/********************************************************************/
+/* Use "fmod" to translate angle to range [lower,upper]             */
+/*   phi = angle_mod(theta,lower,upper), then                       */
+/*      phi = theta + i*(upper-lower), s.t. phi is in [lower,upper] */
+/* Ex. angle_mod(theta,-pi,pi) -> theta in principal reg. [-pi,pi]  */
+/* Ex. angle_mod(pi+delta,0,pi/2) -> delta                          */
+/*   ** note fmod much faster than using while loops **             */
+/********************************************************************/
+double angle_mod(double theta, double lower, double upper)
+{
+    double x,z,interval;
+    interval = upper-lower;
+    x = theta-lower;
+    z = fmod(x,interval);
+    if(x<0)
+        z += interval;  // deal w/ how fmod handles negative inputs
+
+    return z + lower;
 }
 

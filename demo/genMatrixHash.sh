@@ -52,7 +52,7 @@ fi
 # Pull the relevant parameter fields; remove spaces; sort to remove field order 
 # depencence; add views file; generate and truncate sha1 hash
 cat "$imgfile" "$sinofile" \
-  | grep -e Nx -e Ny -e Deltaxy -e ROIRadius -e NChannels -e NViews -e DeltaChannel -e CenterOffset \
+  | grep -e Nx -e Ny -e Deltaxy -e ROIRadius -e NChannels -e NViews -e DeltaChannel -e CenterOffset -e Geometry -e DistSourceDetector -e Magnification \
   | tr -d '[:blank:]' \
   | sort \
   | cat "$viewsfile" - \
