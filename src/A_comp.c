@@ -137,10 +137,10 @@ void A_comp_ij(
     static int first_call=1;
     static float dprof[LEN_DET];
     int i, k, pr, ind_min, ind_max, proj_count;
-    float t_0, x_0, y_0, x, y, ang;
-    float t, t_pix, t_min, t_max, t_start;
+    float t_0, x_0, y_0, x, y, ang=0.0;
+    float t, t_pix=0.0, t_min, t_max, t_start;
     float Aval, detSampleD;
-    float r_sd, r_si, x_s, y_s, theta, alpha, D;
+    float r_sd, r_si=1.0, x_s, y_s, theta=0.0, alpha=0.0, D=1.0;
 
     float Deltaxy = imgparams->Deltaxy;
     int NChannels = sinoparams->NChannels;
