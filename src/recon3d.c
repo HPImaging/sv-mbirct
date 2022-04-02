@@ -620,8 +620,8 @@ void super_voxel_recon(
         for(i=0;i<SV_depth_modified;i++)
         for(q=0;q<pieceLength;q++)
         {
-            memcpy(newWArrayPointer,&weight[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
-            memcpy(newEArrayPointer,&sinoerr[(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+            memcpy(newWArrayPointer,&weight[(size_t)(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
+            memcpy(newEArrayPointer,&sinoerr[(size_t)(startSlice+i)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]],sizeof(float)*(bandWidth[p]));
             newWArrayPointer+=bandWidth[p];
             newEArrayPointer+=bandWidth[p];
         }
@@ -867,7 +867,7 @@ void super_voxel_recon(
             //#pragma vector aligned
             for(q=0;q<pieceLength;q++)
             {
-                eArrayPointer=&sinoerr[(startSlice+currentSlice)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]];
+                eArrayPointer=&sinoerr[(size_t)(startSlice+currentSlice)*Nvc+p*pieceLength*sinoparams.NChannels+q*sinoparams.NChannels+bandMin[p*pieceLength+q]];
                 for(t=0;t<bandWidth[p];t++)
                 {
                     #pragma omp atomic
@@ -963,7 +963,7 @@ float MAPCostFunction3D(
     nloglike = 0.0;
     for (i = 0; i <sinoparams.NSlices; i++)
     for (j = 0; j < M; j++)
-        nloglike += e[i*M+j]*w[i*M+j]*e[i*M+j];
+        nloglike += e[(size_t)i*M+j]*w[(size_t)i*M+j]*e[(size_t)i*M+j];
 
     nloglike /= 2.0;
     nlogprior_nearest = 0.0;
@@ -984,13 +984,13 @@ float MAPCostFunction3D(
         plusz = ((plusz < Nz) ? plusz : 0);
 
         j = jy*Nx + jx;
-        x0 = x[jz*Nxy+j];
+        x0 = x[(size_t)jz*Nxy+j];
 
-        nlogprior_nearest += QGGMRF_Potential((x0-x[jz*Nxy+jy*Nx+plusx]),reconparams,param_ext);
-        nlogprior_nearest += QGGMRF_Potential((x0-x[jz*Nxy+plusy*Nx+jx]),reconparams,param_ext);
-        nlogprior_diag += QGGMRF_Potential((x0-x[jz*Nxy+plusy*Nx+minusx]),reconparams,param_ext);
-        nlogprior_diag += QGGMRF_Potential((x0-x[jz*Nxy+plusy*Nx+plusx]),reconparams,param_ext);
-        nlogprior_interslice += QGGMRF_Potential((x0-x[plusz*Nxy+jy*Nx+jx]),reconparams,param_ext);
+        nlogprior_nearest += QGGMRF_Potential((x0-x[(size_t)jz*Nxy+jy*Nx+plusx]),reconparams,param_ext);
+        nlogprior_nearest += QGGMRF_Potential((x0-x[(size_t)jz*Nxy+plusy*Nx+jx]),reconparams,param_ext);
+        nlogprior_diag += QGGMRF_Potential((x0-x[(size_t)jz*Nxy+plusy*Nx+minusx]),reconparams,param_ext);
+        nlogprior_diag += QGGMRF_Potential((x0-x[(size_t)jz*Nxy+plusy*Nx+plusx]),reconparams,param_ext);
+        nlogprior_interslice += QGGMRF_Potential((x0-x[(size_t)plusz*Nxy+jy*Nx+jx]),reconparams,param_ext);
     }
 
     return (nloglike + reconparams.b_nearest * nlogprior_nearest + reconparams.b_diag * nlogprior_diag + reconparams.b_interslice * nlogprior_interslice) ;
@@ -1064,7 +1064,7 @@ void SVproject(
                     for(k=0;k<pieceLength;k++)
                     {
                         channel_t bandMin = bandMinMap[SVPosition].bandMin[p*pieceLength+k];
-                        size_t proj_idx = jz*Nvc + position + k*NChannels + bandMin + r;
+                        size_t proj_idx = (size_t)jz*Nvc + position + k*NChannels + bandMin + r;
 
                         if((pieceWiseMin + bandMin + r) >= NChannels || (position + k*NChannels + bandMin + r) >= Nvc ) {
                             fprintf(stderr,"SVproject() out of bounds: p %d r %d k %d\n",p,r,k);
