@@ -354,6 +354,7 @@ void printReconParamsQGGMRF3D(struct ReconParams *reconparams)
     fprintf(stdout, " - Stop threshold for convergence                        = %.6f %%\n", reconparams->StopThreshold);
     fprintf(stdout, " - Maximum number of ICD iterations                      = %d\n", reconparams->MaxIterations);
     fprintf(stdout, " - Positivity constraint flag                            = %d\n", reconparams->Positivity);
+    fprintf(stdout, " - Relaxation Factor                                     = %.2f\n", reconparams->RelaxFactor);
 }
 /* Print PandP reconstruction parameters */
 void printReconParamsPandP(struct ReconParams *reconparams)
@@ -387,6 +388,7 @@ int ReadReconParams(
 	reconparams->StopThreshold=1.0;
 	reconparams->MaxIterations=20;
 	reconparams->Positivity=1;
+	reconparams->RelaxFactor=1.0;
 
 	reconparams->b_nearest=1.0;
 	reconparams->b_diag=0.707;
@@ -546,6 +548,14 @@ int ReadReconParams(
 				fprintf(stderr,"Warning in %s: \"Positivity\" parameter options are 0/1. Reverting to default.\n",fname);
 			else
 				reconparams->Positivity = fieldval_d;
+		}
+		else if(strcmp(fieldname,"RelaxFactor")==0)
+		{
+			sscanf(fieldval_s,"%lf",&(fieldval_f));
+			if((fieldval_f <= 0.0) || (fieldval_f > 2.0))
+				fprintf(stderr,"Warning in %s: RelaxFactor outside valid range. Reverting to default value 1.0.\n",fname);
+			else
+				reconparams->RelaxFactor = fieldval_f;
 		}
 		else
 			fprintf(stderr,"Warning: unrecognized field \"%s\" in %s, line %d\n",fieldname,fname,i+1);

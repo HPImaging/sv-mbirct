@@ -12,3 +12,4 @@ b_interslice: 1.0
 StopThreshold: 0.01
 MaxIterations: 20
 Positivity: 1
+RelaxFactor: 1.0

@@ -788,7 +788,7 @@ void super_voxel_recon(
                 exit(-1);
             }
 
-            pixel = tempV[currentSlice] + step;  /* can apply over-relaxation to the step size here */
+            pixel = tempV[currentSlice] + (reconparams.RelaxFactor)*step;
 
             if(PositivityFlag)
                 image[(size_t)(startSlice+currentSlice)*Nxy + j_new*Nx+k_new] = ((pixel < 0.0) ? 0.0 : pixel);

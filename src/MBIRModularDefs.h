@@ -74,8 +74,9 @@ struct ReconParams
   /* General parameters */
   float InitImageValue;  /* Initial Condition pixel value. In our examples usually chosen as ... */
   float StopThreshold;   /* Stopping threshold in percent */
-  int MaxIterations;      /* Maximum number of iterations */
-  char Positivity;         /* Positivity constraint: 1=yes, 0=no */
+  int MaxIterations;     /* Maximum number of iterations */
+  char Positivity;       /* Positivity constraint: 1=yes, 0=no */
+  float RelaxFactor;     /* over/under-relaxation factor, range (0,2.0) [default=1.0] */
   /* sinogram weighting */
   float SigmaY;          /* Scaling constant for sinogram weights (e.g. W=exp(-y)/SigmaY^2 ) */
   int weightType;         /* How to compute weights if internal, 1: uniform, 2: exp(-y); 3: exp(-y/2), 4: 1/(y+0.1) */
