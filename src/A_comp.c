@@ -140,7 +140,7 @@ void A_comp_ij(
     float t_0, x_0, y_0, x, y, ang=0.0;
     float t, t_pix=0.0, t_min, t_max, t_start;
     float Aval, detSampleD;
-    float r_sd, r_si=1.0, x_s, y_s, theta=0.0, alpha=0.0, D=1.0;
+    float r_sd, r_si=1.0, x_s, y_s, theta=0.0, alpha=0.0, D=1.0, M=1.0;
 
     float Deltaxy = imgparams->Deltaxy;
     int NChannels = sinoparams->NChannels;
@@ -166,12 +166,18 @@ void A_comp_ij(
         */
     }
 
-    if(sinoparams->Geometry == 1)   // fanbeam
+    if(sinoparams->Geometry == 1)   // fanbeam (curved array)
     {
         r_sd = sinoparams->DistSourceDetector;
         r_si = r_sd / sinoparams->Magnification;
-        // For fanbeam, "DeltaChannel" and "t" are in units of radians
+        // For curved fanbeam, "DeltaChannel" and "t" are in units of radians
         DeltaChannel = sinoparams->DeltaChannel / r_sd;   /* radians */
+    }
+    else if(sinoparams->Geometry == 2)   // fanbeam (flat array)
+    {
+        r_sd = sinoparams->DistSourceDetector;
+        r_si = r_sd / sinoparams->Magnification;
+        DeltaChannel = sinoparams->DeltaChannel;
     }
     else    // parallel beam
         DeltaChannel = sinoparams->DeltaChannel;
@@ -196,18 +202,29 @@ void A_comp_ij(
         int write=1;
         int minCount=0;
 
-        if(sinoparams->Geometry == 1)
+        if(sinoparams->Geometry == 1)   // fanbeam, curved
         {
             x_s = r_si * cos(sinoparams->ViewAngles[pr]);
             y_s = r_si * sin(sinoparams->ViewAngles[pr]);
             theta = atan2(y_s-y, x_s-x);
             alpha = angle_mod(theta - sinoparams->ViewAngles[pr],-PI,PI);
             D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
-
             t_min = alpha - Deltaxy/D;
             t_max = t_min + 2.0*Deltaxy/D;
         }
-        else
+        else if(sinoparams->Geometry == 2)  // fanbeam, flat
+        {
+            x_s = r_si * cos(sinoparams->ViewAngles[pr]);
+            y_s = r_si * sin(sinoparams->ViewAngles[pr]);
+            theta = atan2(y_s-y, x_s-x);
+            alpha = angle_mod(theta - sinoparams->ViewAngles[pr],-PI,PI);
+            D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
+            M = r_sd/cosf(alpha) / D;
+            t_pix = r_sd*tanf(alpha);
+            t_min = t_pix - Deltaxy*M;
+            t_max = t_pix + Deltaxy*M;
+        }
+        else    // parallel beam
         {
             ang = sinoparams->ViewAngles[pr];
 
@@ -241,9 +258,11 @@ void A_comp_ij(
             for (k = 0; k < LEN_DET; k++)
             {
                 t = t_start + k*detSampleD;
-                if(sinoparams->Geometry == 1)
+                if(sinoparams->Geometry == 1)   // fanbeam, curved
                     Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, theta, (t-alpha)*D);
-                else
+                else if(sinoparams->Geometry == 2)  // fanbeam, flat
+                    Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, theta, (t-t_pix)*cosf(alpha)/M);
+                else    // parallel beam
                     Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, ang, t-t_pix);
             }
 
