@@ -19,7 +19,7 @@
 /* 3D Sinogram Parameters */
 struct SinoParams3DParallel
 {
-    int Geometry;          /* 0:parallel, 1:fanbeam */
+    int Geometry;          /* 0:parallel, 1:fan-curved, 2:fan-flat */
     int NChannels;         /* Number of channels in detector */
     float DeltaChannel;    /* Detector spacing */
     float CenterOffset;    /* Offset of center-of-rotation, computed from center of detector in */
