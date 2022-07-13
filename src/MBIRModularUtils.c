@@ -88,8 +88,10 @@ int ReadSinoParams3DParallel(
 			Geometry_flag=1;
 			if(strcmp(fieldval_s,"parallel")==0)
 				sinoparams->Geometry = 0;
-			else if(strcmp(fieldval_s,"fan")==0)
+			else if(strcmp(fieldval_s,"fan-curved")==0)
 				sinoparams->Geometry = 1;
+			else if(strcmp(fieldval_s,"fan-flat")==0)
+				sinoparams->Geometry = 2;
 			else {
 				fprintf(stderr,"Error in %s: Geometry value \"%s\" unrecognized\n",fname,fieldval_s);
 				exit(-1);
@@ -148,7 +150,7 @@ int ReadSinoParams3DParallel(
 		fprintf(stderr,"Error in %s: \"Geometry\" field unspecified\n",fname);
 		exit(-1);
 	}
-	if(sinoparams->Geometry == 1) {
+	if(sinoparams->Geometry > 0) {
 		if(sinoparams->DistSourceDetector < 0.0 || sinoparams->Magnification < 0.0) {
 			fprintf(stderr,"Error in %s: Invalid/unspecified DistSourceDetector or Magnification\n",fname);
 			exit(-1);

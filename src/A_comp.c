@@ -42,21 +42,21 @@ float UnitPixelProj(float angle, float t)
     /* Projection through pixel is nonzero only when |t| is in [0,d2] */
     /* |t|=d1 is the inflection point. Should always have 0<=d1<=d2 */
     if(angle>0) {
-        d1 = radius*cos(angle + PI/4.0);
-        d2 = radius*cos(angle - PI/4.0);
+        d1 = radius*cosf(angle + PI/4.0);
+        d2 = radius*cosf(angle - PI/4.0);
     }
     else {
-        d1 = radius*cos(angle - PI/4.0);
-        d2 = radius*cos(angle + PI/4.0);
+        d1 = radius*cosf(angle - PI/4.0);
+        d2 = radius*cosf(angle + PI/4.0);
     }
 
     tmag = fabs(t);
     if(tmag >= d2)
         proj = 0.0;
     else if (tmag <= d1)
-        proj = 1.0/cos(angle);
+        proj = 1.0/cosf(angle);
     else
-        proj = 1.0/cos(angle) * (d2-tmag)/(d2-d1);
+        proj = 1.0/cosf(angle) * (d2-tmag)/(d2-d1);
 
     return proj;
 }
@@ -137,7 +137,7 @@ void A_comp_ij(
     static int first_call=1;
     static float dprof[LEN_DET];
     int i, k, pr, ind_min, ind_max, proj_count;
-    float t_0, x_0, y_0, x, y, ang=0.0;
+    float t_0, x_0, y_0, x, y;
     float t, t_pix=0.0, t_min, t_max, t_start;
     float Aval, detSampleD;
     float r_sd, r_si=1.0, x_s, y_s, theta=0.0, alpha=0.0, D=1.0, M=1.0;
@@ -166,21 +166,13 @@ void A_comp_ij(
         */
     }
 
+    r_sd = sinoparams->DistSourceDetector;
+    r_si = r_sd / sinoparams->Magnification;
+    DeltaChannel = sinoparams->DeltaChannel;
+
+    // For curved fanbeam, "DeltaChannel" and "t" are in units of radians
     if(sinoparams->Geometry == 1)   // fanbeam (curved array)
-    {
-        r_sd = sinoparams->DistSourceDetector;
-        r_si = r_sd / sinoparams->Magnification;
-        // For curved fanbeam, "DeltaChannel" and "t" are in units of radians
         DeltaChannel = sinoparams->DeltaChannel / r_sd;   /* radians */
-    }
-    else if(sinoparams->Geometry == 2)   // fanbeam (flat array)
-    {
-        r_sd = sinoparams->DistSourceDetector;
-        r_si = r_sd / sinoparams->Magnification;
-        DeltaChannel = sinoparams->DeltaChannel;
-    }
-    else    // parallel beam
-        DeltaChannel = sinoparams->DeltaChannel;
 
     /* sampling interval for detector in computing wide-beam coefficient */
     if(LEN_DET > 1)
@@ -201,23 +193,25 @@ void A_comp_ij(
         int countTemp=proj_count;
         int write=1;
         int minCount=0;
+        float view_angle = sinoparams->ViewAngles[pr];
 
         if(sinoparams->Geometry == 1)   // fanbeam, curved
         {
-            x_s = r_si * cos(sinoparams->ViewAngles[pr]);
-            y_s = r_si * sin(sinoparams->ViewAngles[pr]);
+            x_s = r_si * cosf(view_angle);
+            y_s = r_si * sinf(view_angle);
             theta = atan2(y_s-y, x_s-x);
-            alpha = angle_mod(theta - sinoparams->ViewAngles[pr],-PI,PI);
+            alpha = angle_mod(theta - view_angle,-PI,PI);
             D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
-            t_min = alpha - Deltaxy/D;
-            t_max = t_min + 2.0*Deltaxy/D;
+            t_pix = alpha;
+            t_min = t_pix - Deltaxy/D;
+            t_max = t_pix + Deltaxy/D;
         }
         else if(sinoparams->Geometry == 2)  // fanbeam, flat
         {
-            x_s = r_si * cos(sinoparams->ViewAngles[pr]);
-            y_s = r_si * sin(sinoparams->ViewAngles[pr]);
+            x_s = r_si * cosf(view_angle);
+            y_s = r_si * sinf(view_angle);
             theta = atan2(y_s-y, x_s-x);
-            alpha = angle_mod(theta - sinoparams->ViewAngles[pr],-PI,PI);
+            alpha = angle_mod(theta - view_angle,-PI,PI);
             D = sqrt((x_s-x)*(x_s-x) + (y_s-y)*(y_s-y));
             M = r_sd/cosf(alpha) / D;
             t_pix = r_sd*tanf(alpha);
@@ -226,10 +220,8 @@ void A_comp_ij(
         }
         else    // parallel beam
         {
-            ang = sinoparams->ViewAngles[pr];
-
             /* t_min,t_max is range for pixel profile */
-            t_pix = y*cos(ang) - x*sin(ang);
+            t_pix = y*cosf(view_angle) - x*sinf(view_angle);
             t_min = t_pix - Deltaxy;
             t_max = t_pix + Deltaxy;
         }
@@ -263,7 +255,7 @@ void A_comp_ij(
                 else if(sinoparams->Geometry == 2)  // fanbeam, flat
                     Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, theta, (t-t_pix)*cosf(alpha)/M);
                 else    // parallel beam
-                    Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, ang, t-t_pix);
+                    Aval += dprof[k]*PixProjLookup(pix_prof, Deltaxy, view_angle, t-t_pix);
             }
 
             if (Aval > 0.0)
