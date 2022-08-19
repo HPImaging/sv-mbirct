@@ -1,7 +1,7 @@
 # Change the compiler (e.g. icc,gcc,clang) in the following variable,
 # or provide an argument as "make CC=gcc". If provided, the argument will
 # cause the following CC variable definition to be ignored.
-CC = icc
+CC = gcc
 
 # common flags, libraries
 CFLAGS = -std=c11 -O3
