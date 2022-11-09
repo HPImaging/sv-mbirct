@@ -287,8 +287,8 @@ void MBIRReconstruct(
 
     // Limit threads for smaller problem size regardless of positivity constraint
     int max_threads = omp_get_max_threads();
-    i = ((Nx < Ny) ? Nx : Ny) / (2*SVLength+1) * (Nz/SVDEPTH);
-    i = ((i<1) ? 1 : i);
+    int max_of_num_slices_svdepth = ((Nz < SVDEPTH) ? Nz : SVDEPTH);
+    i = (((Nx < Ny) ? Nx : Ny) / (2*SVLength+1)) * (max_of_num_slices_svdepth/SVDEPTH);
     max_threads = ( i < max_threads) ? i : max_threads ;
     fprintf(stdout, "auto max_threads = %d\n", max_threads);
     #pragma omp parallel num_threads(max_threads)
