@@ -890,7 +890,7 @@ void super_voxel_recon(
     free((void *)bandWidth);
     free((void *)bandWidthTemp);
 
-    headNodeArray[jj_new].x=totalChange_loc;
+    headNodeArray[jj_new].x=totalChange_loc/SV_depth_modified;
     *NumUpdates += NumUpdates_loc;
     *totalValue += totalValue_loc;
     *totalChange += totalChange_loc;
