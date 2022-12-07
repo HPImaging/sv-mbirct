@@ -107,7 +107,7 @@ void MBIRReconstruct(
     Aval_max_ptr = (float *) mget_spc(Nx*Ny,sizeof(float));
     if(Amatrix_fname != NULL)
     {
-        if(verboseLevel)
+        if(verboseLevel>1)
             fprintf(stdout,"Reading system matrix...\n");
         readAmatrix(Amatrix_fname, A_Padded_Map, Aval_max_ptr, &imgparams, &sinoparams, svpar);
     }
@@ -123,7 +123,7 @@ void MBIRReconstruct(
         sinoerr = proj_init;
     else
     {
-        if(verboseLevel)
+        if(verboseLevel>1)
             fprintf(stdout,"Projecting image...\n");
         sinoerr = (float *) mget_spc((size_t)Nz*Nvc,sizeof(float));
         SVproject(sinoerr,image,A_Padded_Map,Aval_max_ptr,imgparams,sinoparams,svpar,0);
@@ -1119,7 +1119,7 @@ void forwardProject(
     Aval_max_ptr = (float *) mget_spc(imgparams.Nx*imgparams.Ny,sizeof(float));
     if(Amatrix_fname != NULL)
     {
-        if(verboseLevel)
+        if(verboseLevel>1)
             fprintf(stdout,"Reading system matrix...\n");
         readAmatrix(Amatrix_fname, A_Padded_Map, Aval_max_ptr, &imgparams, &sinoparams, svpar);
     }
@@ -1133,7 +1133,7 @@ void forwardProject(
     }
 
     /* Project */
-    if(verboseLevel)
+    if(verboseLevel>1)
     {
         if(backproject_flag)
             fprintf(stdout,"Back-projecting sinogram...\n");
