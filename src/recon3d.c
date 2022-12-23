@@ -286,8 +286,10 @@ void MBIRReconstruct(
     }
 
     // Limit threads for smaller problem size
+    // Want on average 1 thread per SV row/col within each slice block
+    // The /2 is on account of the phased checkerboard grouping
     int max_threads = omp_get_max_threads();
-    i = ((Nx < Ny) ? Nx : Ny) / (2*SVLength+1) * SV_per_Z;
+    i = ((Nx < Ny) ? Nx : Ny) / (2*SVLength-svpar.overlap) / 2 * SV_per_Z;
     max_threads = ( i < max_threads) ? i : max_threads;
 
     #pragma omp parallel num_threads(max_threads)
